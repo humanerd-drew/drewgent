@@ -199,19 +199,90 @@ Session End → Extract patterns → Classify insight type
 
 #### Brain Signal System
 
-`signal_processor.py` tracks integration workflows and emits awareness signals:
+`signal_processor.py` tracks integration workflows and emits awareness signals. This is Drewgent's **event-driven P0-brainstem enforcement** — not scattered if-checks, but centralized signal handlers.
+
+**Event Chain:**
+
+```
+turn.start
+  └→ _on_turn_start()
+        └→ pattern detect: rm -rf / chmod 777 / sudo
+        └→ emit("dangerous.op") → _on_dangerous_op()
+                                      └→ _dangerous_ops_history += [op]
+                                      └→ awareness.integrity (if severity=high)
+
+turn.end
+  └→ _on_turn_end()
+        └→ check 禁blind_write: write_file without prior read
+        └→ check 禁secrets_in_code: sk-/ghp-/password= in tool args
+        └→ check 禁console_log: console.log/print() in code
+        └→ emit("rule.violation") → _on_rule_violation()
+                                      └→ _violation_history += [{rule, tool, severity}]
+                                      └→ awareness.integrity
+
+agent.complete
+  └→ _on_agent_complete()
+        ├→ for wf in _active_workflows:
+        │    if not wf.completed:
+        │        emit("workflow.incomplete") → _on_workflow_incomplete()
+        │                                            └→ _workflow_history += archived
+        └→ emit("session.violations") (by-rule summary)
+
+integration.complete → _on_integration_complete() → awareness.integrity
+```
+
+**Tracking State:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `_violation_history` | `List[dict]` | All rule.violation events across session |
+| `_dangerous_ops_history` | `List[dict]` | All dangerous.op events across session |
+| `_workflow_history` | `List[dict]` | Archived incomplete workflows |
+| `_active_workflows` | `Dict[corr_id, IntegrationWorkflow]` | Active tool/skill integrations |
+
+**IntegrationWorkflow States:**
+
+```
+detected → started → step_1 → step_2 → completed
+                      ↓
+                   (P4 provides next hint)
+```
+
+**8 P0-Brainstem Rules (Enforced by signal_processor):**
+
+| Rule | Token | Enforcement |
+|------|-------|-------------|
+| `禁rm_rf_root` | `rm -rf` on root paths | Pre-validation before execution |
+| `禁blind_write` | write_file without prior read | `turn.end` → `rule.violation` |
+| `禁task_qa_gate` | Complete without QA | Contract-first QA gate required |
+| `禁secrets_in_code` | API keys hardcoded in code | `turn.end` → `rule.violation` |
+| `禁auto_validate` | Dangerous ops without validation | Pre-validation hook required |
+| `禁console_log` | console.log/print() in production | `turn.end` → `rule.violation` |
+| `禁subagent_verify` | Subagent output unverified | Verification checklist required |
+| `禁filesystem_truth` | Trust tool output over file read | Must read file directly |
+
+**ArchitectureModel:**
 
 ```python
-# ArchitectureModel tracks tool/skill integration progress
-TOOL_INTEGRATION_FILES = [
-    "tools/<name>_tool.py",     # handler + registry.register()
-    "model_tools.py",           # _discover_tools() import
-    "toolsets.py",             # toolset assignment
-]
+class ArchitectureModel:
+    TOOL_INTEGRATION_FILES = ["tools/", "model_tools.py", "toolsets.py"]
+    SKILL_INTEGRATION_FILES = ["skills/", "agent/skill_commands.py"]
 
-# Signal chain: tool_start → agent_modifying → tool_complete
-# Hint injection: active workflows inject guidance into user prompt
+    detect_tool_integration_progress(source_file)
+        → is_complete + missing_files + next_hint
+
+    detect_skill_integration_progress(source_file)
+        → is_complete + missing_files + next_hint
 ```
+
+**Components:**
+
+| Component | File | Role |
+|-----------|------|------|
+| `SignalEmitter` | `agent/brain_signals.py` | API for emitting events |
+| `BrainEvent + EventBus` | `agent/event_bus.py` | Singleton pub/sub event bus |
+| `SignalProcessor` | `agent/signal_processor.py` | All P0 handlers + IntegrationWorkflow tracking |
+| `AwarenessReporter` | `agent/awareness_reporter.py` | Hint generation + delivery |
 
 ---
 
