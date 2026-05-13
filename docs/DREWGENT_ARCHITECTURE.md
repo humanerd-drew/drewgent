@@ -214,7 +214,6 @@ class AutoLearner:
 > The current brain system uses the Obsidian wiki at `~/.drewgent/memories/` with
 > `AutoLearner` as the core engine.
 
-<<<<<<< HEAD
 ### Brain Filesystem — NeuronFS (.neuron files)
 
 The brain filesystem at `~/.drewgent/brain/Drewgent-brain/` organizes governance rules
