@@ -926,6 +926,12 @@ class AIAgent:
         self.enabled_toolsets = enabled_toolsets
         self.disabled_toolsets = disabled_toolsets
 
+        # Tool manifest mode: send lightweight manifest first, expand schemas on demand
+        self._tool_manifest_mode = False
+        self._active_tool_schemas: list = []  # currently active full schemas
+        self._manifest_mode_initialized = False
+        self._manifest_tool_scores: dict = {}  # tool_name -> call count for adaptive sizing
+
         # Model response configuration
         self.max_tokens = max_tokens  # None = use model default
         self.reasoning_config = (
@@ -3708,6 +3714,50 @@ class AIAgent:
 
         return None
 
+    def _ensure_tool_schemas_expanded(self, tool_calls) -> None:
+        """Expand tool schemas for tools not yet in _active_tool_schemas.
+
+        In manifest mode, we send only the lightweight manifest (name + one-line).
+        When the model calls a tool, we load its full schema into _active_tool_schemas
+        so the schema is available on subsequent turns.
+        """
+        if not self._tool_manifest_mode:
+            return
+        if not tool_calls:
+            return
+
+        from model_tools import get_full_schema_for_tools
+
+        # Find tools that need schema loading
+        to_load = []
+        for tc in tool_calls:
+            name = tc.function.name if hasattr(tc.function, "name") else str(tc.get("function", {}).get("name", ""))
+            if name and name not in self._active_tool_schemas_names:
+                to_load.append(name)
+
+        if not to_load:
+            return
+
+        # Load full schemas for the new tools
+        new_schemas = get_full_schema_for_tools(to_load)
+        self._active_tool_schemas.extend(new_schemas)
+
+        # Update valid_tool_names to include newly loaded tools
+        for schema in new_schemas:
+            fname = schema.get("function", {}).get("name", "")
+            if fname:
+                self.valid_tool_names.add(fname)
+
+        if new_schemas:
+            newly_needed = [n for n in to_load if n not in _CORE_MANIFEST_TOOLS]
+            if newly_needed and not self.quiet_mode:
+                print(f"  📋 Expanded tool schemas: {', '.join(newly_needed[:5])}")
+
+    @property
+    def _active_tool_schemas_names(self) -> set:
+        """Return set of tool names currently in active schemas."""
+        return {t.get("function", {}).get("name", "") for t in self._active_tool_schemas}
+
     def _invalidate_system_prompt(self):
         """
         Invalidate the cached system prompt, forcing a rebuild on the next turn.
@@ -5749,6 +5799,8 @@ class AIAgent:
         else:
             _stream_stale_timeout = _stream_stale_timeout_base
 
+        _touch_interval = 30.0  # seconds between activity touches during streaming
+        _last_touch = time.time()
         t = threading.Thread(target=_call, daemon=True)
         t.start()
         while t.is_alive():
@@ -5793,6 +5845,16 @@ class AIAgent:
                 # Reset the timer so we don't kill repeatedly while
                 # the inner thread processes the closure.
                 last_chunk_time["t"] = time.time()
+
+            # Periodically touch activity so the cron inactivity monitor
+            # knows the agent is still alive during streaming.  Tokens are
+            # arriving (last_chunk_time is fresh) but the main thread is here
+            # in the polling loop, not in the stream consumer — so the
+            # inactivity monitor would fire on the cron side unless we update
+            # _last_activity_ts from this thread too.
+            if time.time() - _last_touch >= _touch_interval:
+                _last_touch = time.time()
+                self._touch_activity(f"receiving stream (stale={int(_stale_elapsed)}s)")
 
             if self._interrupt_requested:
                 try:
@@ -6335,12 +6397,40 @@ class AIAgent:
         """Build the keyword arguments dict for the active API mode."""
         if self.api_mode == "anthropic_messages":
             from agent.anthropic_adapter import build_anthropic_kwargs
+            from model_tools import get_tool_manifest, _CORE_MANIFEST_TOOLS
 
             anthropic_messages = self._prepare_anthropic_messages_for_api(api_messages)
-            # Pass context_length so the adapter can clamp max_tokens if the
-            # user configured a smaller context window than the model's output limit.
             ctx_len = getattr(self, "context_compressor", None)
             ctx_len = ctx_len.context_length if ctx_len else None
+
+            # Tool manifest mode: send lightweight manifest first, expand on demand
+            if self._tool_manifest_mode:
+                if self._active_tool_schemas:
+                    # Expanded schemas accumulated from prior tool calls
+                    return build_anthropic_kwargs(
+                        model=self.model,
+                        messages=anthropic_messages,
+                        tools=self._active_tool_schemas,
+                        max_tokens=self.max_tokens,
+                        reasoning_config=self.reasoning_config,
+                        is_oauth=self._is_anthropic_oauth,
+                        preserve_dots=self._anthropic_preserve_dots(),
+                        context_length=ctx_len,
+                    )
+                # First turn: send only the manifest (name + one-line descriptions)
+                manifest_tools = get_tool_manifest()
+                return build_anthropic_kwargs(
+                    model=self.model,
+                    messages=anthropic_messages,
+                    tools=manifest_tools,
+                    max_tokens=self.max_tokens,
+                    reasoning_config=self.reasoning_config,
+                    is_oauth=self._is_anthropic_oauth,
+                    preserve_dots=self._anthropic_preserve_dots(),
+                    context_length=ctx_len,
+                )
+
+            # Normal mode: send all available tools
             return build_anthropic_kwargs(
                 model=self.model,
                 messages=anthropic_messages,
@@ -10934,6 +11024,12 @@ class AIAgent:
                     # Reset retry counter on successful JSON validation
                     self._invalid_json_retries = 0
 
+                    # ── Manifest mode: expand tool schemas on demand ────────
+                    # After successful tool call validation, check if any tool
+                    # needs its schema loaded (for tools not in the manifest).
+                    # This only runs once per tool — results are cached.
+                    self._ensure_tool_schemas_expanded(assistant_message.tool_calls)
+
                     # ── Post-call guardrails ──────────────────────────
                     assistant_message.tool_calls = self._cap_delegate_task_calls(
                         assistant_message.tool_calls
@@ -11229,8 +11325,8 @@ class AIAgent:
                 except (OSError, ValueError):
                     logger.error(error_msg)
 
-                if self.verbose_logging:
-                    logging.exception("Detailed error information:")
+                # Always log full traceback for debugging 'json' scope error
+                logging.exception("Full traceback for API call error:")
 
                 # If an assistant message with tool_calls was already appended,
                 # the API expects a role="tool" result for every tool_call_id.

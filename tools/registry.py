@@ -27,10 +27,11 @@ class ToolEntry:
     __slots__ = (
         "name", "toolset", "schema", "handler", "check_fn",
         "requires_env", "is_async", "description", "emoji",
+        "deterministic",
     )
 
     def __init__(self, name, toolset, schema, handler, check_fn,
-                 requires_env, is_async, description, emoji):
+                 requires_env, is_async, description, emoji, deterministic):
         self.name = name
         self.toolset = toolset
         self.schema = schema
@@ -40,6 +41,10 @@ class ToolEntry:
         self.is_async = is_async
         self.description = description
         self.emoji = emoji
+        # Latent vs Deterministic (Garry Tan Architecture):
+        #   deterministic=True: same input → same output (terminal, read_file, patch)
+        #   deterministic=False: model judgment/synthesis (delegate_task, brainstorm)
+        self.deterministic = deterministic
 
 
 class ToolRegistry:
@@ -64,6 +69,7 @@ class ToolRegistry:
         is_async: bool = False,
         description: str = "",
         emoji: str = "",
+        deterministic: bool = True,
     ):
         """Register a tool.  Called at module-import time by each tool file."""
         existing = self._tools.get(name)
@@ -83,6 +89,7 @@ class ToolRegistry:
             is_async=is_async,
             description=description or schema.get("description", ""),
             emoji=emoji,
+            deterministic=deterministic,
         )
         if check_fn and toolset not in self._toolset_checks:
             self._toolset_checks[toolset] = check_fn
@@ -263,12 +270,31 @@ class ToolRegistry:
             if self.is_toolset_available(ts):
                 available.append(ts)
             else:
-                unavailable.append({
-                    "name": ts,
-                    "env_vars": entry.requires_env,
-                    "tools": [e.name for e in self._tools.values() if e.toolset == ts],
-                })
+                unavailable.append(
+                    {
+                        "name": ts,
+                        "env_vars": entry.requires_env,
+                        "tools": [e.name for e in self._tools.values() if e.toolset == ts],
+                    }
+                )
         return available, unavailable
+
+    # ------------------------------------------------------------------
+    # Latent vs Deterministic (Garry Tan Architecture)
+    # ------------------------------------------------------------------
+
+    def get_by_deterministic(self, deterministic: bool) -> List["ToolEntry"]:
+        """Return all tools matching the given deterministic flag.
+
+        deterministic=True  → same input → same output (terminal, read_file, etc.)
+        deterministic=False → model judgment / synthesis (delegate_task, etc.)
+        """
+        return [e for e in self._tools.values() if e.deterministic == deterministic]
+
+    def is_deterministic(self, name: str) -> bool:
+        """Return True if the tool is deterministic, False if latent."""
+        entry = self._tools.get(name)
+        return entry.deterministic if entry else True  # default True for unknown
 
 
 # Module-level singleton

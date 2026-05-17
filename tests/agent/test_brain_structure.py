@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 from agent.builtin_memory_provider import BuiltinMemoryProvider
 from agent.auto_learn import AutoLearner
+from scripts.obsidian_graph_integrity import check_graph
 
 
 # ==============================================================================
@@ -261,6 +262,49 @@ class TestSingleSourceOfTruth:
         assert len(md_files) > 0, (
             "AutoLearner should create at least one .md file in entities/"
         )
+
+
+# ==============================================================================
+# Test 6: Obsidian graph integrity for generated memory notes
+# ==============================================================================
+
+class TestObsidianGraphIntegrity:
+    """Generated memory pages must not become Obsidian graph orphans."""
+
+    def test_auto_learner_creates_parent_and_backlink(self, tmp_path):
+        wiki_path = tmp_path / "memories"
+        learner = AutoLearner()
+        learner.enable(wiki_path)
+
+        learner.learn_from_turn(
+            "I prefer concise answers",
+            "Understood.",
+        )
+
+        preferences = wiki_path / "entities" / "preferences.md"
+        assert preferences.exists()
+
+        content = preferences.read_text(encoding="utf-8")
+        assert "[[index]]" in content
+        assert "[[SCHEMA]]" in content
+        assert "[[entities/index]]" in content
+
+        root_index = (wiki_path / "index.md").read_text(encoding="utf-8")
+        entity_index = (wiki_path / "entities" / "index.md").read_text(encoding="utf-8")
+        assert "[[entities/preferences]]" in root_index
+        assert "[[entities/preferences]]" in entity_index
+
+    def test_generated_wiki_passes_graph_checker(self, tmp_path):
+        vault = tmp_path / "vault"
+        wiki_path = vault / "memories"
+        (vault / ".obsidian").mkdir(parents=True)
+
+        learner = AutoLearner()
+        learner.enable(wiki_path)
+        learner.learn_from_turn("I prefer concise answers", "Understood.")
+
+        result = check_graph(vault)
+        assert result["broken_links"] == []
 
 
 if __name__ == "__main__":

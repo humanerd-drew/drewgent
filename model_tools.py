@@ -640,3 +640,175 @@ def check_toolset_requirements() -> Dict[str, bool]:
 def check_tool_availability(quiet: bool = False) -> Tuple[List[str], List[dict]]:
     """Return (available_toolsets, unavailable_info)."""
     return registry.check_tool_availability(quiet=quiet)
+
+
+# =============================================================================
+# Tool Manifest Mode — Lazy-loading tool schemas via embedding-based filtering
+# =============================================================================
+
+# Core 10 tools for manifest (most frequently used, mcp_ prefix NOT needed)
+# Tool name prefixing (mcp_) only happens for OAuth Claude Code, not for Drewgent
+_CORE_MANIFEST_TOOLS = [
+    "terminal",
+    "search_files",
+    "read_file",
+    "patch",
+    "write_file",
+    "web_search",
+    "browser_navigate",
+    "todo",
+    "session_search",
+    "brain_query",
+]
+
+# In-memory cache: tool_name -> full OpenAI-format schema
+_tool_schema_cache: dict = {}
+
+# Pre-computed embeddings: tool_name -> embedding vector
+_tool_embeddings: dict = {}
+
+# Ollama endpoint for embeddings
+_OLLAMA_EMBED_URL = "http://localhost:11434/api/embeddings"
+_OLLAMA_EMBED_MODEL = "mxbai-embed-large"
+
+
+def _get_core_manifest() -> List[Dict[str, str]]:
+    """Return name + one-line description for the core 10 manifest tools."""
+    manifest = []
+    for name in _CORE_MANIFEST_TOOLS:
+        schema = registry.get_schema(name)
+        if not schema:
+            continue
+        fn = schema.get("function", {})
+        desc = fn.get("description", "") or ""
+        # One-liner: first sentence or first 120 chars
+        first_line = desc.split("\n")[0].strip()
+        if len(first_line) > 120:
+            first_line = first_line[:117] + "..."
+        manifest.append({"name": name, "description": first_line})
+    return manifest
+
+
+def get_tool_manifest() -> List[Dict[str, str]]:
+    """Return the lightweight tool manifest: name + one-line for core 10 tools."""
+    return _get_core_manifest()
+
+
+def get_full_schema_for_tools(tool_names: List[str]) -> List[Dict]:
+    """Return full OpenAI-format schemas for the specified tool names.
+
+    Results are cached in _tool_schema_cache so repeated calls are O(1).
+    """
+    result = []
+    for name in tool_names:
+        if name in _tool_schema_cache:
+            result.append(_tool_schema_cache[name])
+            continue
+        schema = registry.get_schema(name)
+        if not schema:
+            continue
+        fn = schema.get("function", {})
+        cached = {"type": "function", "function": {**fn, "name": name}}
+        _tool_schema_cache[name] = cached
+        result.append(cached)
+    return result
+
+
+def embed_tools() -> None:
+    """Pre-compute embeddings for all available tools using Ollama mxbai-embed-large.
+
+    Run once at startup or on first manifest request.
+    """
+    global _tool_embeddings
+    if _tool_embeddings:
+        return  # already computed
+
+    try:
+        import requests
+        all_names = registry.get_all_tool_names()
+        for name in all_names:
+            schema = registry.get_schema(name)
+            if not schema:
+                continue
+            fn = schema.get("function", {})
+            text = f"{name}: {fn.get('description', '')}"
+            resp = requests.post(
+                _OLLAMA_EMBED_URL,
+                json={"model": _OLLAMA_EMBED_MODEL, "prompt": text},
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                embedding = resp.json().get("embedding", [])
+                if embedding:
+                    _tool_embeddings[name] = embedding
+    except Exception:
+        pass  # embedding is optional — if it fails, find_relevant_tools returns empty
+
+
+def _cosine_similarity(a: list, b: list) -> float:
+    """Compute cosine similarity between two vectors."""
+    import math
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def find_relevant_tools(query: str, top_k: int = 5) -> List[str]:
+    """Find tools relevant to the user message using embedding similarity.
+
+    Uses Ollama mxbai-embed-large. Returns top-k tool names sorted by relevance.
+    Falls back to keyword matching if embeddings unavailable.
+    """
+    if not _tool_embeddings:
+        embed_tools()
+
+    if not _tool_embeddings:
+        # Fallback: keyword matching
+        keywords = {
+            "terminal": ["terminal", "command", "shell", "bash", "exec", "run"],
+            "file": ["file", "read", "write", "edit", "path", "directory"],
+            "search": ["search", "find", "grep", "look"],
+            "browser": ["browser", "web", "navigate", "click", "scroll"],
+            "patch": ["patch", "diff", "change"],
+            "todo": ["todo", "task", "plan"],
+            "brain": ["brain", "memory", "knowledge"],
+            "session": ["session", "history", "past"],
+        }
+        query_lower = query.lower()
+        scored = {}
+        for tool_name, kw_list in keywords.items():
+            for kw in kw_list:
+                if kw in query_lower:
+                    scored[tool_name] = scored.get(tool_name, 0) + 1
+        return sorted(scored, key=scored.get, reverse=True)[:top_k]
+
+    try:
+        import requests
+        resp = requests.post(
+            _OLLAMA_EMBED_URL,
+            json={"model": _OLLAMA_EMBED_MODEL, "prompt": query},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return []
+        query_emb = resp.json().get("embedding", [])
+        if not query_emb:
+            return []
+    except Exception:
+        return []
+
+    similarities = []
+    for name, emb in _tool_embeddings.items():
+        sim = _cosine_similarity(query_emb, emb)
+        similarities.append((sim, name))
+    similarities.sort(reverse=True)
+    return [name for _, name in similarities[:top_k]]
+
+
+def get_all_tools_needing_schema() -> List[str]:
+    """Return all tool names that don't yet have a cached full schema."""
+    all_names = registry.get_all_tool_names()
+    return [n for n in all_names if n not in _tool_schema_cache]

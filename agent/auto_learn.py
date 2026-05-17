@@ -27,6 +27,12 @@ from pathlib import Path
 from typing import Set, List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass, field
 
+from agent.obsidian_graph import (
+    ensure_backlink,
+    links_frontmatter_lines,
+    wiki_link,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +65,7 @@ INSIGHT_CATEGORIES = {
     "os": ("entities", "environment"),
     "tool": ("entities", "environment"),
     "project": ("entities", "environment"),
+    "concept": ("concepts", "recurring-topics"),
 }
 
 INSIGHT_TAGS = {
@@ -74,6 +81,7 @@ INSIGHT_TAGS = {
     "os": ["environment", "os"],
     "tool": ["environment", "tool"],
     "project": ["environment", "project"],
+    "concept": ["concept", "insight"],
 }
 
 # =============================================================================
@@ -554,22 +562,39 @@ class ObsidianWriter:
         if not index_path.exists():
             self._write_index(index_path)
 
+        for folder in ("entities", "concepts", "insights"):
+            category_index = self._wiki_path / folder / "index.md"
+            if not category_index.exists():
+                self._write_category_index(category_index, folder)
+
+        for folder, filename in sorted(set(INSIGHT_CATEGORIES.values())):
+            page_path = self._wiki_path / folder / f"{filename}.md"
+            if not page_path.exists():
+                tags = ["auto", folder, filename]
+                page_path.write_text(
+                    self._create_new_page(filename, tags, folder),
+                    encoding="utf-8",
+                )
+                self._ensure_parent_links(page_path, folder)
+
     def _write_schema(self, path: Path) -> None:
         """Write SCHEMA.md with wiki conventions."""
         content = """---
 title: SCHEMA
 tags: [meta, wiki]
+links:
+  - "[[index]]"
 ---
 
 # Wiki Schema
 
-This is a [[Karpathy LLM Wiki]] - a persistent, compounding knowledge base.
+This is a Karpathy-style LLM Wiki - a persistent, compounding knowledge base.
 
 ## Structure
 
-- [[entities/]] - Entity pages (people, preferences, environment)
-- [[concepts/]] - Concept pages (ideas, patterns)
-- [[insights/]] - Daily insight logs
+- [[entities/index]] - Entity pages (people, preferences, environment)
+- [[concepts/index]] - Concept pages (ideas, patterns)
+- [[insights/index]] - Daily insight logs
 
 ## Conventions
 
@@ -583,9 +608,8 @@ This is a [[Karpathy LLM Wiki]] - a persistent, compounding knowledge base.
 - `#insight` - Automatically extracted insights
 
 ### Wikilinks
-- Use `[[pagename]]` for internal links
-- Use `[[pagename#section|alias]]` for section links
-- Use `[[pagename^anchor]]` for block references
+- Use wikilinks for real notes, for example entities/environment
+- Escape syntax examples when they are not real notes
 
 ### Frontmatter
 Every page should have:
@@ -613,6 +637,8 @@ updated: YYYY-MM-DD
         content = """---
 title: Index
 tags: [meta, wiki]
+links:
+  - "[[SCHEMA]]"
 ---
 
 # Wiki Index
@@ -635,6 +661,26 @@ Auto-generated table of contents for the knowledge base.
         content = content.replace("YYYY-MM", datetime.now().strftime("%Y-%m"))
         path.write_text(content, encoding="utf-8")
 
+    def _write_category_index(self, path: Path, folder: str) -> None:
+        """Write a category index so generated pages have a parent node."""
+        title = folder.replace("-", " ").title()
+        today = datetime.now().strftime("%Y-%m-%d")
+        content = f"""---
+title: {title} Index
+tags: [meta, wiki, {folder}]
+created: {today}
+updated: {today}
+links:
+  - "[[index]]"
+  - "[[SCHEMA]]"
+---
+
+# {title} Index
+
+Auto-generated category index.
+"""
+        path.write_text(content, encoding="utf-8")
+
     def write_insight(self, insight: Insight) -> bool:
         """Write an insight to the appropriate wiki page."""
         try:
@@ -645,11 +691,12 @@ Auto-generated table of contents for the knowledge base.
             if page_path.exists():
                 content = page_path.read_text(encoding="utf-8")
             else:
-                content = self._create_new_page(filename, insight.get_tags())
+                content = self._create_new_page(filename, insight.get_tags(), folder)
 
             # Add insight to page
             updated_content = self._add_insight_to_page(content, insight)
             page_path.write_text(updated_content, encoding="utf-8")
+            self._ensure_parent_links(page_path, folder)
 
             # Also append to daily log
             self._append_to_daily_log(insight)
@@ -659,17 +706,24 @@ Auto-generated table of contents for the knowledge base.
             logger.debug("ObsidianWriter: failed to write insight: %s", e)
             return False
 
-    def _create_new_page(self, filename: str, tags: List[str]) -> str:
+    def _create_new_page(self, filename: str, tags: List[str], folder: str) -> str:
         """Create a new wiki page with frontmatter."""
         title = filename.replace("-", " ").title()
         today = datetime.now().strftime("%Y-%m-%d")
         tag_str = ", ".join(f'"{t}"' for t in tags)
+        links = [
+            wiki_link("index"),
+            wiki_link("SCHEMA"),
+            wiki_link(f"{folder}/index"),
+        ]
+        link_lines = "\n".join(links_frontmatter_lines(links))
 
         return f"""---
 title: {title}
 tags: [{tag_str}]
 created: {today}
 updated: {today}
+{link_lines}
 ---
 
 # {title}
@@ -685,6 +739,14 @@ updated: {today}
 
 *Auto-generated by Drewgent Auto-Learning*
 """
+
+    def _ensure_parent_links(self, page_path: Path, folder: str) -> None:
+        """Make category/root indexes point back to a generated page."""
+        for parent in (
+            self._wiki_path / "index.md",
+            self._wiki_path / folder / "index.md",
+        ):
+            ensure_backlink(parent, page_path, self._wiki_path)
 
     def _add_insight_to_page(self, content: str, insight: Insight) -> str:
         """Add an insight to an existing page."""
@@ -783,6 +845,9 @@ title: Insights {month}
 tags: [insights, log]
 created: {month}-01
 updated: {today}
+links:
+  - "[[index]]"
+  - "[[insights/index]]"
 ---
 
 # Insights Log: {month}
@@ -792,11 +857,13 @@ updated: {today}
 - {tag_str} {insight.content}
 """
         log_path.write_text(content, encoding="utf-8")
+        self._ensure_parent_links(log_path, WIKI_STRUCTURE["insights_log"])
 
     def update_index(self) -> None:
         """Update index.md with current state."""
         index_path = self._wiki_path / "index.md"
         entities_path = self._wiki_path / "entities"
+        concepts_path = self._wiki_path / "concepts"
 
         # Find all entity files
         entities = []
@@ -808,10 +875,25 @@ updated: {today}
 
         entity_list = "\n".join(entities) if entities else "- (none yet)"
 
+        concepts = []
+        if concepts_path.exists():
+            for f in sorted(concepts_path.glob("*.md")):
+                if f.stem == "index":
+                    continue
+                name = f.stem.replace("-", " ").title()
+                link = f"[[concepts/{f.stem}]]"
+                concepts.append(f"- {link} - {name}")
+        concept_list = "\n".join(concepts) if concepts else "- (none yet)"
+
         content = f"""---
 title: Index
 tags: [meta, wiki]
 updated: {datetime.now().strftime("%Y-%m-%d")}
+links:
+  - "[[SCHEMA]]"
+  - "[[entities/index]]"
+  - "[[concepts/index]]"
+  - "[[insights/index]]"
 ---
 
 # Wiki Index
@@ -822,7 +904,7 @@ Auto-generated table of contents for the knowledge base.
 {entity_list}
 
 ## Concepts
-- (Add concept pages here as they emerge)
+{concept_list}
 
 ## Daily Logs
 - [[insights/{datetime.now().strftime("%Y-%m")}]] - Current month

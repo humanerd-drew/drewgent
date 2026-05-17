@@ -27,6 +27,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
 
+from agent.obsidian_graph import wiki_link
 from drewgent_constants import get_drewgent_home
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,12 @@ class ProjectContextManager:
 
         # Create index.md with header
         self._get_index_path(project_name).write_text(
+            "---\n"
+            f"title: {project_name} Brain\n"
+            "tags: [project, brain]\n"
+            "links:\n"
+            "  - \"[[P5-ego/SELF_MODEL]]\"\n"
+            "---\n\n"
             f"# {project_name} Brain\n\n"
             f"This project is managed by Drewgent.\n"
             f"Linked Obsidian notes:\n"
@@ -266,8 +273,9 @@ class ProjectContextManager:
                line.strip().lower().endswith(f"[[{note_lower}]]"):
                 return
 
-        # Add link to index - use simple format [[note-name]]
-        link_line = f"- [[{note_name}]]\n"
+        # Add link to index. Preserve explicit vault-relative note paths when
+        # callers provide them; Obsidian accepts both bare names and paths.
+        link_line = f"- {wiki_link(note_name)}\n"
 
         # Append to index
         index_content += link_line

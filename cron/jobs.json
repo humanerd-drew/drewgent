@@ -1,0 +1,73 @@
+{
+  "jobs": [
+    {
+      "id": "96ad18409db7",
+      "name": "SEO Article Harvester",
+      "prompt": "SEO Article Harvester \uc2e4\ud589\n\n1. \ud658\uacbd\ubcc0\uc218 \ub85c\ub4dc:\n   source ~/.drewgent/.env\n\n2. \uc2a4\ud06c\ub9bd\ud2b8 \uc2e4\ud589:\n   python3 ~/.drewgent/skills/seo-article-harvester/scripts/harvester.py\n\n3. \uc218\uc9d1 \uc644\ub8cc \ud6c4 heritage labeling \uc2e4\ud589:\n   python3 ~/.drewgent/skills/seo-article-harvester/scripts/label_heritage.py --limit 0\n\n4. \uacb0\uacfc \uc694\uc57d:\n   - \uc0c8 \uae30\uc0ac \uc218\n   - heritage labeling \uc644\ub8cc \uc218\n   - \uc5f0\ub3c4\ubcc4 \ubd84\ub958 \uc218",
+      "skills": [
+        "seo-article-harvester"
+      ],
+      "skill": "seo-article-harvester",
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */6 * * *",
+        "display": "0 */6 * * *"
+      },
+      "schedule_display": "0 */6 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 22
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-14T12:59:08.850448+09:00",
+      "next_run_at": "2026-05-18T06:00:00+09:00",
+      "last_run_at": "2026-05-18T01:48:21.168439+09:00",
+      "last_status": "ok",
+      "last_error": null,
+      "deliver": "discord:1504328297419640872",
+      "origin": null
+    },
+    {
+      "id": "94b29f6f91bb",
+      "name": "Trend Harvester",
+      "prompt": "Run the Trend Harvester pipeline.\n\nExecute in order:\n1. python3 ~/.drewgent/scripts/trend_harvester.py\n2. python3 ~/.drewgent/scripts/harvester_memory_sync.py\n\nPipeline:\n- Collect: GitHub trending (python/js/ts/go/rust/java/shell \u2014 7 languages) \u2192 collected/\n- Score: 5-axis philosophy filter (practical/integratable/drewgent_first/no_model_dependency/safety) \u2192 analyzed/keep|review|graveyard\n- Sync: reviewed trends \u2192 P2-hippocampus/memories/insights/pending/\n\nOutput summary format for Discord:\n## Trend Harvester [date]\nCollected: N repos | Keep: N | Review: N | Graveyard: N\nTop trends:\n- [name] ([lang]) stars=N | score=N.N\n\nSchedule: every 6 hours (GitHub rate limit friendly).",
+      "skills": [
+        "trend-harvester"
+      ],
+      "skill": "trend-harvester",
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */6 * * *",
+        "display": "0 */6 * * *"
+      },
+      "schedule_display": "0 */6 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 15
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-14T22:28:59.370127+09:00",
+      "next_run_at": "2026-05-18T06:00:00+09:00",
+      "last_run_at": "2026-05-18T01:59:21.148432+09:00",
+      "last_status": "ok",
+      "last_error": null,
+      "deliver": "discord:1491953631119937728",
+      "origin": null
+    }
+  ],
+  "updated_at": "2026-05-18T01:59:21.149363+09:00"
+}

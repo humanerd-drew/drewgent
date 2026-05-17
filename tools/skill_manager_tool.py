@@ -41,6 +41,7 @@ import tempfile
 from pathlib import Path
 from drewgent_constants import get_drewgent_home
 from typing import Dict, Any, Optional
+from agent.obsidian_graph import ensure_related_section, wiki_link
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +278,49 @@ def _atomic_write_text(file_path: Path, content: str, encoding: str = "utf-8") -
         raise
 
 
+def _skill_parent_links(skill_dir: Path) -> list[str]:
+    """Return graph parent links for a skill directory."""
+    links = [wiki_link("P3-sensors/skills/SKILL-INDEX")]
+    try:
+        rel = skill_dir.relative_to(SKILLS_DIR)
+    except ValueError:
+        return links
+
+    parts = rel.parts
+    if len(parts) > 1:
+        category_desc = SKILLS_DIR / parts[0] / "DESCRIPTION.md"
+        if category_desc.exists():
+            links.append(wiki_link(category_desc, DREW_HOME))
+    elif len(parts) == 1:
+        category_desc = skill_dir.parent / "DESCRIPTION.md"
+        if category_desc.exists():
+            links.append(wiki_link(category_desc, DREW_HOME))
+    return links
+
+
+def _ensure_skill_graph_links(content: str, skill_dir: Path) -> str:
+    """Ensure SKILL.md content links to the skill index/category parent."""
+    return ensure_related_section(content, _skill_parent_links(skill_dir))
+
+
+def _ensure_supporting_md_graph_links(
+    content: str,
+    skill_dir: Path,
+    target: Path,
+) -> tuple[str, str]:
+    """Ensure a supporting markdown file and SKILL.md link to each other."""
+    skill_md = skill_dir / "SKILL.md"
+    child_link = wiki_link(target, DREW_HOME)
+    parent_link = wiki_link(skill_md, DREW_HOME)
+    updated_child = ensure_related_section(content, [parent_link])
+    if skill_md.exists():
+        skill_content = skill_md.read_text(encoding="utf-8")
+        updated_skill = ensure_related_section(skill_content, [child_link])
+    else:
+        updated_skill = ""
+    return updated_child, updated_skill
+
+
 # =============================================================================
 # Core actions
 # =============================================================================
@@ -312,6 +356,8 @@ def _create_skill(name: str, content: str, category: str = None) -> Dict[str, An
     # Create the skill directory
     skill_dir = _resolve_skill_dir(name, category)
     skill_dir.mkdir(parents=True, exist_ok=True)
+
+    content = _ensure_skill_graph_links(content, skill_dir)
 
     # Write SKILL.md atomically
     skill_md = skill_dir / "SKILL.md"
@@ -355,6 +401,7 @@ def _edit_skill(name: str, content: str) -> Dict[str, Any]:
     skill_md = existing["path"] / "SKILL.md"
     # Back up original content for rollback
     original_content = skill_md.read_text(encoding="utf-8") if skill_md.exists() else None
+    content = _ensure_skill_graph_links(content, existing["path"])
     _atomic_write_text(skill_md, content)
 
     # Security scan — roll back on block
@@ -441,6 +488,7 @@ def _patch_skill(
                 "success": False,
                 "error": f"Patch would break SKILL.md structure: {err}",
             }
+        new_content = _ensure_skill_graph_links(new_content, skill_dir)
 
     original_content = content  # for rollback
     _atomic_write_text(target, new_content)
@@ -509,6 +557,19 @@ def _write_file(name: str, file_path: str, file_content: str) -> Dict[str, Any]:
     target.parent.mkdir(parents=True, exist_ok=True)
     # Back up for rollback
     original_content = target.read_text(encoding="utf-8") if target.exists() else None
+    skill_md_original = None
+    skill_md_updated = None
+    if target.suffix.lower() == ".md":
+        file_content, skill_md_updated = _ensure_supporting_md_graph_links(
+            file_content,
+            existing["path"],
+            target,
+        )
+        skill_md = existing["path"] / "SKILL.md"
+        if skill_md.exists() and skill_md_updated:
+            skill_md_original = skill_md.read_text(encoding="utf-8")
+            _atomic_write_text(skill_md, skill_md_updated)
+
     _atomic_write_text(target, file_content)
 
     # Security scan — roll back on block
@@ -518,6 +579,8 @@ def _write_file(name: str, file_path: str, file_content: str) -> Dict[str, Any]:
             _atomic_write_text(target, original_content)
         else:
             target.unlink(missing_ok=True)
+        if skill_md_original is not None:
+            _atomic_write_text(existing["path"] / "SKILL.md", skill_md_original)
         return {"success": False, "error": scan_error}
 
     return {

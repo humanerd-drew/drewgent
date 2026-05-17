@@ -17,6 +17,8 @@ from typing import List, Dict, Any
 
 import logging
 
+from agent.obsidian_graph import ensure_backlink, links_frontmatter_lines, wiki_link
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,6 +78,10 @@ def create_project(
     portfolio_proj_dir.mkdir(parents=True, exist_ok=True)
 
     project_note = portfolio_proj_dir / f"{project_id}.md"
+    parent_links = [
+        wiki_link("P5-ego/SELF_MODEL"),
+        wiki_link("portfolio/index"),
+    ]
 
     frontmatter = [
         "---",
@@ -86,6 +92,7 @@ def create_project(
         f"tags: [{', '.join(tags)}]",
         f"started: {date_str}",
     ]
+    frontmatter.extend(links_frontmatter_lines(parent_links))
     if deadline:
         frontmatter.append(f"deadline: {deadline}")
     frontmatter.extend([
@@ -109,6 +116,7 @@ def create_project(
     ])
 
     project_note.write_text("\n".join(frontmatter), encoding="utf-8")
+    ensure_backlink(_portfolio_root() / "index.md", project_note, _portfolio_root().parent)
     logger.info(f"Created portfolio project: {project_note}")
 
     # Local workspace (artifacts, episodes, sessions, src)
