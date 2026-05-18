@@ -3320,10 +3320,17 @@ class GatewayRunner:
             _qa_gate_status = agent_result.get("qa_gate_status")
             _qa_task_id_for_blocking = agent_result.get("_qa_task_id_for_gateway", "unknown")
             if _qa_gate_status is False:
+                _qa_evidence_dir = (
+                    get_drewgent_home()
+                    / "P2-hippocampus"
+                    / "qa-evidence"
+                    / str(_qa_task_id_for_blocking)
+                )
                 response = (
                     f"⚠️ **QA Gate Failed** — delivery blocked.\n\n"
                     f"This task requires QA verification before delivery.\n"
-                    f"Run: `/brain qa {_qa_task_id_for_blocking}` to review evidence and approve."
+                    f"Review the evidence files at `{_qa_evidence_dir}` and set "
+                    f"`full-qa.json` with `all_criteria_met: true` when verified."
                 )
                 logger.warning(
                     "[HP-3] QA gate blocked delivery: session=%s chat=%s",

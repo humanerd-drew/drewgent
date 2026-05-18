@@ -1417,7 +1417,18 @@ class TestRunConversation:
 
     def _setup_agent(self, agent):
         """Common setup for run_conversation tests."""
-        agent._cached_system_prompt = "You are helpful."
+        # Clear cached system prompt so _build_system_prompt is called fresh
+        # (tests verify QA guidance is injected during fresh build)
+        agent._cached_system_prompt = None
+        # Mock session DB to return None so stored_prompt path is skipped
+        if hasattr(agent, "_session_db") and agent._session_db:
+            orig_get = agent._session_db.get_session
+
+            def _mock_get(sid):
+                return None
+
+            agent._session_db.get_session = _mock_get
+            agent.__dict__["_orig_session_db_get"] = orig_get
         agent._use_prompt_caching = False
         agent.tool_delay = 0
         agent.compression_enabled = False
@@ -1435,6 +1446,53 @@ class TestRunConversation:
             result = agent.run_conversation("hello")
         assert result["final_response"] == "Final answer"
         assert result["completed"] is True
+
+    def test_latent_task_injects_qa_guidance_and_blocks_without_full_evidence(self, agent):
+        self._setup_agent(agent)
+        resp = _mock_response(content="Implemented", finish_reason="stop")
+        agent.client.chat.completions.create.return_value = resp
+
+        with (
+            patch.object(agent, "_persist_session"),
+            patch.object(agent, "_save_trajectory"),
+            patch.object(agent, "_cleanup_task_resources"),
+        ):
+            result = agent.run_conversation("implement the feature", task_id="qa-test")
+
+        assert result["final_response"] == "Implemented"
+        assert result["qa_gate_status"] is False
+        assert result["_qa_task_id_for_gateway"] == "qa-test"
+
+        # _cached_system_prompt should now include QA guidance (built fresh)
+        assert "QA Self-Verification" in agent._cached_system_prompt, (
+            f"QA guidance not in cached system prompt: {agent._cached_system_prompt[:200]}"
+        )
+        assert "qa-test" in agent._cached_system_prompt
+
+    def test_latent_task_reads_successful_full_qa_status(self, agent):
+        self._setup_agent(agent)
+        resp = _mock_response(content="Implemented", finish_reason="stop")
+        agent.client.chat.completions.create.return_value = resp
+
+        def _emit_successful_full_qa(task_id, phase):
+            evidence_dir = Path(run_agent._qa_evidence_dir_for_task(task_id))
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            if phase == "full":
+                (evidence_dir / "full-qa.json").write_text(
+                    json.dumps({"all_criteria_met": True}),
+                    encoding="utf-8",
+                )
+
+        with (
+            patch.object(agent, "_persist_session"),
+            patch.object(agent, "_save_trajectory"),
+            patch.object(agent, "_cleanup_task_resources"),
+            patch("run_agent._emit_qa_gate_for_task", side_effect=_emit_successful_full_qa),
+        ):
+            result = agent.run_conversation("implement the feature", task_id="qa-pass")
+
+        assert result["qa_gate_status"] is True
+        assert result["_qa_task_id_for_gateway"] == "qa-pass"
 
     def test_tool_calls_then_stop(self, agent):
         self._setup_agent(agent)

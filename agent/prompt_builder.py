@@ -224,17 +224,17 @@ QA_GUIDANCE_TEMPLATE = (
     "Your task_id: {task_id}\n\n"
     "You MUST follow the contract-first QA flow — do NOT skip any phase:\n\n"
     "1. CONTRACT phase (BEFORE writing any code):\n"
-    "   Open: ~/.drewgent/P2-hippocampus/qa-evidence/{task_id}/contract.json\n"
+    "   Open: {qa_evidence_dir}/contract.json\n"
     "   Replace the placeholder with your actual acceptance criteria.\n"
     "   Format: {{\"criteria\": [\"criterion 1\", \"criterion 2\", ...]}}\n"
     "   EXAMPLE: {{\"criteria\": [\"file compiles without error\", \"unit tests pass\", \"no console.log in production code\"]}}\n\n"
     "2. MICRO phase (after each significant step):\n"
-    "   Open: ~/.drewgent/P2-hippocampus/qa-evidence/{task_id}/micro-qa.json\n"
+    "   Open: {qa_evidence_dir}/micro-qa.json\n"
     "   READ the existing file first. Then append your new step to the 'steps' array.\n"
     "   Format: {{\"task_id\": \"...\", \"steps\": [{{\"step\": \"step N\", \"verified\": true/false, \"notes\": \"what was checked\"}}]}}\n"
     "   DO NOT overwrite previous steps — accumulate them.\n\n"
     "3. FULL phase (BEFORE completing):\n"
-    "   Open: ~/.drewgent/P2-hippocampus/qa-evidence/{task_id}/full-qa.json\n"
+    "   Open: {qa_evidence_dir}/full-qa.json\n"
     "   Read contract.json criteria. For each criterion, provide evidence (file path, test output, etc.).\n"
     "   IMPORTANT: If ANY criterion is not met, set all_criteria_met to FALSE.\n"
     "   Format: {{\"all_criteria_met\": true/false, \"evidence\": [\"proof of criterion 1\", \"proof of criterion 2\"]}}\n\n"
@@ -1032,3 +1032,98 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
     if not sections:
         return ""
     return "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n" + "\n".join(sections)
+def _build_self_model_hint() -> str:
+    """Build P5-Ego self-model hint for the system prompt.
+
+    This gives the agent awareness of its own integration architecture,
+    so it knows how to add tools and skills without being told from scratch.
+    """
+    try:
+        from drewgent_cli.config import get_drewgent_home
+
+        Drew_HOME = get_drewgent_home()
+
+        # Read P5-Ego self-model
+        ego_path = Drew_HOME / "P5-ego" / "SELF_MODEL.md"
+        # Read P4-Cortex integration protocol
+        protocol_path = Drew_HOME / "P4-cortex" / "growth" / "INTEGRATION_PROTOCOL.md"
+
+        parts = []
+        if ego_path.exists():
+            content = ego_path.read_text(encoding="utf-8").strip()
+            if content:
+                # Truncate to avoid inflating system prompt too much
+                lines = content.split("\n")
+                truncated = "\n".join(lines[:60])
+                if len(lines) > 60:
+                    truncated += f"\n\n[... P5-Ego SELF_MODEL truncated: {len(lines)-60} more lines. Use file tools to read full file.]"
+                parts.append(f"# P5-Ego Self-Model (Drewgent Self-Awareness)\n\n{truncated}")
+
+        if protocol_path.exists():
+            content = protocol_path.read_text(encoding="utf-8").strip()
+            if content:
+                lines = content.split("\n")
+                truncated = "\n".join(lines[:40])
+                if len(lines) > 40:
+                    truncated += f"\n\n[... INTEGRATION_PROTOCOL truncated: {len(lines)-40} more lines. Use file tools to read.]"
+                parts.append(f"# Integration Protocol (Tool/Skill Absorption Procedure)\n\n{truncated}")
+
+        return "\n\n".join(parts) if parts else ""
+    except Exception:
+        return ""
+
+
+def _build_prefrontal_hint() -> str:
+    """Build P6-prefrontal strategic context for the system prompt.
+
+    Reads active plans and recent incidents from P6-prefrontal/
+    so the agent has strategic awareness of ongoing objectives,
+    tracked incidents, and growth priorities.
+    """
+    try:
+        from drewgent_cli.config import get_drewgent_home
+
+        Drew_HOME = get_drewgent_home()
+        p6_dir = Drew_HOME / "P6-prefrontal"
+
+        parts = []
+
+        # Active plans — most recent .md file in plans/
+        plans_dir = p6_dir / "plans"
+        if plans_dir.exists():
+            plan_files = sorted(
+                [f for f in plans_dir.iterdir() if f.suffix == ".md" and f.name != ".DS_Store"],
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            if plan_files:
+                content = plan_files[0].read_text(encoding="utf-8").strip()
+                if content:
+                    lines = content.split("\n")
+                    truncated = "\n".join(lines[:50])
+                    if len(lines) > 50:
+                        truncated += f"\n\n[... {plan_files[0].name} truncated: {len(lines)-50} more lines. Use file tools to read.]"
+                    parts.append(f"# P6-Prefrontal — Active Plan ({plan_files[0].name})\n\n{truncated}")
+
+        # Recent incidents — last 3 .md files in incidents/
+        incidents_dir = p6_dir / "incidents"
+        if incidents_dir.exists():
+            incident_files = sorted(
+                [f for f in incidents_dir.iterdir() if f.suffix == ".md" and f.name != ".DS_Store"],
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )[:3]
+            if incident_files:
+                incident_parts = []
+                for f in incident_files:
+                    content = f.read_text(encoding="utf-8").strip()
+                    lines = content.split("\n")
+                    truncated = "\n".join(lines[:15])
+                    if len(lines) > 15:
+                        truncated += f"\n[... {len(lines)-15} more lines]"
+                    incident_parts.append(f"## {f.stem}\n{truncated}")
+                parts.append(f"# P6-Prefrontal — Recent Incidents\n\n" + "\n\n".join(incident_parts))
+
+        return "\n\n".join(parts) if parts else ""
+    except Exception:
+        return ""

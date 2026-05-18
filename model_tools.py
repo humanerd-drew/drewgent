@@ -138,8 +138,8 @@ def _discover_tools():
     """
     # Add orchestrator path for orchestrate_tool
     import sys
-    import pathlib
-    _drew_home = pathlib.Path(os.environ.get("DREW_HOME", pathlib.Path.home() / ".drewgent"))
+    from drewgent_constants import get_drewgent_home
+    _drew_home = get_drewgent_home()
     _orchestrator_path = _drew_home / "source" / "_agent" / "orchestrator"
     if _orchestrator_path.exists() and str(_orchestrator_path) not in sys.path:
         sys.path.insert(0, str(_orchestrator_path))

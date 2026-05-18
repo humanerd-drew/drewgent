@@ -87,7 +87,6 @@ from agent.prompt_builder import (
     MEMORY_GUIDANCE,
     SESSION_SEARCH_GUIDANCE,
     SKILLS_GUIDANCE,
-    QA_GUIDANCE_TEMPLATE,
     build_nous_subscription_prompt,
 )
 from agent.model_metadata import (
@@ -137,337 +136,69 @@ from agent.trajectory import (
     save_trajectory as _save_trajectory_to_file,
 )
 from utils import atomic_json_write, env_var_enabled
+from agent.prompt_builder import (
+    _build_self_model_hint,
+    _build_prefrontal_hint,
+)
+from agent.budget import IterationBudget
+from agent.safe_io import _SafeWriter, _install_safe_stdio
 
-
-def _build_self_model_hint() -> str:
-    """Build P5-Ego self-model hint for the system prompt.
-
-    This gives the agent awareness of its own integration architecture,
-    so it knows how to add tools and skills without being told from scratch.
-    """
-    try:
-        from drewgent_cli.config import get_drewgent_home
-
-        Drew_HOME = get_drewgent_home()
-
-        # Read P5-Ego self-model
-        ego_path = Drew_HOME / "P5-ego" / "SELF_MODEL.md"
-        # Read P4-Cortex integration protocol
-        protocol_path = Drew_HOME / "P4-cortex" / "growth" / "INTEGRATION_PROTOCOL.md"
-
-        parts = []
-        if ego_path.exists():
-            content = ego_path.read_text(encoding="utf-8").strip()
-            if content:
-                # Truncate to avoid inflating system prompt too much
-                lines = content.split("\n")
-                truncated = "\n".join(lines[:60])
-                if len(lines) > 60:
-                    truncated += f"\n\n[... P5-Ego SELF_MODEL truncated: {len(lines)-60} more lines. Use file tools to read full file.]"
-                parts.append(f"# P5-Ego Self-Model (Drewgent Self-Awareness)\n\n{truncated}")
-
-        if protocol_path.exists():
-            content = protocol_path.read_text(encoding="utf-8").strip()
-            if content:
-                lines = content.split("\n")
-                truncated = "\n".join(lines[:40])
-                if len(lines) > 40:
-                    truncated += f"\n\n[... INTEGRATION_PROTOCOL truncated: {len(lines)-40} more lines. Use file tools to read.]"
-                parts.append(f"# Integration Protocol (Tool/Skill Absorption Procedure)\n\n{truncated}")
-
-        return "\n\n".join(parts) if parts else ""
-    except Exception:
-        return ""
-
-
-def _build_prefrontal_hint() -> str:
-    """Build P6-prefrontal strategic context for the system prompt.
-
-    Reads active plans and recent incidents from P6-prefrontal/
-    so the agent has strategic awareness of ongoing objectives,
-    tracked incidents, and growth priorities.
-    """
-    try:
-        from drewgent_cli.config import get_drewgent_home
-
-        Drew_HOME = get_drewgent_home()
-        p6_dir = Drew_HOME / "P6-prefrontal"
-
-        parts = []
-
-        # Active plans — most recent .md file in plans/
-        plans_dir = p6_dir / "plans"
-        if plans_dir.exists():
-            plan_files = sorted(
-                [f for f in plans_dir.iterdir() if f.suffix == ".md" and f.name != ".DS_Store"],
-                key=lambda f: f.stat().st_mtime,
-                reverse=True,
-            )
-            if plan_files:
-                content = plan_files[0].read_text(encoding="utf-8").strip()
-                if content:
-                    lines = content.split("\n")
-                    truncated = "\n".join(lines[:50])
-                    if len(lines) > 50:
-                        truncated += f"\n\n[... {plan_files[0].name} truncated: {len(lines)-50} more lines. Use file tools to read.]"
-                    parts.append(f"# P6-Prefrontal — Active Plan ({plan_files[0].name})\n\n{truncated}")
-
-        # Recent incidents — last 3 .md files in incidents/
-        incidents_dir = p6_dir / "incidents"
-        if incidents_dir.exists():
-            incident_files = sorted(
-                [f for f in incidents_dir.iterdir() if f.suffix == ".md" and f.name != ".DS_Store"],
-                key=lambda f: f.stat().st_mtime,
-                reverse=True,
-            )[:3]
-            if incident_files:
-                incident_parts = []
-                for f in incident_files:
-                    content = f.read_text(encoding="utf-8").strip()
-                    lines = content.split("\n")
-                    truncated = "\n".join(lines[:15])
-                    if len(lines) > 15:
-                        truncated += f"\n[... {len(lines)-15} more lines]"
-                    incident_parts.append(f"## {f.stem}\n{truncated}")
-                parts.append(f"# P6-Prefrontal — Recent Incidents\n\n" + "\n\n".join(incident_parts))
-
-        return "\n\n".join(parts) if parts else ""
-    except Exception:
-        return ""
-
-
-class _SafeWriter:
-    """Transparent stdio wrapper that catches OSError/ValueError from broken pipes.
-
-    When drewgent-agent runs as a systemd service, Docker container, or headless
-    daemon, the stdout/stderr pipe can become unavailable (idle timeout, buffer
-    exhaustion, socket reset). Any print() call then raises
-    ``OSError: [Errno 5] Input/output error``, which can crash agent setup or
-    run_conversation() — especially via double-fault when an except handler
-    also tries to print.
-
-    Additionally, when subagents run in ThreadPoolExecutor threads, the shared
-    stdout handle can close between thread teardown and cleanup, raising
-    ``ValueError: I/O operation on closed file`` instead of OSError.
-
-    This wrapper delegates all writes to the underlying stream and silently
-    catches both OSError and ValueError. It is transparent when the wrapped
-    stream is healthy.
-    """
-
-    __slots__ = ("_inner",)
-
-    def __init__(self, inner):
-        object.__setattr__(self, "_inner", inner)
-
-    def write(self, data):
-        try:
-            return self._inner.write(data)
-        except (OSError, ValueError):
-            return len(data) if isinstance(data, str) else 0
-
-    def flush(self):
-        try:
-            self._inner.flush()
-        except (OSError, ValueError):
-            pass
-
-    def fileno(self):
-        return self._inner.fileno()
-
-    def isatty(self):
-        try:
-            return self._inner.isatty()
-        except (OSError, ValueError):
-            return False
-
-    def __getattr__(self, name):
-        return getattr(self._inner, name)
-
-
-def _install_safe_stdio() -> None:
-    """Wrap stdout/stderr so best-effort console output cannot crash the agent."""
-    for stream_name in ("stdout", "stderr"):
-        stream = getattr(sys, stream_name, None)
-        if stream is not None and not isinstance(stream, _SafeWriter):
-            setattr(sys, stream_name, _SafeWriter(stream))
-
-
-class IterationBudget:
-    """Thread-safe iteration counter for an agent.
-
-    Each agent (parent or subagent) gets its own ``IterationBudget``.
-    The parent's budget is capped at ``max_iterations`` (default 90).
-    Each subagent gets an independent budget capped at
-    ``delegation.max_iterations`` (default 50) — this means total
-    iterations across parent + subagents can exceed the parent's cap.
-    Users control the per-subagent limit via ``delegation.max_iterations``
-    in config.yaml.
-
-    ``execute_code`` (programmatic tool calling) iterations are refunded via
-    :meth:`refund` so they don't eat into the budget.
-    """
-
-    def __init__(self, max_total: int):
-        self.max_total = max_total
-        self._used = 0
-        self._lock = threading.Lock()
-
-    def consume(self) -> bool:
-        """Try to consume one iteration.  Returns True if allowed."""
-        with self._lock:
-            if self._used >= self.max_total:
-                return False
-            self._used += 1
-            return True
-
-    def refund(self) -> None:
-        """Give back one iteration (e.g. for execute_code turns)."""
-        with self._lock:
-            if self._used > 0:
-                self._used -= 1
-
-    @property
-    def used(self) -> int:
-        return self._used
-
-    @property
-    def remaining(self) -> int:
-        with self._lock:
-            return max(0, self.max_total - self._used)
-
-
-# Tools that must never run concurrently (interactive / user-facing).
-# When any of these appear in a batch, we fall back to sequential execution.
-_NEVER_PARALLEL_TOOLS = frozenset({"clarify"})
-
-# Read-only tools with no shared mutable session state.
-_PARALLEL_SAFE_TOOLS = frozenset(
-    {
-        "ha_get_state",
-        "ha_list_entities",
-        "ha_list_services",
-        "read_file",
-        "search_files",
-        "session_search",
-        "skill_view",
-        "skills_list",
-        "vision_analyze",
-        "web_extract",
-        "web_search",
-    }
+from agent.parallel_tools import (
+    _NEVER_PARALLEL_TOOLS,
+    _PARALLEL_SAFE_TOOLS,
+    _PATH_SCOPED_TOOLS,
+    _MAX_TOOL_WORKERS,
+    _DESTRUCTIVE_PATTERNS,
+    _REDIRECT_OVERWRITE,
+    _is_destructive_command,
+    _should_parallelize_tool_batch,
+    _extract_parallel_scope_path,
+    _paths_overlap,
 )
 
-# File tools can run concurrently when they target independent paths.
-_PATH_SCOPED_TOOLS = frozenset({"read_file", "write_file", "patch"})
 
-# Maximum number of concurrent worker threads for parallel tool execution.
-_MAX_TOOL_WORKERS = 8
+# ── Latent task detection (HP-3 QA gate) ─────────────────────────────────────
+# Garry Tan Complexity Ratchet: tasks requiring model judgment/synthesis
+# should go through QA contract-first flow before delivery.
 
-# Patterns that indicate a terminal command may modify/delete files.
-_DESTRUCTIVE_PATTERNS = re.compile(
-    r"""(?:^|\s|&&|\|\||;|`)(?:
-        rm\s|rmdir\s|
-        mv\s|
-        sed\s+-i|
-        truncate\s|
-        dd\s|
-        shred\s|
-        git\s+(?:reset|clean|checkout)\s
-    )""",
-    re.VERBOSE,
+_LATENT_KEYWORDS = (
+    "implement", "build", "create", "design", "research",
+    "analyze", "write code", "develop", "architect",
+    "coding task", "refactor",
 )
-# Output redirects that overwrite files (> but not >>)
-_REDIRECT_OVERWRITE = re.compile(r"[^>]>[^>]|^>[^>]")
 
 
-def _is_destructive_command(cmd: str) -> bool:
-    """Heuristic: does this terminal command look like it modifies/deletes files?"""
-    if not cmd:
+def _is_latent_task(user_message: str) -> bool:
+    """Detect latent (judgment/synthesis) tasks that benefit from QA gates."""
+    if not user_message:
         return False
-    if _DESTRUCTIVE_PATTERNS.search(cmd):
-        return True
-    if _REDIRECT_OVERWRITE.search(cmd):
-        return True
-    return False
+    msg_lower = user_message.lower()
+    return any(kw in msg_lower for kw in _LATENT_KEYWORDS)
 
 
-def _should_parallelize_tool_batch(tool_calls) -> bool:
-    """Return True when a tool-call batch is safe to run concurrently."""
-    if len(tool_calls) <= 1:
-        return False
+def _qa_evidence_dir_for_task(task_id: str) -> str:
+    """Return the QA evidence directory path for a given task_id."""
+    import os
 
-    tool_names = [tc.function.name for tc in tool_calls]
-    if any(name in _NEVER_PARALLEL_TOOLS for name in tool_names):
-        return False
-
-    reserved_paths: list[Path] = []
-    for tool_call in tool_calls:
-        tool_name = tool_call.function.name
-        try:
-            function_args = json.loads(tool_call.function.arguments)
-        except Exception:
-            logging.debug(
-                "Could not parse args for %s — defaulting to sequential; raw=%s",
-                tool_name,
-                tool_call.function.arguments[:200],
-            )
-            return False
-        if not isinstance(function_args, dict):
-            logging.debug(
-                "Non-dict args for %s (%s) — defaulting to sequential",
-                tool_name,
-                type(function_args).__name__,
-            )
-            return False
-
-        if tool_name in _PATH_SCOPED_TOOLS:
-            scoped_path = _extract_parallel_scope_path(tool_name, function_args)
-            if scoped_path is None:
-                return False
-            if any(
-                _paths_overlap(scoped_path, existing) for existing in reserved_paths
-            ):
-                return False
-            reserved_paths.append(scoped_path)
-            continue
-
-        if tool_name not in _PARALLEL_SAFE_TOOLS:
-            return False
-
-    return True
+    return os.path.join(
+        os.path.expanduser("~/.drewgent"),
+        "P2-hippocampus", "qa-evidence", task_id,
+    )
 
 
-def _extract_parallel_scope_path(tool_name: str, function_args: dict) -> Path | None:
-    """Return the normalized file target for path-scoped tools."""
-    if tool_name not in _PATH_SCOPED_TOOLS:
-        return None
+def _emit_qa_gate_for_task(task_id: str, phase: str) -> None:
+    """Emit qa.gate for a task, creating evidence_dir if needed."""
+    import os
 
-    raw_path = function_args.get("path")
-    if not isinstance(raw_path, str) or not raw_path.strip():
-        return None
-
-    expanded = Path(raw_path).expanduser()
-    if expanded.is_absolute():
-        return Path(os.path.abspath(str(expanded)))
-
-    # Avoid resolve(); the file may not exist yet.
-    return Path(os.path.abspath(str(Path.cwd() / expanded)))
-
-
-def _paths_overlap(left: Path, right: Path) -> bool:
-    """Return True when two paths may refer to the same subtree."""
-    left_parts = left.parts
-    right_parts = right.parts
-    if not left_parts or not right_parts:
-        # Empty paths shouldn't reach here (guarded upstream), but be safe.
-        return bool(left_parts) == bool(right_parts) and bool(left_parts)
-    common_len = min(len(left_parts), len(right_parts))
-    return left_parts[:common_len] == right_parts[:common_len]
+    evidence_dir = _qa_evidence_dir_for_task(task_id)
+    os.makedirs(evidence_dir, exist_ok=True)
+    try:
+        emit_qa_gate(task_id=task_id, phase=phase, evidence_dir=evidence_dir)
+    except Exception:
+        pass  # Brain signals are best-effort
 
 
 # ── Brain signal: file-path extraction from tool results ──────────────────────
-# Maps tool name → JSON key that carries the affected file path in the result.
 _FILE_PATH_KEYS = {
     "write_file": "path",
     "patch": "path",
@@ -561,125 +292,14 @@ def _looks_like_path(s: str) -> bool:
     return any(c in s for c in "/\\") or s.startswith(("~", ".", "/"))
 
 
-# ── Budget warning pattern ──────────────────────────────────────────────────────
+# ── Message sanitizers (extracted to agent/message_sanitizers.py) ──────────────
 
-_SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
-
-_BUDGET_WARNING_RE = re.compile(
-    r"\[BUDGET(?:\s+WARNING)?:\s+Iteration\s+\d+/\d+\..*?\]",
-    re.DOTALL,
+from agent.message_sanitizers import (
+    _sanitize_surrogates,
+    _sanitize_messages_surrogates,
+    _strip_budget_warnings_from_history,
+    _SURROGATE_RE,
 )
-
-
-# ── Latent task detection ─────────────────────────────────────────────────────
-
-_LATENT_KEYWORDS = (
-    "implement", "build", "create", "design", "research",
-    "analyze", "write code", "develop", "architect",
-    "coding task", "refactor",
-)
-
-
-def _is_latent_task(user_message: str) -> bool:
-    """Detect latent (judgment/synthesis) tasks that benefit from QA gates.
-
-    HP-2: Latent vs deterministic — tasks requiring model judgment/synthesis
-    should go through QA contract-first flow (Garry Tan pattern).
-    """
-    if not user_message:
-        return False
-    msg_lower = user_message.lower()
-    return any(kw in msg_lower for kw in _LATENT_KEYWORDS)
-
-
-def _qa_evidence_dir_for_task(task_id: str) -> str:
-    """Return the QA evidence directory path for a given task_id."""
-    import os
-    return os.path.join(
-        os.path.expanduser("~/.drewgent"),
-        "P2-hippocampus", "qa-evidence", task_id,
-    )
-
-
-def _emit_qa_gate_for_task(task_id: str, phase: str) -> None:
-    """Emit qa.gate for a task, creating evidence_dir if needed."""
-    import os
-    evidence_dir = _qa_evidence_dir_for_task(task_id)
-    os.makedirs(evidence_dir, exist_ok=True)
-    try:
-        emit_qa_gate(task_id=task_id, phase=phase, evidence_dir=evidence_dir)
-    except Exception:
-        pass  # Brain signals are best-effort
-
-
-def _sanitize_surrogates(text: str) -> str:
-    """Replace lone surrogate code points with U+FFFD (replacement character).
-
-    Surrogates are invalid in UTF-8 and will crash ``json.dumps()`` inside the
-    OpenAI SDK.  This is a fast no-op when the text contains no surrogates.
-    """
-    if _SURROGATE_RE.search(text):
-        return _SURROGATE_RE.sub("\ufffd", text)
-    return text
-
-
-def _sanitize_messages_surrogates(messages: list) -> bool:
-    """Sanitize surrogate characters from all string content in a messages list.
-
-    Walks message dicts in-place.  Returns True if any surrogates were found
-    and replaced, False otherwise.
-    """
-    found = False
-    for msg in messages:
-        if not isinstance(msg, dict):
-            continue
-        content = msg.get("content")
-        if isinstance(content, str) and _SURROGATE_RE.search(content):
-            msg["content"] = _SURROGATE_RE.sub("\ufffd", content)
-            found = True
-        elif isinstance(content, list):
-            for part in content:
-                if isinstance(part, dict):
-                    text = part.get("text")
-                    if isinstance(text, str) and _SURROGATE_RE.search(text):
-                        part["text"] = _SURROGATE_RE.sub("\ufffd", text)
-                        found = True
-    return found
-
-
-def _strip_budget_warnings_from_history(messages: list) -> None:
-    """Remove budget pressure warnings from tool-result messages in-place.
-
-    Budget warnings are turn-scoped signals that must not leak into replayed
-    history.  They live in tool-result ``content`` either as a JSON key
-    (``_budget_warning``) or appended plain text.
-    """
-    for msg in messages:
-        if not isinstance(msg, dict) or msg.get("role") != "tool":
-            continue
-        content = msg.get("content")
-        if (
-            not isinstance(content, str)
-            or "_budget_warning" not in content
-            and "[BUDGET" not in content
-        ):
-            continue
-
-        # Try JSON first (the common case: _budget_warning key in a dict)
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, dict) and "_budget_warning" in parsed:
-                del parsed["_budget_warning"]
-                msg["content"] = json.dumps(parsed, ensure_ascii=False)
-                continue
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-        # Fallback: strip the text pattern from plain-text tool results
-        cleaned = _BUDGET_WARNING_RE.sub("", content).strip()
-        if cleaned != content:
-            msg["content"] = cleaned
-
 
 # =========================================================================
 # Large tool result handler — save oversized output to temp file
@@ -968,6 +588,12 @@ class AIAgent:
         self.enabled_toolsets = enabled_toolsets
         self.disabled_toolsets = disabled_toolsets
 
+        # Tool manifest mode: send lightweight manifest first, expand schemas on demand
+        self._tool_manifest_mode = False
+        self._active_tool_schemas: list = []  # currently active full schemas
+        self._manifest_mode_initialized = False
+        self._manifest_tool_scores: dict = {}  # tool_name -> call count for adaptive sizing
+
         # Model response configuration
         self.max_tokens = max_tokens  # None = use model default
         self.reasoning_config = (
@@ -990,6 +616,11 @@ class AIAgent:
         self._budget_caution_threshold = 0.7  # 70% — nudge to start wrapping up
         self._budget_warning_threshold = 0.9  # 90% — urgent, respond now
         self._budget_pressure_enabled = True
+
+        # ── Latent task detection (HP-3 QA gate) ──────────────────────────────
+        # Garry Tan Complexity Ratchet: tasks requiring model judgment/synthesis
+        # should go through QA contract-first flow before delivery.
+        self._qa_task_id: str = None
 
         # Context pressure warnings: notify the USER (not the LLM) as context
         # fills up.  Purely informational — displayed in CLI output and sent via
@@ -1974,6 +1605,16 @@ class AIAgent:
         """Return True when the base URL targets OpenRouter."""
         return "openrouter" in self._base_url_lower
 
+    def _is_azure_openai_url(self, base_url: str = None) -> bool:
+        """Return True when the base URL targets Azure OpenAI."""
+        url = (base_url or self._base_url_lower).lower()
+        return ".openai.azure.com" in url
+
+    def _is_github_copilot_url(self, base_url: str = None) -> bool:
+        """Return True when the base URL targets GitHub Copilot."""
+        url = (base_url or self._base_url_lower).lower()
+        return "githubcopilot.com" in url
+
     def _is_anthropic_url(self) -> bool:
         """Return True when the base URL targets Anthropic (native or /anthropic proxy path)."""
         return (
@@ -2067,8 +1708,16 @@ class AIAgent:
         OpenAI's newer models (gpt-4o, o-series, gpt-5+) require
         'max_completion_tokens'. OpenRouter, local models, and older
         OpenAI models use 'max_tokens'.
+
+        Azure OpenAI and GitHub Copilot also require 'max_completion_tokens'
+        (they are OpenAI-compatible but their APIs reject 'max_tokens' for
+        newer models).
         """
-        if self._is_direct_openai_url():
+        if (
+            self._is_direct_openai_url()
+            or self._is_azure_openai_url()
+            or self._is_github_copilot_url()
+        ):
             return {"max_completion_tokens": value}
         return {"max_tokens": value}
 
@@ -3400,14 +3049,19 @@ class AIAgent:
         if tool_guidance:
             prompt_parts.append(" ".join(tool_guidance))
 
-        # HP-3: Inject QA self-verification guidance when this is a latent task
-        if hasattr(self, "_qa_task_id") and self._qa_task_id:
-            _qa_prompt = QA_GUIDANCE_TEMPLATE.format(task_id=self._qa_task_id)
-            prompt_parts.append(_qa_prompt)
-
         # Brain governance (NeuronFS) - loaded after session search guidance
         # This renders the active brain's 7-layer subsumption hierarchy
         from agent.prompt_builder import brain_load
+
+        # HP-3: Inject QA self-verification guidance when this is a latent task
+        if hasattr(self, "_qa_task_id") and self._qa_task_id:
+            from agent.prompt_builder import QA_GUIDANCE_TEMPLATE
+
+            _evidence_dir = _qa_evidence_dir_for_task(self._qa_task_id)
+            _qa_prompt = QA_GUIDANCE_TEMPLATE.format(
+                task_id=self._qa_task_id, qa_evidence_dir=_evidence_dir
+            )
+            prompt_parts.append(_qa_prompt)
         brain_prompt = brain_load()
         if brain_prompt:
             prompt_parts.append(brain_prompt)
@@ -3754,6 +3408,50 @@ class AIAgent:
             return matches[0]
 
         return None
+
+    def _ensure_tool_schemas_expanded(self, tool_calls) -> None:
+        """Expand tool schemas for tools not yet in _active_tool_schemas.
+
+        In manifest mode, we send only the lightweight manifest (name + one-line).
+        When the model calls a tool, we load its full schema into _active_tool_schemas
+        so the schema is available on subsequent turns.
+        """
+        if not self._tool_manifest_mode:
+            return
+        if not tool_calls:
+            return
+
+        from model_tools import get_full_schema_for_tools
+
+        # Find tools that need schema loading
+        to_load = []
+        for tc in tool_calls:
+            name = tc.function.name if hasattr(tc.function, "name") else str(tc.get("function", {}).get("name", ""))
+            if name and name not in self._active_tool_schemas_names:
+                to_load.append(name)
+
+        if not to_load:
+            return
+
+        # Load full schemas for the new tools
+        new_schemas = get_full_schema_for_tools(to_load)
+        self._active_tool_schemas.extend(new_schemas)
+
+        # Update valid_tool_names to include newly loaded tools
+        for schema in new_schemas:
+            fname = schema.get("function", {}).get("name", "")
+            if fname:
+                self.valid_tool_names.add(fname)
+
+        if new_schemas:
+            newly_needed = [n for n in to_load if n not in _CORE_MANIFEST_TOOLS]
+            if newly_needed and not self.quiet_mode:
+                print(f"  📋 Expanded tool schemas: {', '.join(newly_needed[:5])}")
+
+    @property
+    def _active_tool_schemas_names(self) -> set:
+        """Return set of tool names currently in active schemas."""
+        return {t.get("function", {}).get("name", "") for t in self._active_tool_schemas}
 
     def _invalidate_system_prompt(self):
         """
@@ -5796,6 +5494,8 @@ class AIAgent:
         else:
             _stream_stale_timeout = _stream_stale_timeout_base
 
+        _touch_interval = 30.0  # seconds between activity touches during streaming
+        _last_touch = time.time()
         t = threading.Thread(target=_call, daemon=True)
         t.start()
         while t.is_alive():
@@ -5840,6 +5540,16 @@ class AIAgent:
                 # Reset the timer so we don't kill repeatedly while
                 # the inner thread processes the closure.
                 last_chunk_time["t"] = time.time()
+
+            # Periodically touch activity so the cron inactivity monitor
+            # knows the agent is still alive during streaming.  Tokens are
+            # arriving (last_chunk_time is fresh) but the main thread is here
+            # in the polling loop, not in the stream consumer — so the
+            # inactivity monitor would fire on the cron side unless we update
+            # _last_activity_ts from this thread too.
+            if time.time() - _last_touch >= _touch_interval:
+                _last_touch = time.time()
+                self._touch_activity(f"receiving stream (stale={int(_stale_elapsed)}s)")
 
             if self._interrupt_requested:
                 try:
@@ -6384,10 +6094,39 @@ class AIAgent:
             from agent.anthropic_adapter import build_anthropic_kwargs
 
             anthropic_messages = self._prepare_anthropic_messages_for_api(api_messages)
-            # Pass context_length so the adapter can clamp max_tokens if the
-            # user configured a smaller context window than the model's output limit.
             ctx_len = getattr(self, "context_compressor", None)
             ctx_len = ctx_len.context_length if ctx_len else None
+
+            # Tool manifest mode: send lightweight manifest first, expand on demand
+            if self._tool_manifest_mode:
+                # Import here only when actually needed (tool manifest mode is off by default)
+                from model_tools import get_tool_manifest, _CORE_MANIFEST_TOOLS
+                if self._active_tool_schemas:
+                    # Expanded schemas accumulated from prior tool calls
+                    return build_anthropic_kwargs(
+                        model=self.model,
+                        messages=anthropic_messages,
+                        tools=self._active_tool_schemas,
+                        max_tokens=self.max_tokens,
+                        reasoning_config=self.reasoning_config,
+                        is_oauth=self._is_anthropic_oauth,
+                        preserve_dots=self._anthropic_preserve_dots(),
+                        context_length=ctx_len,
+                    )
+                # First turn: send only the manifest (name + one-line descriptions)
+                manifest_tools = get_tool_manifest()
+                return build_anthropic_kwargs(
+                    model=self.model,
+                    messages=anthropic_messages,
+                    tools=manifest_tools,
+                    max_tokens=self.max_tokens,
+                    reasoning_config=self.reasoning_config,
+                    is_oauth=self._is_anthropic_oauth,
+                    preserve_dots=self._anthropic_preserve_dots(),
+                    context_length=ctx_len,
+                )
+
+            # Normal mode: send all available tools
             return build_anthropic_kwargs(
                 model=self.model,
                 messages=anthropic_messages,
@@ -8453,11 +8192,8 @@ class AIAgent:
         effective_task_id = task_id or str(uuid.uuid4())
 
         # ── HP-3: QA gate — contract phase for latent tasks ───────────────────
-        # Garry Tan Complexity Ratchet: QA contract must exist before delivery.
-        # Emit contract phase now so evidence skeleton is ready before implementation.
         if _is_latent_task(user_message):
             _emit_qa_gate_for_task(effective_task_id, "contract")
-            # Track so micro/full phases fire at turn-end and agent-complete
             self._qa_task_id = effective_task_id
         else:
             self._qa_task_id = None
@@ -8472,7 +8208,6 @@ class AIAgent:
         self._last_content_with_tools = None
         self._mute_post_response = False
         self._surrogate_sanitized = False
-        self._qa_task_id: str = None  # HP-3: set when latent task contract fires
 
         # Pre-turn connection health check: detect and clean up dead TCP
         # connections left over from provider outages or dropped streams.
@@ -10917,22 +10652,22 @@ class AIAgent:
 
                     # Validate tool call arguments are valid JSON
                     # Handle empty strings as empty objects (common model quirk)
+                    import json as _J
                     invalid_json_args = []
                     for tc in assistant_message.tool_calls:
                         args = tc.function.arguments
                         if isinstance(args, (dict, list)):
-                            tc.function.arguments = json.dumps(args)
+                            tc.function.arguments = _J.dumps(args)
                             continue
                         if args is not None and not isinstance(args, str):
                             tc.function.arguments = str(args)
                             args = tc.function.arguments
-                        # Treat empty/whitespace strings as empty object
                         if not args or not args.strip():
                             tc.function.arguments = "{}"
                             continue
                         try:
-                            json.loads(args)
-                        except json.JSONDecodeError as e:
+                            _J.loads(args)
+                        except (TypeError, ValueError) as e:
                             invalid_json_args.append((tc.function.name, str(e)))
 
                     if invalid_json_args:
@@ -10991,6 +10726,12 @@ class AIAgent:
 
                     # Reset retry counter on successful JSON validation
                     self._invalid_json_retries = 0
+
+                    # ── Manifest mode: expand tool schemas on demand ────────
+                    # After successful tool call validation, check if any tool
+                    # needs its schema loaded (for tools not in the manifest).
+                    # This only runs once per tool — results are cached.
+                    self._ensure_tool_schemas_expanded(assistant_message.tool_calls)
 
                     # ── Post-call guardrails ──────────────────────────
                     assistant_message.tool_calls = self._cap_delegate_task_calls(
@@ -11287,8 +11028,8 @@ class AIAgent:
                 except (OSError, ValueError):
                     logger.error(error_msg)
 
-                if self.verbose_logging:
-                    logging.exception("Detailed error information:")
+                # Always log full traceback for debugging 'json' scope error
+                logging.exception("Full traceback for API call error:")
 
                 # If an assistant message with tool_calls was already appended,
                 # the API expects a role="tool" result for every tool_call_id.
@@ -11390,12 +11131,6 @@ class AIAgent:
         except Exception as _e:
             logger.debug("emit_turn_end failed: %s", _e)
 
-        # ── HP-3: QA gate — micro phase for latent tasks ────────────────────
-        # Emit micro phase at the end of each turn for latent tasks.
-        # Micro evidence accumulates across turns (Garry Tan pattern).
-        if self._qa_task_id:
-            _emit_qa_gate_for_task(self._qa_task_id, "micro")
-
         # ── Phase 3-2: Emit agent.complete event (P0-brainstem final gate) ──
         # Fires once per run_conversation() — the true session boundary.
         try:
@@ -11406,14 +11141,16 @@ class AIAgent:
         except Exception as _e:
             logger.debug("emit_agent_complete failed: %s", _e)
 
-        # ── HP-3: QA gate — full phase for latent tasks ─────────────────────
-        # Emit full phase after agent completes. This is the final delivery gate.
+        # ── HP-3: QA gate — micro phase for latent tasks ────────────────────
         if self._qa_task_id:
-            _qa_task_id_for_result = self._qa_task_id  # capture before clear
+            _emit_qa_gate_for_task(self._qa_task_id, "micro")
+
+        # ── HP-3: QA gate — full phase for latent tasks ─────────────────────
+        # Save to local so we can use it after clearing self._qa_task_id
+        _qa_task_id_for_result = self._qa_task_id
+        if self._qa_task_id:
             _emit_qa_gate_for_task(self._qa_task_id, "full")
             self._qa_task_id = None  # Clear after full gate fires
-            # Store task_id in result so gateway can show it in blocking message
-            result["_qa_task_id_for_gateway"] = _qa_task_id_for_result
 
         # Extract reasoning from the last assistant message (if any)
         last_reasoning = None
@@ -11450,7 +11187,32 @@ class AIAgent:
             "estimated_cost_usd": self.session_estimated_cost_usd,
             "cost_status": self.session_cost_status,
             "cost_source": self.session_cost_source,
+            # ── HP-3: QA gate delivery status ───────────────────────────────
+            # Read from full-qa.json if this was a latent task.
+            # qa_gate_status=None means non-latent (always pass).
+            # qa_gate_status=True means all_criteria_met (pass).
+            # qa_gate_status=False means gate failed or missing (gateway blocks).
+            "qa_gate_status": None,
+            # ── HP-3: downstream gateway reads this for delivery blocking ───
+            # Set by contract phase (non-None means latent task was triggered)
+            "_qa_task_id_for_gateway": None,
         }
+        if _qa_task_id_for_result:
+            try:
+                import os, json
+
+                _qa_dir = _qa_evidence_dir_for_task(_qa_task_id_for_result)
+                _full_path = os.path.join(_qa_dir, "full-qa.json")
+                result["_qa_task_id_for_gateway"] = _qa_task_id_for_result
+                if os.path.isfile(_full_path):
+                    with open(_full_path) as _f:
+                        _qa_data = json.load(_f)
+                        result["qa_gate_status"] = _qa_data.get("all_criteria_met", False)
+                else:
+                    result["qa_gate_status"] = False
+            except Exception:
+                result["qa_gate_status"] = False
+
         self._response_was_previewed = False
 
         # Include interrupt message if one triggered the interrupt
@@ -11514,22 +11276,6 @@ class AIAgent:
         # provider before the second message. Actual session-end cleanup is
         # handled by the CLI (atexit / /reset) and gateway (session expiry /
         # _reset_session).
-
-        # ── HP-3: QA gate — record delivery status in result ─────────────────
-        # Pass qa_gate_status to gateway so it can block delivery if gate failed.
-        _qa_gate_status = None
-        if self._qa_task_id:
-            try:
-                import os, json
-                _qa_evidence_dir = _qa_evidence_dir_for_task(self._qa_task_id)
-                _full_evidence_path = os.path.join(_qa_evidence_dir, "full-qa.json")
-                if os.path.isfile(_full_evidence_path):
-                    with open(_full_evidence_path) as _f:
-                        _qa_data = json.load(_f)
-                        _qa_gate_status = _qa_data.get("all_criteria_met", False)
-            except Exception:
-                _qa_gate_status = False
-        result["qa_gate_status"] = _qa_gate_status
 
         # Plugin hook: on_session_end
         # Fired at the very end of every run_conversation call.
