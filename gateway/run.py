@@ -1333,6 +1333,8 @@ class GatewayRunner:
             "gateway:startup",
             {
                 "platforms": [p.value for p in self.adapters.keys()],
+                "adapters": self.adapters,
+                "loop": asyncio.get_running_loop(),
             },
         )
 
