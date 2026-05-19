@@ -791,13 +791,16 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             logger.info("%s - %s job(s) due", _drewgent_now().strftime('%H:%M:%S'), len(due_jobs))
 
         executed = 0
+
+        # Advance next_run_at for ALL due recurring jobs BEFORE any execution.
+        # This prevents a job from appearing due again within the same tick
+        # after advance_next_run() writes the new next_run_at to disk.
+        # One-shot jobs are excluded so they can retry on restart.
+        for job in due_jobs:
+            advance_next_run(job["id"])
+
         for job in due_jobs:
             try:
-                # For recurring jobs (cron/interval), advance next_run_at to the
-                # next future occurrence BEFORE execution.  This way, if the
-                # process crashes mid-run, the job won't re-fire on restart.
-                # One-shot jobs are left alone so they can retry on restart.
-                advance_next_run(job["id"])
 
                 success, output, final_response, error = run_job(job)
 

@@ -243,6 +243,28 @@ TOOLSETS = {
     # which is gated on gateway running via its check_fn).
     # ==========================================================================
 
+    "linear": {
+        "description": "Linear issue management — create, update, list, get, comment, and dependency tracking for kanban orchestration",
+        "tools": [
+            "kanban_linear_create", "kanban_linear_update_status",
+            "kanban_linear_list", "kanban_linear_get",
+            "kanban_linear_add_comment", "kanban_linear_get_dependencies",
+        ],
+        "includes": []
+    },
+
+    "kanban": {
+        "description": "Drewgent internal task store — create, complete, list, get, block, claim, heartbeat tasks in drewgent_tasks.db",
+        "tools": [
+            "kanban_create", "kanban_complete",
+            "kanban_list", "kanban_get",
+            "kanban_block", "kanban_unblock",
+            "kanban_claim", "kanban_heartbeat",
+            "kanban_link", "kanban_add_comment",
+        ],
+        "includes": []
+    },
+
     "drewgent-acp": {
         "description": "Editor integration (VS Code, Zed, JetBrains) — coding-focused tools without messaging, audio, or clarify UI",
         "tools": [

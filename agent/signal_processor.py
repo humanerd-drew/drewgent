@@ -23,6 +23,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from agent.event_bus import BrainEvent, get_event_bus
 
+from tools.drewgent_kanban_db import create_integration_workflow_task, complete_integration_workflow_task
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +47,7 @@ class IntegrationWorkflow:
     correlation_id: str = ""
     source_file: str = ""   # e.g. "tools/super_tool.py" — the primary integration target file
     next_hint: Optional[str] = None  # Phase 5-1 fix: store computed hint for P0 enforcement
+    task_id: Optional[str] = None  # Task store task ID for this workflow
 
     def add_step(self, step: str) -> None:
         if step not in self.steps_completed:
@@ -584,6 +587,23 @@ class SignalProcessor:
             },
             source="signal_processor",
         )
+
+        # Task store hook: create a task for this integration workflow
+        try:
+            task_result = create_integration_workflow_task(
+                workflow_id=workflow.workflow_id,
+                integration_type=int_type,
+                target_name=workflow.target_name,
+                session_id=session_id or None,
+            )
+            workflow.task_id = task_result.get("task_id")
+            logger.debug(
+                "Integration workflow task created: %s for workflow %s",
+                task_result.get("task_id"),
+                workflow.workflow_id,
+            )
+        except Exception as e:
+            logger.warning("Failed to create integration workflow task: %s", e)
 
     def _derive_source_file(self, int_type: str, target: str) -> str:
         """Derive the expected source file path from integration type + target name.
@@ -1166,6 +1186,28 @@ class SignalProcessor:
         self._workflow_history.append(workflow)
         if workflow.workflow_id in self._active_workflows:
             del self._active_workflows[workflow.workflow_id]
+
+        # Task store hook: complete the task for this integration workflow
+        if getattr(workflow, "task_id", None):
+            try:
+                complete_integration_workflow_task(
+                    workflow_id=workflow.workflow_id,
+                    metadata={
+                        "files_modified": workflow.files_modified,
+                        "steps_completed": workflow.steps_completed,
+                        "duration_seconds": (
+                            datetime.fromisoformat(workflow.completed_at) -
+                            datetime.fromisoformat(workflow.detected_at)
+                        ).total_seconds(),
+                    },
+                )
+                logger.debug(
+                    "Integration workflow task completed: %s for workflow %s",
+                    workflow.task_id,
+                    workflow.workflow_id,
+                )
+            except Exception as e:
+                logger.warning("Failed to complete integration workflow task: %s", e)
 
         logger.info(
             f"Integration complete: {workflow.integration_type} '{workflow.target_name}' "
