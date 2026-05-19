@@ -20,15 +20,15 @@
       "schedule_display": "0 */6 * * *",
       "repeat": {
         "times": null,
-        "completed": 22
+        "completed": 34
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-05-14T12:59:08.850448+09:00",
-      "next_run_at": "2026-05-18T06:00:00+09:00",
-      "last_run_at": "2026-05-18T01:48:21.168439+09:00",
+      "next_run_at": "2026-05-19T18:00:00+09:00",
+      "last_run_at": "2026-05-19T12:03:08.724854+09:00",
       "last_status": "ok",
       "last_error": null,
       "deliver": "discord:1504328297419640872",
@@ -54,20 +54,86 @@
       "schedule_display": "0 */6 * * *",
       "repeat": {
         "times": null,
-        "completed": 15
+        "completed": 27
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-05-14T22:28:59.370127+09:00",
-      "next_run_at": "2026-05-18T06:00:00+09:00",
-      "last_run_at": "2026-05-18T01:59:21.148432+09:00",
+      "next_run_at": "2026-05-19T18:00:00+09:00",
+      "last_run_at": "2026-05-19T06:06:20.765917+09:00",
       "last_status": "ok",
       "last_error": null,
       "deliver": "discord:1491953631119937728",
       "origin": null
+    },
+    {
+      "id": "d1ef68ced116",
+      "name": "kanban-dispatcher",
+      "prompt": "Kanban Dispatcher \u2014 assign ready tasks to workers via dispatch_once().\n\nSteps:\n1. from tools.drewgent_kanban_db import dispatch_once\n2. result = dispatch_once(board=\"default\", max_spawn=3, failure_limit=3)\n3. Report: reclaimed=N, claimed=N, spawned=N, skipped=N\n4. If reclaimed > 0 or claimed > 0: show details\n5. If all empty: respond with [SILENT]\n\nImportant: dispatcher runs in the same process. Do NOT spawn subprocess agents manually \u2014\ndispatch_once() handles reclaiming stale tasks, claiming ready tasks, and spawning worker processes internally.\n",
+      "skills": [
+        "kanban-worker"
+      ],
+      "skill": "kanban-worker",
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/1 * * * *",
+        "display": "*/1 * * * *"
+      },
+      "schedule_display": "*/1 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 994
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-18T23:56:31.297016+09:00",
+      "next_run_at": "2026-05-19T12:05:00+09:00",
+      "last_run_at": "2026-05-19T12:04:02.123456+09:00",
+      "last_status": "ok",
+      "last_error": null,
+      "deliver": "local",
+      "origin": null
+    },
+    {
+      "id": "e2f30aa1b444",
+      "name": "linear-activity-logger",
+      "prompt": "Linear Activity Logger \u2014 monitor Discord sessions for work patterns and create kanban cards.\n\nSteps:\n1. cd ~/.drewgent/source/drewgent-agent\n2. python3 scripts/linear_activity_logger.py\n3. Report: sessions_scanned=N, messages_processed=N, cards_created=N\n4. If cards_created > 0: show card titles\n5. If all empty: respond with [SILENT]\n\nEnvironment:\n- LINEAR_API_KEY (optional): for Linear issue creation\n- LINEAR_TEAM_ID (optional): team for Linear issues\n\nThis job scans recent session files for work trigger patterns (진행해줘, 끝났어, 해줘, etc.)\nand creates kanban cards in drewgent_tasks.db. Idempotent \u2014 same message never creates duplicate cards.\n",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/5 * * * *",
+        "display": "*/5 * * * *"
+      },
+      "schedule_display": "*/5 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-19T12:04:00.000000+09:00",
+      "next_run_at": "2026-05-19T12:05:00+09:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "deliver": "local",
+      "origin": null
     }
   ],
-  "updated_at": "2026-05-18T01:59:21.149363+09:00"
+  "updated_at": "2026-05-19T12:03:08.726987+09:00"
 }
