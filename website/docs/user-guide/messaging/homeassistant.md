@@ -1,9 +1,14 @@
 ---
-title: Home Assistant
-description: Control your smart home with Drewgent Agent via Home Assistant integration.
-sidebar_label: Home Assistant
-sidebar_position: 5
+title: Homeassistant
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Home Assistant Integration
 

@@ -11,6 +11,8 @@ Improvements over v1:
   - Tool output pruning before LLM summarization (cheap pre-pass)
   - Scaled summary budget (proportional to compressed content)
   - Richer tool call/result detail in summarizer input
+  - Last Exchange section: verbatim last user message + Assistant Intent
+    (preserves the immediate context and reasoning chain for seamless resume)
 """
 
 import logging
@@ -45,6 +47,16 @@ _SUMMARY_TOKENS_CEILING = 12_000
 # Placeholder used when pruning old tool results
 _PRUNED_TOOL_PLACEHOLDER = "[Old tool output cleared to save context space]"
 
+# Aggressive pruning: single-word/low-signal messages to remove
+_ACKNOWLEDGMENT_PATTERNS = frozenset([
+    "ok", "okay", "done", "확인", "네", "yes", "yep", "yup",
+    "great", "good", "thanks", "고마워", "👍", "❤️", "🔥",
+    "理解了", "好的", "收到", "明白了",
+])
+
+# Error/stack-trace truncation: max lines before summarization
+_ERROR_TRACE_MAX_LINES = 8
+
 # Chars per token rough estimate
 _CHARS_PER_TOKEN = 4
 _SUMMARY_FAILURE_COOLDOWN_SECONDS = 600
@@ -64,7 +76,7 @@ class ContextCompressor:
     def __init__(
         self,
         model: str,
-        threshold_percent: float = 0.50,
+        threshold_percent: float = 0.90,
         protect_first_n: int = 3,
         protect_last_n: int = 20,
         summary_target_ratio: float = 0.20,
@@ -185,6 +197,159 @@ class ContextCompressor:
         return result, pruned
 
     # ------------------------------------------------------------------
+    # Aggressive pruning: acknowledgments, dedup, error truncation
+    # ------------------------------------------------------------------
+
+    def _prune_acknowledgments(
+        self, messages: List[Dict[str, Any]], protect_tail_count: int,
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Remove single-word/low-signal acknowledgment messages.
+
+        Removes role=user/assistant messages whose content is a single
+        acknowledgment word (ok, done, 네, etc.) — these add no information
+        but consume context space. Protects the last N messages from deletion.
+
+        Returns (pruned_messages, pruned_count).
+        """
+        if len(messages) <= protect_tail_count + 1:
+            return messages, 0
+
+        result = [m.copy() for m in messages]
+        pruned = 0
+        prune_boundary = len(result) - protect_tail_count
+
+        i = 0
+        while i < len(result):
+            # Never prune system or tool messages
+            role = result[i].get("role", "")
+            if role in ("system", "tool"):
+                i += 1
+                continue
+
+            # Only prune messages before the tail boundary
+            if i >= prune_boundary:
+                i += 1
+                continue
+
+            content = (result[i].get("content") or "").strip()
+            if not content:
+                i += 1
+                continue
+
+            # Check if it's a low-signal acknowledgment
+            is_ack = (
+                content.lower() in _ACKNOWLEDGMENT_PATTERNS
+                or len(content) <= 3 and not content.isalnum()  # emoji-only
+            )
+
+            if is_ack:
+                result.pop(i)
+                pruned += 1
+                # Don't advance i — the next message shifted into current slot
+                # But adjust prune_boundary since list is shorter
+                prune_boundary -= 1
+            else:
+                i += 1
+
+        return result, pruned
+
+    def _prune_consecutive_duplicates(
+        self, messages: List[Dict[str, Any]], protect_tail_count: int,
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Remove consecutive duplicate tool results from the same tool.
+
+        When the same tool is called multiple times in a row producing
+        identical output (e.g., repeated git status, ls), keep only the
+        last result — earlier ones are stale.
+
+        Returns (pruned_messages, pruned_count).
+        """
+        if len(messages) <= protect_tail_count + 2:
+            return messages, 0
+
+        result = [m.copy() for m in messages]
+        pruned = 0
+        prune_boundary = len(result) - protect_tail_count
+
+        i = 1  # Start at 1 — never remove the very first message
+        while i < len(result):
+            curr = result[i]
+            prev = result[i - 1]
+
+            # Only prune tool results, and only before the tail boundary
+            if i >= prune_boundary:
+                i += 1
+                continue
+
+            if curr.get("role") != "tool" or prev.get("role") != "tool":
+                i += 1
+                continue
+
+            curr_content = curr.get("content") or ""
+            prev_content = prev.get("content") or ""
+
+            # If same tool name AND identical output → remove the earlier one
+            curr_tool = curr.get("name", "") or curr.get("tool_call_id", "")[:20]
+            prev_tool = prev.get("name", "") or prev.get("tool_call_id", "")[:20]
+
+            if curr_tool == prev_tool and curr_content == prev_content:
+                result.pop(i - 1)
+                pruned += 1
+                # Adjust boundary since list is shorter
+                prune_boundary -= 1
+                # Don't advance i — prev shifted; re-check at same index
+            else:
+                i += 1
+
+        return result, pruned
+
+    def _truncate_error_traces(
+        self, messages: List[Dict[str, Any]], protect_tail_count: int,
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Truncate very long error stack traces to first+last N lines.
+
+        Long error traces (50+ lines) are shortened to first 5 + last 3 lines
+        so the summarizer gets the error type and the final error without
+        carrying megabytes of stack noise.
+
+        Returns (pruned_messages, pruned_count).
+        """
+        if not messages:
+            return messages, 0
+
+        result = [m.copy() for m in messages]
+        pruned = 0
+        prune_boundary = len(result) - protect_tail_count
+
+        for i in range(prune_boundary):
+            msg = result[i]
+            content = msg.get("content", "")
+
+            # Only operate on substantial tool/assistant messages
+            role = msg.get("role", "")
+            if role not in ("tool", "assistant"):
+                continue
+            if not content or len(content) < 2000:
+                continue
+
+            # Detect error/stack-trace patterns
+            lines = content.split("\n")
+            is_error = any(
+                content.startswith(p) or f"\n{p}" in content
+                for p in ("Traceback", "Error:", "Exception:", "Traceback (most recent call last)")
+            )
+
+            if is_error and len(lines) > _ERROR_TRACE_MAX_LINES:
+                # Keep first 5 + last 3 lines
+                head = lines[:5]
+                tail = lines[-3:]
+                ellipsis = f"\n... [{len(lines) - _ERROR_TRACE_MAX_LINES} lines truncated] ...\n"
+                result[i] = {**msg, "content": "\n".join(head) + ellipsis + "\n".join(tail)}
+                pruned += 1
+
+        return result, pruned
+
+    # ------------------------------------------------------------------
     # Summarization
     # ------------------------------------------------------------------
 
@@ -284,6 +449,13 @@ NEW TURNS TO INCORPORATE:
 
 Update the summary using this exact structure. PRESERVE all existing information that is still relevant. ADD new progress. Move items from "In Progress" to "Done" when completed. Remove information only if it is clearly obsolete.
 
+## Last Exchange
+### User
+[The most recent user message — verbatim. This is the immediate context to resume from.]
+
+### Assistant Intent
+[What you (the assistant) were about to do after the last user message — your reasoning, what approach you chose, what you were about to try next. Preserve this even if incomplete.]
+
 ## Goal
 [What the user is trying to accomplish — preserve from previous summary, update if goal evolved]
 
@@ -321,6 +493,13 @@ TURNS TO SUMMARIZE:
 {content_to_summarize}
 
 Use this exact structure:
+
+## Last Exchange
+### User
+[The most recent user message — verbatim. This is the immediate context to resume from.]
+
+### Assistant Intent
+[What you (the assistant) were about to do after the last user message — your reasoning, what approach you chose, what you were about to try next. Preserve this even if incomplete.]
 
 ## Goal
 [What the user is trying to accomplish]
@@ -587,14 +766,36 @@ Write only the summary body. Do not include any preamble or prefix."""
 
         display_tokens = current_tokens if current_tokens else self.last_prompt_tokens or estimate_messages_tokens_rough(messages)
 
-        # Phase 1: Prune old tool results (cheap, no LLM call)
-        messages, pruned_count = self._prune_old_tool_results(
+        # Phase 1: Aggressive pruning (cheap pre-pass, no LLM call)
+        # Run in order of safety: acknowledgments → dedup → old tool results → error traces
+        messages, pruned = self._prune_acknowledgments(
+            messages, protect_tail_count=self.protect_last_n,
+        )
+        if pruned and not self.quiet_mode:
+            logger.info("Pre-compression: removed %d acknowledgment(s)", pruned)
+
+        messages, pruned = self._prune_consecutive_duplicates(
+            messages, protect_tail_count=self.protect_last_n,
+        )
+        if pruned and not self.quiet_mode:
+            logger.info("Pre-compression: removed %d duplicate tool result(s)", pruned)
+
+        messages, pruned = self._prune_old_tool_results(
             messages, protect_tail_count=self.protect_last_n * 3,
         )
-        if pruned_count and not self.quiet_mode:
-            logger.info("Pre-compression: pruned %d old tool result(s)", pruned_count)
+        if pruned and not self.quiet_mode:
+            logger.info("Pre-compression: pruned %d old tool result(s)", pruned)
+
+        messages, pruned = self._truncate_error_traces(
+            messages, protect_tail_count=self.protect_last_n,
+        )
+        if pruned and not self.quiet_mode:
+            logger.info("Pre-compression: truncated %d error trace(s)", pruned)
 
         # Phase 2: Determine boundaries
+        # NOTE: n_messages is captured BEFORE pruning above (line 757) to
+        # represent the original turn count for logging purposes. After
+        # pruning, the boundaries below are computed on the pruned list.
         compress_start = self.protect_first_n
         compress_start = self._align_boundary_forward(messages, compress_start)
 
@@ -604,7 +805,10 @@ Write only the summary body. Do not include any preamble or prefix."""
         if compress_start >= compress_end:
             return messages
 
+        # turns_to_summarize is relative to the pruned list
         turns_to_summarize = messages[compress_start:compress_end]
+        # n_messages used below for iteration is the current (post-pruning) len
+        n_msgs = len(messages)
 
         if not self.quiet_mode:
             logger.info(
@@ -618,7 +822,7 @@ Write only the summary body. Do not include any preamble or prefix."""
                 self.threshold_percent * 100,
                 self.threshold_tokens,
             )
-            tail_msgs = n_messages - compress_end
+            tail_msgs = n_msgs - compress_end
             logger.info(
                 "Summarizing turns %d-%d (%d turns), protecting %d head + %d tail messages",
                 compress_start + 1,
@@ -645,7 +849,7 @@ Write only the summary body. Do not include any preamble or prefix."""
         _merge_summary_into_tail = False
         if summary:
             last_head_role = messages[compress_start - 1].get("role", "user") if compress_start > 0 else "user"
-            first_tail_role = messages[compress_end].get("role", "user") if compress_end < n_messages else "user"
+            first_tail_role = messages[compress_end].get("role", "user") if compress_end < n_msgs else "user"
             # Pick a role that avoids consecutive same-role with both neighbors.
             # Priority: avoid colliding with head (already committed), then tail.
             if last_head_role in ("assistant", "tool"):
@@ -670,7 +874,7 @@ Write only the summary body. Do not include any preamble or prefix."""
             if not self.quiet_mode:
                 logger.debug("No summary model available — middle turns dropped without summary")
 
-        for i in range(compress_end, n_messages):
+        for i in range(compress_end, n_msgs):
             msg = messages[i].copy()
             if _merge_summary_into_tail and i == compress_end:
                 original = msg.get("content") or ""

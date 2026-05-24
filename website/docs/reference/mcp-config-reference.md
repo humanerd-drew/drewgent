@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "MCP Config Reference"
-description: "Reference for Drewgent Agent MCP configuration keys, filtering semantics, and utility-tool policy"
+title: Mcp Config Reference
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # MCP Config Reference
 

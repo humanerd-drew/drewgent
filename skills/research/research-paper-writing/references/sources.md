@@ -1,3 +1,17 @@
+---
+
+title: Source Bibliography
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Source Bibliography
 
 This document lists all authoritative sources used to build this skill, organized by topic.

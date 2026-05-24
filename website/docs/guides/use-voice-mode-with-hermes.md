@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Use Voice Mode with Drewgent"
-description: "A practical guide to setting up and using Drewgent voice mode across CLI, Telegram, Discord, and Discord voice channels"
+title: Use Voice Mode With Hermes
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Use Voice Mode with Drewgent
 

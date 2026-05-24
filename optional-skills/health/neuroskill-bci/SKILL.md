@@ -1,20 +1,18 @@
 ---
-name: neuroskill-bci
-description: >
-  Connect to a running NeuroSkill instance and incorporate the user's real-time
-  cognitive and emotional state (focus, relaxation, mood, cognitive load, drowsiness,
-  heart rate, HRV, sleep staging, and 40+ derived EXG scores) into responses.
-  Requires a BCI wearable (Muse 2/S or OpenBCI) and the NeuroSkill desktop app
-  running locally.
-version: 1.0.0
-author: Drewgent Agent + HUMANERD
-license: MIT
-metadata:
-  drewgent:
-    tags: [BCI, neurofeedback, health, focus, EEG, cognitive-state, biometrics, neuroskill]
-    category: health
-    related_skills: []
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # NeuroSkill BCI Integration
 

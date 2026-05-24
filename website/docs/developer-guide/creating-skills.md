@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Creating Skills"
-description: "How to create skills for Drewgent Agent — SKILL.md format, guidelines, and publishing"
+title: Creating Skills
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Creating Skills
 

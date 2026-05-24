@@ -1,9 +1,14 @@
 ---
 title: Image Generation
-description: Generate high-quality images using FLUX 2 Pro with automatic upscaling via FAL.ai.
-sidebar_label: Image Generation
-sidebar_position: 6
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Image Generation
 

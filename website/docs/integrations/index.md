@@ -1,8 +1,14 @@
 ---
-title: "Integrations"
-sidebar_label: "Overview"
-sidebar_position: 0
+title: Index
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Integrations
 

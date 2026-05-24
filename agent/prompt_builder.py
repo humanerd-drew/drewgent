@@ -907,6 +907,55 @@ def load_soul_md() -> Optional[str]:
         return None
 
 
+def load_dreams() -> Optional[str]:
+    """Load all dreams from ~/.drewgent/dreams/ and return as a prompt section.
+
+    Dreams are insights/value observations discovered during sessions — Claude-style
+    "dream" system where meaningful discoveries are passed to future sessions.
+
+    Each dream is a .md file in dreams/, with frontmatter (title, created, tags).
+    DREAM_INDEX.md is skipped (it's the wiki index only).
+    """
+    try:
+        from drewgent_cli.config import get_drewgent_home
+        dreams_dir = get_drewgent_home() / "dreams"
+    except Exception:
+        return None
+
+    if not dreams_dir.exists():
+        return None
+
+    dream_files = sorted(dreams_dir.glob("*.md"))
+    if not dream_files:
+        return None
+
+    sections = []
+    for dream_file in dream_files:
+        # Skip index file
+        if dream_file.stem == "DREAM_INDEX":
+            continue
+        try:
+            content = dream_file.read_text(encoding="utf-8").strip()
+            if not content:
+                continue
+            # Strip YAML frontmatter for prompt injection
+            content = _strip_yaml_frontmatter(content)
+            # Truncate if too long (preserve first 200 lines)
+            lines = content.split("\n")
+            if len(lines) > 200:
+                truncated = "\n".join(lines[:200])
+                truncated += f"\n\n[... {len(lines)-200} more lines. Use file tools to read full dream.]"
+                content = truncated
+            sections.append(content)
+        except Exception:
+            continue
+
+    if not sections:
+        return None
+
+    return "# Dreams from Past Sessions\n\n" + "\n\n---\n\n".join(sections)
+
+
 def _load_drewgent_md(cwd_path: Path) -> str:
     """.drewgent.md / DREW.md — walk to git root."""
     drewgent_md_path = _find_drewgent_md(cwd_path)
@@ -1028,6 +1077,12 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
         soul_content = load_soul_md()
         if soul_content:
             sections.append(soul_content)
+
+    # Dreams from past sessions — Claude-style insight persistence
+    # Loaded after SOUL so dreams appear in future prompts automatically
+    dreams_content = load_dreams()
+    if dreams_content:
+        sections.append(dreams_content)
 
     if not sections:
         return ""

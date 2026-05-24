@@ -1,14 +1,18 @@
 ---
-name: solana
-description: Query Solana blockchain data with USD pricing — wallet balances, token portfolios with values, transaction details, NFTs, whale detection, and live network stats. Uses Solana RPC + CoinGecko. No API key required.
-version: 0.2.0
-author: Deniz Alagoz (gizdusum), enhanced by Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [Solana, Blockchain, Crypto, Web3, RPC, DeFi, NFT]
-    related_skills: []
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Solana Blockchain Skill
 

@@ -1,3 +1,22 @@
+---
+title: Axolotl - Other
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[0, 11, 17, 24, 28, 36, 41 44, 48, 51, 55, 60, 64]]"
+  - "[[A A A A A A A A A A A B B B B B
+   B C C C C C C C D D D D E E E E
+   E E E E F F F F F G G G H H H H
+   I I I J J J J K K K K K L L L X]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[dummy_message]]"
+---
+
+
+
 # Axolotl - Other
 
 **Pages:** 26

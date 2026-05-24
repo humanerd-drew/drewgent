@@ -1,14 +1,18 @@
 ---
-name: github-auth
-description: Set up GitHub authentication for the agent using git (universally available) or the gh CLI. Covers HTTPS tokens, SSH keys, credential helpers, and gh auth — with a detection flow to pick the right method automatically.
-version: 1.1.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [GitHub, Authentication, Git, gh-cli, SSH, Setup]
-    related_skills: [github-pr-workflow, github-code-review, github-issues, github-repo-management]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # GitHub Authentication Setup
 

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Adding Providers"
-description: "How to add a new inference provider to Drewgent Agent — auth, runtime resolution, CLI flows, adapters, tests, and docs"
+title: Adding Providers
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Adding Providers
 

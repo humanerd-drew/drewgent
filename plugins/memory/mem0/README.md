@@ -1,3 +1,17 @@
+---
+
+title: Mem0 Memory Provider
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Mem0 Memory Provider
 
 Server-side LLM fact extraction with semantic search, reranking, and automatic deduplication.

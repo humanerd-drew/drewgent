@@ -1,8 +1,14 @@
 ---
-sidebar_position: 14
-title: "WeCom (Enterprise WeChat)"
-description: "Connect Drewgent Agent to WeCom via the AI Bot WebSocket gateway"
+title: Wecom
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # WeCom (Enterprise WeChat)
 

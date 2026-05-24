@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Memory Provider Plugins"
-description: "How to build a memory provider plugin for Drewgent Agent"
+title: Memory Provider Plugin
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Building a Memory Provider Plugin
 

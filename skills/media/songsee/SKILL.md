@@ -1,16 +1,18 @@
 ---
-name: songsee
-description: Generate spectrograms and audio feature visualizations (mel, chroma, MFCC, tempogram, etc.) from audio files via CLI. Useful for audio analysis, music production debugging, and visual documentation.
-version: 1.0.0
-author: community
-license: MIT
-metadata:
-  drewgent:
-    tags: [Audio, Visualization, Spectrogram, Music, Analysis]
-    homepage: https://github.com/steipete/songsee
-prerequisites:
-  commands: [songsee]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # songsee
 

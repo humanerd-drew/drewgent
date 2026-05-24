@@ -1,14 +1,18 @@
 ---
-name: plan
-description: Plan mode for Drewgent — inspect context, write a markdown plan into the active workspace's `.drewgent/plans/` directory, and do not execute the work.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [planning, plan-mode, implementation, workflow]
-    related_skills: [writing-plans, subagent-driven-development]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Plan Mode
 

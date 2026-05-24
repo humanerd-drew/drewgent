@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "CLI Commands Reference"
-description: "Authoritative reference for Drewgent terminal commands and command families"
+title: Cli Commands
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # CLI Commands Reference
 

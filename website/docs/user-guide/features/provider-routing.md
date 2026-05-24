@@ -1,9 +1,14 @@
 ---
 title: Provider Routing
-description: Configure OpenRouter provider preferences to optimize for cost, speed, or quality.
-sidebar_label: Provider Routing
-sidebar_position: 7
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Provider Routing
 

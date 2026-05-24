@@ -1,11 +1,18 @@
 ---
-name: youtube-content
-description: >
-  Fetch YouTube video transcripts and transform them into structured content
-  (chapters, summaries, threads, blog posts). Use when the user shares a YouTube
-  URL or video link, asks to summarize a video, requests a transcript, or wants
-  to extract and reformat content from any YouTube video.
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # YouTube Content Tool
 

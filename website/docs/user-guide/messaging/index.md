@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Messaging Gateway"
-description: "Chat with Drewgent from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Webhooks, or any OpenAI-compatible frontend via the API server — architecture and setup overview"
+title: Index
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Messaging Gateway
 

@@ -1,12 +1,18 @@
 ---
-name: agentmail
-description: Give the agent its own dedicated email inbox via AgentMail. Send, receive, and manage email autonomously using agent-owned email addresses (e.g. drewgent-agent@agentmail.to).
-version: 1.0.0
-metadata:
-  drewgent:
-    tags: [email, communication, agentmail, mcp]
-    category: email
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # AgentMail — Agent-Owned Email Inboxes
 

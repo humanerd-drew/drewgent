@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Persistent Memory"
-description: "How Drewgent Agent remembers across sessions — MEMORY.md, USER.md, and session search"
+title: Memory
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Persistent Memory
 

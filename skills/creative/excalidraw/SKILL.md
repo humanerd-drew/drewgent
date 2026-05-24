@@ -1,16 +1,18 @@
 ---
-name: excalidraw
-description: Create hand-drawn style diagrams using Excalidraw JSON format. Generate .excalidraw files for architecture diagrams, flowcharts, sequence diagrams, concept maps, and more. Files can be opened at excalidraw.com or uploaded for shareable links.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-dependencies: []
-metadata:
-  drewgent:
-    tags: [Excalidraw, Diagrams, Flowcharts, Architecture, Visualization, JSON]
-    related_skills: []
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Excalidraw Diagram Skill
 

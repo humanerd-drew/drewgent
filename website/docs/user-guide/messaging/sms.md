@@ -1,9 +1,14 @@
 ---
-sidebar_position: 8
-sidebar_label: "SMS (Twilio)"
-title: "SMS (Twilio)"
-description: "Set up Drewgent Agent as an SMS chatbot via Twilio"
+title: Sms
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # SMS Setup (Twilio)
 

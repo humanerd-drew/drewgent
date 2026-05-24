@@ -5370,11 +5370,19 @@ For more help on a command:
         help="Run Drewgent Agent as an ACP (Agent Client Protocol) server",
         description="Start Drewgent Agent in ACP mode for editor integration (VS Code, Zed, JetBrains)",
     )
+    acp_parser.add_argument(
+        "--stdio",
+        action="store_true",
+        help="Use stdio transport (for subprocess workers, not network server)",
+    )
 
     def cmd_acp(args):
         """Launch Drewgent Agent as an ACP server."""
         try:
             from acp_adapter.entry import main as acp_main
+            # Pass --stdio flag if set (enables stdio mode for kanban workers)
+            if args.stdio:
+                os.environ["ACP_STDIO_MODE"] = "1"
             acp_main()
         except ImportError:
             print("ACP dependencies not installed.")

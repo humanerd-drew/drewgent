@@ -1,21 +1,18 @@
 ---
-name: 1password
-description: Set up and use 1Password CLI (op). Use when installing the CLI, enabling desktop app integration, signing in, and reading/injecting secrets for commands.
-version: 1.0.0
-author: arceus77-7, enhanced by Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [security, secrets, 1password, op, cli]
-    category: security
-setup:
-  help: "Create a service account at https://my.1password.com → Settings → Service Accounts"
-  collect_secrets:
-    - env_var: OP_SERVICE_ACCOUNT_TOKEN
-      prompt: "1Password Service Account Token"
-      provider_url: "https://developer.1password.com/docs/service-accounts/"
-      secret: true
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # 1Password CLI
 

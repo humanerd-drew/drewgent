@@ -1,7 +1,18 @@
 ---
-name: obsidian
-description: Read, search, and create notes in the Obsidian vault.
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[Note Name]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
+
 
 # Obsidian Vault
 

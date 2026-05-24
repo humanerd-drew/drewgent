@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Bundled Skills Catalog"
-description: "Catalog of bundled skills that ship with Drewgent Agent"
+title: Skills Catalog
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Bundled Skills Catalog
 

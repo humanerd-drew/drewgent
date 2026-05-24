@@ -1,15 +1,23 @@
 ---
-name: segment-anything-model
-description: Foundation model for image segmentation with zero-shot transfer. Use when you need to segment any object in images using points, boxes, or masks as prompts, or automatically generate all object masks in an image.
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [segment-anything, transformers>=4.30.0, torch>=1.7.0]
-metadata:
-  drewgent:
-    tags: [Multimodal, Image Segmentation, Computer Vision, SAM, Zero-Shot]
-
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[100, 100]]"
+  - "[[200, 200]]"
+  - "[[300, 300]]"
+  - "[[500, 375]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[[450, 600]]"
+  - "[[x, y]]"
 ---
+
+
+
+
 
 # Segment Anything Model (SAM)
 

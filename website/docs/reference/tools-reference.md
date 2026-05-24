@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Built-in Tools Reference"
-description: "Authoritative reference for Drewgent built-in tools, grouped by toolset"
+title: Tools Reference
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Built-in Tools Reference
 

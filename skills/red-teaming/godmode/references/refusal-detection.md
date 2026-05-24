@@ -1,3 +1,17 @@
+---
+
+title: Refusal Detection & Response Scoring
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Refusal Detection & Response Scoring
 
 Ported from G0DM0D3's Tastemaker scoring system. Use these patterns to

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Environment Variables"
-description: "Complete reference of all environment variables used by Drewgent Agent"
+title: Environment Variables
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Environment Variables Reference
 

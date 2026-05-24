@@ -1,3 +1,17 @@
+---
+
+title: Autoreason: Iterative Refinement Methodology
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Autoreason: Iterative Refinement Methodology
 
 Complete reference for the autoreason iterative refinement method, derived from experimental results across subjective writing tasks, competitive programming, and four model tiers. Use this when any output (paper draft, experiment script, analysis, task definition) needs iterative improvement.

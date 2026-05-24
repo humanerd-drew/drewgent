@@ -1,3 +1,17 @@
+---
+
+title: GODMODE CLASSIC — Jailbreak System Prompt Templates
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # GODMODE CLASSIC — Jailbreak System Prompt Templates
 
 Source: [G0DM0D3](https://github.com/elder-plinius/G0DM0D3) + [L1B3RT4S](https://github.com/elder-plinius/L1B3RT4S)

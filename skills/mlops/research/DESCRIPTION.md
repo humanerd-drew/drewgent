@@ -1,3 +1,15 @@
 ---
-description: ML research frameworks for building and optimizing AI systems with declarative programming.
+
+title: Description
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+

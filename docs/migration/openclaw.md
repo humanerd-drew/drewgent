@@ -1,3 +1,17 @@
+---
+
+title: Migrating from OpenClaw to Drewgent Agent
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Migrating from OpenClaw to Drewgent Agent
 
 This guide covers how to import your OpenClaw settings, memories, skills, and API keys into Drewgent Agent.

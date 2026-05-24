@@ -1,8 +1,14 @@
 ---
-sidebar_position: 9
-title: "Personality & SOUL.md"
-description: "Customize Drewgent Agent's personality with a global SOUL.md, built-in personalities, and custom persona definitions"
+title: Personality
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Personality & SOUL.md
 

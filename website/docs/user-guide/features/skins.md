@@ -1,8 +1,14 @@
 ---
-sidebar_position: 10
-title: "Skins & Themes"
-description: "Customize the Drewgent CLI with built-in and user-defined skins"
+title: Skins
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Skins & Themes
 

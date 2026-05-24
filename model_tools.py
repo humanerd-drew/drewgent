@@ -171,7 +171,6 @@ def _discover_tools():
         "tools.homeassistant_tool",
         "tools.brain_tool",
         "tools.semble_tool",
-        "tools.linear_kanban_tools",
         "tools.drewgent_kanban_db",
         "tools.kanban_tools",
 

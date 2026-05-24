@@ -1,3 +1,17 @@
+---
+
+title: Optimization Reference
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Optimization Reference
 
 > **See also:** architecture.md · composition.md · scenes.md · shaders.md · inputs.md · troubleshooting.md

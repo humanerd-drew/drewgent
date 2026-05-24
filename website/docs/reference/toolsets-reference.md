@@ -1,8 +1,14 @@
 ---
-sidebar_position: 4
-title: "Toolsets Reference"
-description: "Reference for Drewgent core, composite, platform, and dynamic toolsets"
+title: Toolsets Reference
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Toolsets Reference
 

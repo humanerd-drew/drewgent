@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Adding Tools"
-description: "How to add a new tool to Drewgent Agent — schemas, handlers, registration, and toolsets"
+title: Adding Tools
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Adding Tools
 

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 13
-title: "Delegation & Parallel Work"
-description: "When and how to use subagent delegation — patterns for parallel research, code review, and multi-file work"
+title: Delegation Patterns
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Delegation & Parallel Work
 

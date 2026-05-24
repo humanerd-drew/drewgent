@@ -1,15 +1,18 @@
 ---
-name: slime-rl-training
-description: Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework. Use when training GLM models, implementing custom data generation workflows, or needing tight Megatron-LM integration for RL scaling.
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [sglang-router>=0.2.3, ray, torch>=2.0.0, transformers>=4.40.0]
-metadata:
-  drewgent:
-    tags: [Reinforcement Learning, Megatron-LM, SGLang, GRPO, Post-Training, GLM]
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # slime: LLM Post-Training Framework for RL Scaling
 

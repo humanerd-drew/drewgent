@@ -1,18 +1,18 @@
 ---
-name: xitter
-description: Interact with X/Twitter via the x-cli terminal client using official X API credentials. Use for posting, reading timelines, searching tweets, liking, retweeting, bookmarks, mentions, and user lookups.
-version: 1.0.0
-author: Siddharth Balyan + Drewgent Agent
-license: MIT
-platforms: [linux, macos]
-prerequisites:
-  commands: [uv]
-  env_vars: [X_API_KEY, X_API_SECRET, X_BEARER_TOKEN, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET]
-metadata:
-  drewgent:
-    tags: [twitter, x, social-media, x-cli]
-    homepage: https://github.com/Infatoshi/x-cli
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Xitter — X/Twitter via x-cli
 

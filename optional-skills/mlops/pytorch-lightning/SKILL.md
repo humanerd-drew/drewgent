@@ -1,15 +1,18 @@
 ---
-name: pytorch-lightning
-description: High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), callbacks system, and minimal boilerplate. Scales from laptop to supercomputer with same code. Use when you want clean training loops with built-in best practices.
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [lightning, torch, transformers]
-metadata:
-  drewgent:
-    tags: [PyTorch Lightning, Training Framework, Distributed Training, DDP, FSDP, DeepSpeed, High-Level API, Callbacks, Best Practices, Scalable]
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # PyTorch Lightning - High-Level Training Framework
 

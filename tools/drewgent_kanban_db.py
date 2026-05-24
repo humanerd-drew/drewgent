@@ -4,7 +4,8 @@ DrewgentTaskStore — SQLite-backed persistent task store.
 Provides a lightweight task store for Drewgent integration workflow tracking.
 Follows the drewgent-kanban-implementation-plan.md spec (Phase 1 MVP).
 
-State file: ~/.drewgent/state/drewgent_tasks.db
+State file: ~/.drewgent/P2-hippocampus/kanban/state/drewgent_tasks.db
+(P2-hippocampus/kanban/ is the canonical location — kanban is part of brain structure)
 
 Schema:
     boards: id, name, description, created_at
@@ -44,9 +45,14 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 def _get_db_path() -> Path:
-    """Return path to the Drewgent tasks DB."""
+    """Return path to the Drewgent tasks DB.
+
+    P2-hippocampus/kanban/state/ is the canonical location.
+    This places kanban state squarely inside Drewgent's brain structure,
+    not as an orphan in state/.
+    """
     home = get_drewgent_home()
-    db_path = home / "state" / "drewgent_tasks.db"
+    db_path = home / "P2-hippocampus" / "kanban" / "state" / "drewgent_tasks.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return db_path
 
@@ -97,7 +103,8 @@ def init_db():
             integration_workflow_id TEXT,
             trigger_source  TEXT DEFAULT 'subagent',
             parent_session_id TEXT,
-            board           TEXT NOT NULL DEFAULT 'default'
+            board           TEXT NOT NULL DEFAULT 'default',
+            mode            TEXT NOT NULL DEFAULT 'execution'
         );
 
         CREATE TABLE IF NOT EXISTS boards (
@@ -202,48 +209,55 @@ def task_create(
     trigger_source: str = "subagent",
     integration_workflow_id: Optional[str] = None,
     parent_session_id: Optional[str] = None,
-    parent_task_ids: Optional[List[str]] = None,
+parent_task_ids: Optional[List[str]] = None,
     board: str = "default",
+    mode: str = "execution",
 ) -> Dict[str, Any]:
     """
     Create a new task and optionally link to parent tasks.
 
     Args:
+        mode: 'design' (AI decomposes then waits for approval) or 'execution' (decompose then auto-run).
+              Design mode tasks go to 'design' status and wait for user approval before spawning workers.
         board: kanban board name (default: 'default'). Creates board if not exists.
 
     Returns dict with: ok=True, task_id, title, status
     """
+    # Validate mode
+    if mode not in ("design", "execution"):
+        return {"ok": False, "error": f"Invalid mode: {mode}. Must be 'design' or 'execution'."}
+
+    # Design mode: status='design', no auto-dispatch
+    # Execution mode: status='ready' (or 'todo' if parent not done)
+    if mode == "design":
+        status = "design"
+    else:
+        status = "ready"
+        # Idempotency check
+        if idempotency_key:
+            with _get_connection() as conn:
+                row = conn.execute(
+                    "SELECT id, status FROM tasks WHERE idempotency_key = ?",
+                    (idempotency_key,),
+                ).fetchone()
+                if row:
+                    return {"ok": True, "task_id": row["id"], "status": row["status"], "idempotent": True}
+        # Parent dependency check
+        if parent_task_ids:
+            with _get_connection() as conn:
+                undone = []
+                for pid in parent_task_ids:
+                    row = conn.execute(
+                        "SELECT status FROM tasks WHERE id = ?", (pid,)
+                    ).fetchone()
+                    if not row or row["status"] not in ("completed", "canceled", "done"):
+                        undone.append(row["status"] if row else "missing")
+                if undone:
+                    status = "todo"  # still blocked by parent(s)
+
     init_db()
-
-    # Idempotency check
-    if idempotency_key:
-        with _get_connection() as conn:
-            row = conn.execute(
-                "SELECT id, status FROM tasks WHERE idempotency_key = ?",
-                (idempotency_key,),
-            ).fetchone()
-            if row:
-                return {"ok": True, "task_id": row["id"], "status": row["status"], "idempotent": True}
-
     task_id = f"t_{uuid.uuid4().hex[:12]}"
     now = datetime.now().isoformat()
-
-    # Auto-set status based on parent dependencies
-    # - No parents → ready (not blocked)
-    # - All parents done → ready (dependencies satisfied)
-    # - Any parent not done → todo (blocked)
-    status = "ready"  # default: no dependency = ready
-    if parent_task_ids:
-        with _get_connection() as conn:
-            undone = []
-            for pid in parent_task_ids:
-                row = conn.execute(
-                    "SELECT status FROM tasks WHERE id = ?", (pid,)
-                ).fetchone()
-                if not row or row["status"] not in ("completed", "canceled", "done"):
-                    undone.append(row["status"] if row else "missing")
-            if undone:
-                status = "todo"  # still blocked by parent(s)
 
     with _get_connection() as conn:
         # Ensure board exists (create if not)
@@ -256,15 +270,15 @@ def task_create(
                 id, title, body, assignee, status, priority,
                 created_by, created_at, workspace_kind, workspace_path,
                 idempotency_key, skills, max_runtime_seconds,
-                trigger_source, integration_workflow_id, parent_session_id, board
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                trigger_source, integration_workflow_id, parent_session_id, board, mode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 task_id, title, body, assignee, status, priority,
                 created_by or "drewgent", now,
                 workspace_kind, workspace_path,
                 idempotency_key, json.dumps(skills) if skills else None,
                 max_runtime_seconds,
-                trigger_source, integration_workflow_id, parent_session_id, board,
+                trigger_source, integration_workflow_id, parent_session_id, board, mode,
             ),
         )
 
@@ -283,6 +297,21 @@ def task_create(
         )
 
     logger.debug("Task created: %s '%s' (wf=%s)", task_id, title, integration_workflow_id)
+
+    # Emit kanban brain signal (P2-hippocampus brain integration)
+    try:
+        from agent.brain_signals import get_signal_emitter
+        emitter = get_signal_emitter()
+        if emitter:
+            emitter.kanban_task_created(
+                task_id=task_id,
+                title=title,
+                board=board,
+                trigger=trigger_source,
+            )
+    except Exception:
+        pass  # Brain signals are best-effort, don't block task creation
+
     return {"ok": True, "task_id": task_id, "title": title, "status": status}
 
 
@@ -361,6 +390,14 @@ def task_complete(
                 row = conn.execute("SELECT id FROM tasks WHERE id = ?", (card_id,)).fetchone()
                 if not row:
                     logger.warning("Hallucination detected: task_id %s does not exist", card_id)
+                    # Emit P0-brainstem kanban.hallucination_blocked signal
+                    try:
+                        from agent.brain_signals import get_signal_emitter
+                        emitter = get_signal_emitter()
+                        if emitter:
+                            emitter.kanban_hallucination_blocked(task_id, [card_id])
+                    except Exception:
+                        pass
                     return {
                         "ok": False,
                         "error": f"completion_blocked_hallucination: '{card_id}' not found in task store",
@@ -426,6 +463,19 @@ def task_complete(
     # ── Fire notification to subscribers ─────────────────────────────────────
     notify_task_event(task_id, "completed", {"result": result, "summary": summary})
 
+    # Emit kanban.task.completed brain signal (P2-hippocampus brain integration)
+    try:
+        from agent.brain_signals import get_signal_emitter
+        emitter = get_signal_emitter()
+        if emitter:
+            emitter.kanban_task_completed(
+                task_id=task_id,
+                board=row["board"] if "board" in row else "default",
+                result=result or "",
+            )
+    except Exception:
+        pass
+
     return result_dict
 
 
@@ -477,6 +527,16 @@ def task_block(task_id: str, reason: Optional[str] = None) -> Dict[str, Any]:
             (task_id, None, "blocked", json.dumps({"reason": reason}), now),
         )
     notify_task_event(task_id, "blocked", {"reason": reason})
+
+    # Emit kanban.task.blocked brain signal (P2-hippocampus brain integration)
+    try:
+        from agent.brain_signals import get_signal_emitter
+        emitter = get_signal_emitter()
+        if emitter:
+            emitter.kanban_task_blocked(task_id, reason or "unspecified")
+    except Exception:
+        pass
+
     return {"ok": True, "task_id": task_id, "status": "blocked"}
 
 
@@ -563,6 +623,29 @@ def task_add_comment(task_id: str, author: str, body: str) -> Dict[str, Any]:
             (task_id, author, body, now),
         )
     return {"ok": True, "task_id": task_id}
+
+
+def task_delete(task_id: str) -> Dict[str, Any]:
+    """Delete a task and all its related data (cascade delete)."""
+    init_db()
+    with _get_connection() as conn:
+        # Verify task exists
+        row = conn.execute("SELECT id, title, status FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": f"Task '{task_id}' not found"}
+        title = row["title"]
+        status = row["status"]
+
+        # Cascade delete related records
+        conn.execute("DELETE FROM task_events WHERE task_id=?", (task_id,))
+        conn.execute("DELETE FROM task_comments WHERE task_id=?", (task_id,))
+        conn.execute("DELETE FROM task_runs WHERE task_id=?", (task_id,))
+        # Remove from task_links (both as parent and child)
+        conn.execute("DELETE FROM task_links WHERE parent_id=? OR child_id=?", (task_id, task_id))
+        # Delete the task itself
+        conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+
+    return {"ok": True, "task_id": task_id, "title": title, "status": status}
 
 
 def task_claim(task_id: str, ttl_seconds: int = 3600) -> Dict[str, Any]:
@@ -750,7 +833,40 @@ def notify_task_event(task_id: str, event_kind: str, payload: Optional[Dict[str,
             "notify_task_event: task=%s kind=%s subscribers=%d",
             task_id, event_kind, len(results),
         )
+
+    # --- Deliver to Discord via webhook ---
+    try:
+        from drewgent_kanban_notify import send_notification
+        send_notification(task_id, event_kind)
+    except Exception:
+        pass  # Non-blocking delivery
+
     return results
+
+
+# =============================================================================
+# Worker Result Handoff
+# =============================================================================
+
+def parent_results(task_id: str) -> List[Dict[str, Any]]:
+    """
+    Get completed parent tasks and their results for a given child task.
+    Used by workers to read parent results before executing next step.
+
+    Returns: [{"parent_id": "...", "title": "...", "result": "...", "completed_at": "..."}, ...]
+    Only includes parents with status completed/canceled/done.
+    """
+    init_db()
+    with _get_connection() as conn:
+        rows = conn.execute("""
+            SELECT t.id AS parent_id, t.title, t.result, t.completed_at
+            FROM task_links ll
+            JOIN tasks t ON t.id = ll.parent_id
+            WHERE ll.child_id = ?
+              AND t.status IN ('completed', 'canceled', 'done')
+            ORDER BY t.completed_at ASC
+        """, (task_id,)).fetchall()
+    return [dict(row) for row in rows]
 
 
 # =============================================================================
@@ -767,7 +883,8 @@ def _reclaim_stale_tasks(conn: sqlite3.Connection, failure_limit: int = 3) -> Li
     reclaimed = []
 
     rows = conn.execute("""
-        SELECT id, title, worker_pid, claim_expires, consecutive_failures
+        SELECT id, title, worker_pid, claim_expires, consecutive_failures,
+               started_at, max_runtime_seconds
         FROM tasks
         WHERE status = 'in_progress'
     """).fetchall()
@@ -777,18 +894,27 @@ def _reclaim_stale_tasks(conn: sqlite3.Connection, failure_limit: int = 3) -> Li
         expired = row["claim_expires"] and row["claim_expires"] < now
         worker_dead = row["worker_pid"] and not _is_pid_alive(row["worker_pid"])
 
-        if expired or worker_dead:
+        # Watchdog: max_runtime_seconds exceeded since task started
+        runtime_exceeded = False
+        if row["max_runtime_seconds"] and row["max_runtime_seconds"] > 0 and row["started_at"]:
+            from datetime import datetime as dt
+            started = dt.fromisoformat(row["started_at"])
+            elapsed = (dt.now() - started).total_seconds()
+            runtime_exceeded = elapsed > row["max_runtime_seconds"]
+
+        if expired or worker_dead or runtime_exceeded:
             failures = row["consecutive_failures"] + 1
+            reason = "expired" if expired else ("worker_dead" if worker_dead else "runtime_exceeded")
             if failures >= failure_limit:
                 conn.execute(
                     """UPDATE tasks SET status='blocked',
                         consecutive_failures=?, last_failure_error=?
                         WHERE id=?""",
-                    (failures, "consecutive_failure_limit", task_id),
+                    (failures, f"reclaim_{reason}", task_id),
                 )
                 conn.execute(
                     "INSERT INTO task_events (task_id, run_id, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (task_id, None, "blocked", json.dumps({"reason": "consecutive_failure_limit"}), now),
+                    (task_id, None, "blocked", json.dumps({"reason": f"reclaim_{reason}"}), now),
                 )
             else:
                 conn.execute(
@@ -800,9 +926,19 @@ def _reclaim_stale_tasks(conn: sqlite3.Connection, failure_limit: int = 3) -> Li
                 )
                 conn.execute(
                     "INSERT INTO task_events (task_id, run_id, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (task_id, None, "reclaimed", json.dumps({"failures": failures}), now),
+                    (task_id, None, "reclaimed", json.dumps({"failures": failures, "reason": reason}), now),
                 )
-            reclaimed.append({"task_id": task_id, "reason": "expired" if expired else "worker_dead"})
+            reclaimed.append({"task_id": task_id, "reason": reason})
+            # Emit kanban.worker.reclaimed brain signal (P2-hippocampus brain integration)
+            try:
+                from agent.brain_signals import get_signal_emitter
+                emitter = get_signal_emitter()
+                if emitter:
+                    emitter.kanban_worker_reclaimed(task_id, reason)
+            except Exception:
+                pass
+            # Promote children whose parents just became available again
+            _recompute_ready_for_children(conn, task_id)
 
     return reclaimed
 
@@ -839,13 +975,25 @@ def _spawn_worker_for_task(task_id: str) -> Optional[Dict[str, Any]]:
     env["KANBAN_TASK_ID"] = task_id
     env["KANBAN_WORKER_MODE"] = "1"
 
-    # Build prompt for the worker session
+    # Include parent task results if this task has parents
+    parent_info = ""
+    try:
+        from drewgent_kanban_db import parent_results
+        parents = parent_results(task_id)
+        if parents:
+            parent_info = "\nParent task results (for handoff):\n"
+            for p in parents:
+                parent_info += f"  - {p['parent_id']} ({p.get('title', 'unknown')}): {p.get('result', '(no result)')}\n"
+    except Exception:
+        pass
+
     prompt = (
         f"You are working on task {task_id}: {task['title']}\n"
         f"Body: {task.get('body') or '(no description)'}\n"
         f"Priority: {task.get('priority')}\n"
         f"Workspace: {task.get('workspace_kind')} at {task.get('workspace_path') or 'default'}\n"
-        f"Trigger: {task.get('trigger_source')}\n\n"
+        f"Trigger: {task.get('trigger_source')}\n"
+        f"{parent_info}\n"
         f"Execute the task. Send periodic kanban_heartbeat(task_id=\"{task_id}\", note=\"...\") every few minutes. "
         f"When done, call kanban_complete(task_id=\"{task_id}\", result=..., summary=...)."
     )
@@ -853,7 +1001,7 @@ def _spawn_worker_for_task(task_id: str) -> Optional[Dict[str, Any]]:
     try:
         # Use subprocess to run drewgent CLI in background
         proc = subprocess.Popen(
-            [venv_python, "-m", "drewgent_cli.main", "--acp", "--stdio",
+            [venv_python, "-m", "drewgent_cli.main", "acp", "--stdio",
              "--model", "claude-sonnet-4"],
             env=env,
             stdin=subprocess.PIPE,
@@ -865,6 +1013,7 @@ def _spawn_worker_for_task(task_id: str) -> Optional[Dict[str, Any]]:
         proc.stdin.write(prompt.encode("utf-8"))
         proc.stdin.write(b"\n[SESSION_END]\n")
         proc.stdin.flush()
+        proc.stdin.close()  # close pipe so worker can start processing
 
         return {
             "task_id": task_id,
@@ -914,9 +1063,10 @@ def dispatch_once(
         result["reclaimed"] = _reclaim_stale_tasks(conn, failure_limit)
 
         # Step 2: Find ready tasks for this board and claim up to max_spawn
+        # Skip design-mode tasks — they wait for human approval before execution
         rows = conn.execute("""
             SELECT id, title, assignee FROM tasks
-            WHERE board = ? AND status = 'ready'
+            WHERE board = ? AND status = 'ready' AND (mode IS NULL OR mode != 'design')
             ORDER BY priority ASC NULLS LAST, created_at ASC
             LIMIT ?
         """, (board, max_spawn,)).fetchall()

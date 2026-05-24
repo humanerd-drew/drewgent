@@ -1,3 +1,17 @@
+---
+
+title: Drewgent Agent v0.5.0 (v2026.3.28)
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Drewgent Agent v0.5.0 (v2026.3.28)
 
 **Release Date:** March 28, 2026

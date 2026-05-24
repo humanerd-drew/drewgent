@@ -1,3 +1,17 @@
+---
+
+title: Visual Design Principles
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Visual Design Principles
 
 ## 12 Core Principles

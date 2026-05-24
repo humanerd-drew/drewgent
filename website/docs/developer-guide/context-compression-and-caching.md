@@ -1,3 +1,13 @@
+---
+title: Context Compression and Caching
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+---
+
 # Context Compression and Caching
 
 Drewgent Agent uses a dual compression system and Anthropic prompt caching to

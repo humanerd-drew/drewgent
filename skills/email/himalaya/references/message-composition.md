@@ -1,3 +1,17 @@
+---
+
+title: Message Composition with MML (MIME Meta Language)
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Message Composition with MML (MIME Meta Language)
 
 Himalaya uses MML for composing emails. MML is a simple XML-based syntax that compiles to MIME messages.

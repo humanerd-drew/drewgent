@@ -588,7 +588,35 @@ def mark_job_run(job_id: str, success: bool, error: Optional[str] = None):
             job["last_run_at"] = now
             job["last_status"] = "ok" if success else "error"
             job["last_error"] = error if not success else None
-            
+
+            if success:
+                # Reset failure counter on success
+                job["failure_count"] = 0
+            else:
+                # Increment failure counter and apply exponential backoff
+                failure_count = job.get("failure_count", 0) + 1
+                job["failure_count"] = failure_count
+
+                # Exponential backoff: cap next_run_at delay at 60 minutes
+                # Backoff applies only to recurring cron/interval jobs
+                schedule_kind = job.get("schedule", {}).get("kind")
+                if schedule_kind in ("cron", "interval") and failure_count > 1:
+                    base_delay_minutes = 2  # 2 minutes at failure_count=2
+                    max_delay_minutes = 60
+                    backoff_minutes = min(max_delay_minutes, base_delay_minutes * (2 ** (failure_count - 2)))
+                    from datetime import datetime as _dt
+                    try:
+                        current_next = _dt.fromisoformat(job.get("next_run_at", now))
+                    except (TypeError, ValueError):
+                        current_next = _dt.now()
+                    backoff_target = _dt.fromisoformat(now) + _timedelta(minutes=backoff_minutes)
+                    if backoff_target > current_next:
+                        job["next_run_at"] = backoff_target.isoformat()
+                        logger.info(
+                            "Job '%s' failed %d time(s) — backoff applied: next run delayed by %dm to %s",
+                            job.get("name", job["id"]), failure_count, backoff_minutes, job["next_run_at"]
+                        )
+
             # Increment completed count
             if job.get("repeat"):
                 job["repeat"]["completed"] = job["repeat"].get("completed", 0) + 1
@@ -725,20 +753,42 @@ def get_due_jobs() -> List[Dict[str, Any]]:
     return due
 
 
+def _job_output_frontmatter(job_id: str, timestamp: str) -> str:
+    """Generate OpenCrab ontology frontmatter for cron job output."""
+    # Determine space+link from job_id
+    job_meta = {
+        "96ad18409db7": ("outcome", "SEO Article Harvester", "[[skills/seo-article-harvester/SKILL]]"),
+        "e2f30aa1b444": ("growth", "Trend Harvester", "[[skills/trend-harvester/SKILL]]"),
+        "94b29f6f91bb": ("outcome", "Brain Dashboard", "[[skills/brain-dashboard-system/SKILL]]"),
+        "kanban-dispatcher": ("outcome", "Kanban Dispatcher", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"),
+        "integrations-board-dispatcher": ("outcome", "Kanban Dispatcher (integrations)", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"),
+        "content-board-dispatcher": ("outcome", "Kanban Dispatcher (content)", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"),
+        "kanban-activity-logger": ("outcome", "Kanban Activity Logger", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"),
+        "kanban-maintenance": ("outcome", "Kanban Maintenance", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"),
+    }
+    space, title, link = job_meta.get(job_id, ("outcome", "Cron Job", "[[P2-hippocampus/kanban/KANBAN_INDEX]]"))
+
+    fm = "---\ntitle: %s %s\ntype: session-log\nspace: %s\ntags: [cron, session-log]\ncreated: %s\nupdated: %s\nlinks:\n  - \"%s\"\n---\n\n" % (title, timestamp[:10], space, timestamp[:10], timestamp[:10], link)
+    return fm
+
+
 def save_job_output(job_id: str, output: str):
-    """Save job output to file."""
+    """Save job output to file with OpenCrab ontology frontmatter."""
     ensure_dirs()
     job_output_dir = OUTPUT_DIR / job_id
     job_output_dir.mkdir(parents=True, exist_ok=True)
     _secure_dir(job_output_dir)
-    
+
     timestamp = _drewgent_now().strftime("%Y-%m-%d_%H-%M-%S")
     output_file = job_output_dir / f"{timestamp}.md"
-    
+
+    fm = _job_output_frontmatter(job_id, timestamp)
+    content = fm + output
+
     fd, tmp_path = tempfile.mkstemp(dir=str(job_output_dir), suffix='.tmp', prefix='.output_')
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write(output)
+            f.write(content)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, output_file)
@@ -749,5 +799,5 @@ def save_job_output(job_id: str, output: str):
         except OSError:
             pass
         raise
-    
+
     return output_file

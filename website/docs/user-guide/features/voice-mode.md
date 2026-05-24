@@ -1,8 +1,14 @@
 ---
-sidebar_position: 10
-title: "Voice Mode"
-description: "Real-time voice conversations with Drewgent Agent — CLI, Telegram, Discord (DMs, text channels, and voice channels)"
+title: Voice Mode
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Voice Mode
 

@@ -1,14 +1,18 @@
 ---
-name: neuron-fs-brain
-description: NeuronFS-style brain governance for Drewgent. Manages filesystem-based AI constraints via folder structure and special tokens (vorq, 禁).
-version: 1.0.0
-author: drewgent-core
-license: MIT
-metadata:
-  drewgent:
-    tags: [neuronfs, brain, governance, constraints, filesystem, vorq, brain-management]
-    category: brain
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # NeuronFS Brain Governance
 

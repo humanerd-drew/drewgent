@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Telegram"
-description: "Set up Drewgent Agent as a Telegram bot"
+title: Telegram
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Telegram Setup
 

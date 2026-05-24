@@ -1,14 +1,18 @@
 ---
-name: findmy
-description: Track Apple devices and AirTags via FindMy.app on macOS using AppleScript and screen capture.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-platforms: [macos]
-metadata:
-  drewgent:
-    tags: [FindMy, AirTag, location, tracking, macOS, Apple]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Find My (Apple)
 

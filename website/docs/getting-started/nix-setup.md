@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Nix & NixOS Setup"
-description: "Install and deploy Drewgent Agent with Nix — from quick `nix run` to fully declarative NixOS module with container mode"
+title: Nix Setup
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Nix & NixOS Setup
 

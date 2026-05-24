@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Docker"
-description: "Running Drewgent Agent in Docker and using Docker as a terminal backend"
+title: Docker
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Drewgent Agent — Docker
 

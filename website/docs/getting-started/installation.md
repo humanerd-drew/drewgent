@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Installation"
-description: "Install Drewgent Agent on Linux, macOS, or WSL2"
+title: Installation
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Installation
 

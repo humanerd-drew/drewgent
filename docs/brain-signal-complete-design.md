@@ -1,3 +1,17 @@
+---
+
+title: Brain Signal System — Complete Implementation Plan
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Brain Signal System — Complete Implementation Plan
 
 ## 목적

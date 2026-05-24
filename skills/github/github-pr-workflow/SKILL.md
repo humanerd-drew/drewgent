@@ -1,14 +1,18 @@
 ---
-name: github-pr-workflow
-description: Full pull request lifecycle — create branches, commit changes, open PRs, monitor CI status, auto-fix failures, and merge. Works with gh CLI or falls back to git + GitHub REST API via curl.
-version: 1.1.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [GitHub, Pull-Requests, CI/CD, Git, Automation, Merge]
-    related_skills: [github-auth, github-code-review]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # GitHub Pull Request Workflow
 

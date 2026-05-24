@@ -1,14 +1,18 @@
 ---
-name: openclaw-migration
-description: Migrate a user's OpenClaw customization footprint into Drewgent Agent. Imports Drewgent-compatible memories, SOUL.md, command allowlists, user skills, and selected workspace assets from ~/.openclaw, then reports exactly what could not be migrated and why.
-version: 1.0.0
-author: Drewgent Agent (HUMANERD)
-license: MIT
-metadata:
-  drewgent:
-    tags: [Migration, OpenClaw, Drewgent, Memory, Persona, Import]
-    related_skills: [drewgent-agent]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # OpenClaw -> Drewgent Migration
 

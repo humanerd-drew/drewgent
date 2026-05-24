@@ -1,16 +1,18 @@
 ---
-name: mcporter
-description: Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type generation.
-version: 1.0.0
-author: community
-license: MIT
-metadata:
-  drewgent:
-    tags: [MCP, Tools, API, Integrations, Interop]
-    homepage: https://mcporter.dev
-prerequisites:
-  commands: [npx]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # mcporter
 

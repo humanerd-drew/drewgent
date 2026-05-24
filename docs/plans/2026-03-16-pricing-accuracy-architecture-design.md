@@ -1,3 +1,17 @@
+---
+
+title: Pricing Accuracy Architecture
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Pricing Accuracy Architecture
 
 Date: 2026-03-16

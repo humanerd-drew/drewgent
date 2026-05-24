@@ -1,14 +1,18 @@
 ---
-name: drewgent-atropos-environments
-description: Build, test, and debug Drewgent Agent RL environments for Atropos training. Covers the DrewgentAgentBaseEnv interface, reward functions, agent loop integration, evaluation with tools, wandb logging, and the three CLI modes (serve/process/evaluate). Use when creating, reviewing, or fixing RL environments in the drewgent-agent repo.
-version: 1.1.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [atropos, rl, environments, training, reinforcement-learning, reward-functions]
-    related_skills: [axolotl, grpo-rl-training, trl-fine-tuning, lm-evaluation-harness]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Drewgent Agent Atropos Environments
 

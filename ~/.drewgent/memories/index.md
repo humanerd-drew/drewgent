@@ -1,7 +1,23 @@
 ---
 title: Index
-tags: [meta, wiki]
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[entities/communication-style]]"
+  - "[[entities/corrections]]"
+  - "[[entities/environment]]"
+  - "[[entities/preferences]]"
+  - "[[entities/user-profile]]"
+  - "[[insights/2026-05]]"
 ---
+
+
+
+
 
 # Wiki Index
 

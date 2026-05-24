@@ -1,3 +1,17 @@
+---
+
+title: Distributed Evaluation
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Distributed Evaluation
 
 Guide to running evaluation across multiple GPUs using data parallelism and tensor/pipeline parallelism.

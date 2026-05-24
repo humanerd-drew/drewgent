@@ -1,3 +1,15 @@
 ---
-description: Creative content generation — ASCII art, hand-drawn style diagrams, and visual design tools.
+
+title: Description
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+

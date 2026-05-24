@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Agent Loop Internals"
-description: "Detailed walkthrough of AIAgent execution, API modes, tools, callbacks, and fallback behavior"
+title: Agent Loop
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Agent Loop Internals
 

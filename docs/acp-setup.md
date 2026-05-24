@@ -1,3 +1,17 @@
+---
+
+title: Drewgent Agent — ACP (Agent Client Protocol) Setup Guide
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Drewgent Agent — ACP (Agent Client Protocol) Setup Guide
 
 Drewgent Agent supports the **Agent Client Protocol (ACP)**, allowing it to run as

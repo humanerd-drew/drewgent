@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Open WebUI"
-description: "Connect Open WebUI to Drewgent Agent via the OpenAI-compatible API server"
+title: Open Webui
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Open WebUI Integration
 

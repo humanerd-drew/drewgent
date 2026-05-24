@@ -1,8 +1,14 @@
 ---
-sidebar_position: 6
-title: "Signal"
-description: "Set up Drewgent Agent as a Signal messenger bot via signal-cli daemon"
+title: Signal
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Signal Setup
 

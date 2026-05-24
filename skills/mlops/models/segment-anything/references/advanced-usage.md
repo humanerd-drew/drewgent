@@ -1,3 +1,18 @@
+---
+title: Segment Anything Advanced Usage Guide
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[100, 100]]"
+  - "[[100, 200]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
+
 # Segment Anything Advanced Usage Guide
 
 ## SAM 2 (Video Segmentation)

@@ -1,14 +1,18 @@
 ---
-name: parallel-cli
-description: Optional vendor skill for Parallel CLI — agent-native web search, extraction, deep research, enrichment, FindAll, and monitoring. Prefer JSON output and non-interactive flows.
-version: 1.1.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [Research, Web, Search, Deep-Research, Enrichment, CLI]
-    related_skills: [duckduckgo-search, mcporter]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Parallel CLI
 

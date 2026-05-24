@@ -1292,8 +1292,11 @@ class GatewayRunner:
                 except Exception:
                     pass
                 self._request_clean_exit(reason)
-                return True
-            if enabled_platform_count > 0:
+                # Do NOT return or exit here — gateway stays alive for cron jobs.
+                # _request_clean_exit only sets flags; keeping the process alive
+                # is the correct behavior when ALL platforms fail non-retryably.
+                # (Returning would trigger launchd restart loop and Discord token resets)
+            elif enabled_platform_count == 0:
                 reason = (
                     "; ".join(startup_retryable_errors)
                     or "all configured messaging platforms failed to connect"
@@ -1311,8 +1314,10 @@ class GatewayRunner:
                 except Exception:
                     pass
                 return False
-            logger.warning("No messaging platforms enabled.")
-            logger.info("Gateway will continue running for cron job execution.")
+            # Even when ALL messaging platforms fail non-retryably, the gateway
+            # stays alive for cron jobs and health monitoring.
+            # (Non-retryable means human must fix — repeated restarts just waste resources)
+            return True
 
         # Update delivery router with adapters
         self.delivery_router.adapters = self.adapters

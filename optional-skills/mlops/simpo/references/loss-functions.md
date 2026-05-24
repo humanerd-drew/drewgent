@@ -1,3 +1,17 @@
+---
+
+title: Loss Functions
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Loss Functions
 
 Complete guide to SimPO loss functions and mathematical formulations.

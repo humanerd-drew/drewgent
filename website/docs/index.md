@@ -1,10 +1,14 @@
 ---
-slug: /
-sidebar_position: 0
-title: "Drewgent Agent Documentation"
-description: "The self-improving AI agent built by HUMANERD. A built-in learning loop that creates skills from experience, improves them during use, and remembers across sessions."
-hide_table_of_contents: true
+title: Index
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Drewgent Agent
 

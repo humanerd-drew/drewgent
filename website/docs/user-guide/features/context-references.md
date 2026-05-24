@@ -1,9 +1,14 @@
 ---
-sidebar_position: 9
-sidebar_label: "Context References"
-title: "Context References"
-description: "Inline @-syntax for attaching files, folders, git diffs, and URLs directly into your messages"
+title: Context References
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Context References
 

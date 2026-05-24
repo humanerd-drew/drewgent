@@ -1,8 +1,14 @@
 ---
-sidebar_position: 4
-title: "Slack"
-description: "Set up Drewgent Agent as a Slack bot using Socket Mode"
+title: Slack
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Slack Setup
 

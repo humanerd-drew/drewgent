@@ -1,6 +1,14 @@
 ---
-sidebar_position: 2
+title: Profiles
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Profiles: Running Multiple Agents
 

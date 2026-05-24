@@ -507,6 +507,16 @@ class SignalProcessor:
         # Phase 2-1: Agent completion (P0 final verification)
         self._bus.subscribe("agent.complete", self._on_agent_complete)
 
+        # Phase 2-2: Kanban brain integration (P2-hippocampus task queue)
+        self._bus.subscribe("kanban.task.created", self._on_kanban_task_created)
+        self._bus.subscribe("kanban.task.completed", self._on_kanban_task_completed)
+        self._bus.subscribe("kanban.task.blocked", self._on_kanban_task_blocked)
+        self._bus.subscribe("kanban.worker.reclaimed", self._on_kanban_worker_reclaimed)
+        self._bus.subscribe("kanban.hallucination_blocked", self._on_kanban_hallucination_blocked)
+
+        # Phase 2-3: Dream system — Claude-style insight persistence
+        self._bus.subscribe("dream.candidate", self._on_dream_candidate)
+
     # -------------------------------------------------------------------------
     # Signal Handlers
     # -------------------------------------------------------------------------
@@ -1604,6 +1614,173 @@ class SignalProcessor:
                     )
         except Exception as e:
             logger.debug("_on_agent_complete: QA check failed: %s", e)
+
+    def _on_kanban_task_created(self, event: BrainEvent) -> None:
+        """Handle kanban.task.created — P2-hippocampus awareness."""
+        payload = event.payload or {}
+        task_id = payload.get("task_id", "?")
+        board = payload.get("board", "default")
+        title = payload.get("title", "?")
+        trigger = payload.get("trigger", "manual")
+        logger.debug("Kanban task created: %s on board '%s' (trigger=%s)", task_id, board, trigger)
+        self._bus.emit(
+            "awareness.kanban",
+            payload={"action": "created", "task_id": task_id, "board": board, "title": title},
+            source="signal_processor",
+        )
+
+    def _on_kanban_task_completed(self, event: BrainEvent) -> None:
+        """Handle kanban.task.completed — integration workflow bidirectional hook.
+
+        When a task with an integration_workflow_id completes, trigger the
+        corresponding integration workflow completion through signal_processor.
+        """
+        payload = event.payload or {}
+        task_id = payload.get("task_id", "?")
+        board = payload.get("board", "default")
+        result = payload.get("result", "")
+        logger.debug("Kanban task completed: %s", task_id)
+        self._bus.emit(
+            "awareness.kanban",
+            payload={"action": "completed", "task_id": task_id, "board": board},
+            source="signal_processor",
+        )
+
+    def _on_kanban_task_blocked(self, event: BrainEvent) -> None:
+        """Handle kanban.task.blocked — P2-hippocampus awareness."""
+        payload = event.payload or {}
+        task_id = payload.get("task_id", "?")
+        reason = payload.get("reason", "unspecified")
+        logger.debug("Kanban task blocked: %s (reason: %s)", task_id, reason)
+        self._bus.emit(
+            "awareness.kanban",
+            payload={"action": "blocked", "task_id": task_id, "reason": reason},
+            source="signal_processor",
+        )
+
+    def _on_kanban_worker_reclaimed(self, event: BrainEvent) -> None:
+        """Handle kanban.worker.reclaimed — P0-brainstem integrity event.
+
+        Emitted when a worker's claim expires (TTL timeout / worker dead).
+        This is a P0-level integrity violation — the task queue was left in
+        an inconsistent state. Log + awareness.integrity for incident review.
+        """
+        payload = event.payload or {}
+        task_id = payload.get("task_id", "?")
+        reason = payload.get("reason", "expired")
+        logger.warning(
+            "Kanban worker reclaimed: task_id=%s reason=%s — P0-brainstem integrity event",
+            task_id,
+            reason,
+        )
+        # Emit P0-level awareness.integrity for incident tracking
+        self._bus.emit(
+            "awareness.integrity",
+            payload={
+                "violation": "kanban.worker.reclaimed",
+                "task_id": task_id,
+                "reason": reason,
+                "severity": "high",
+            },
+            source="signal_processor",
+        )
+
+    def _on_kanban_hallucination_blocked(self, event: BrainEvent) -> None:
+        """Handle kanban.hallucination_blocked — P0-brainstem blocked completion."""
+        payload = event.payload or {}
+        task_id = payload.get("task_id", "?")
+        fake_id = payload.get("fake_id", "?")
+        logger.warning(
+            "Kanban hallucination blocked: task_id=%s fake_id='%s' — P0-brainstem blocked",
+            task_id,
+            fake_id,
+        )
+        self._bus.emit(
+            "awareness.integrity",
+            payload={
+                "violation": "kanban.hallucination_blocked",
+                "task_id": task_id,
+                "fake_id": fake_id,
+                "severity": "high",
+            },
+            source="signal_processor",
+        )
+
+    def _on_dream_candidate(self, event: BrainEvent) -> None:
+        """Handle dream.candidate — write a value insight to ~/.drewgent/dreams/.
+
+        Drewgent emits this signal when it discovers something meaningful about
+        values, communication style, or itself during a session. The handler
+        writes the dream as a .md file with YAML frontmatter so it appears in
+        future session prompts via load_dreams() in prompt_builder.py.
+
+        File format:
+            ~/.drewgent/dreams/YYYYMMDD_<slug>.md
+        """
+        payload = event.payload or {}
+        title = payload.get("title", "Untitled Dream")
+        content = payload.get("content", "")
+        source = payload.get("source", "")
+        tags = payload.get("tags", [])
+
+        if not title or not content:
+            logger.debug("dream.candidate: missing title or content, skipping")
+            return
+
+        # Import here to avoid circular imports — signal_processor is loaded early
+        try:
+            from drewgent_cli.config import get_drewgent_home
+        except ImportError:
+            try:
+                from drewgent_constants import get_drewgent_home
+            except ImportError:
+                from pathlib import Path
+                get_drewgent_home = lambda: Path.home() / ".drewgent"
+
+        import os
+        import re
+        from datetime import datetime
+
+        dreams_dir = get_drewgent_home() / "dreams"
+        try:
+            os.makedirs(dreams_dir, exist_ok=True)
+        except OSError as e:
+            logger.error("dream.candidate: cannot create dreams dir: %s", e)
+            return
+
+        # Build safe filename from title
+        slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+        slug = slug[:60]  # max 60 chars
+        timestamp = datetime.now().strftime("%Y%m%d")
+        filename = f"{timestamp}_{slug}.md"
+        filepath = dreams_dir / filename
+
+        # Build YAML frontmatter
+        tags_str = ", ".join(f'"{t}"' for t in tags) if tags else ""
+        links_str = '  - "[[P5-ego/SELF_MODEL]]"\n  - "[[P1-limbic/persona/SOUL]]"'
+
+        frontmatter = f"""---
+title: {title}
+domain: dream
+tags: [dream, insight{", " + ", ".join(tags) if tags else ""}]
+created: {datetime.now().strftime("%Y-%m-%d")}
+updated: {datetime.now().strftime("%Y-%m-%d")}
+links:
+{links_str}
+---
+
+# {title}
+
+"""
+        body = content.strip()
+        full_content = frontmatter + body
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(full_content)
+            logger.info("Dream saved: %s", filepath)
+        except OSError as e:
+            logger.error("dream.candidate: cannot write dream %s: %s", filepath, e)
 
     def _on_dangerous_op(self, event: BrainEvent) -> None:
         """Handle dangerous.op — log and optionally flag for human review.

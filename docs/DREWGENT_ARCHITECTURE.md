@@ -1,3 +1,17 @@
+---
+
+title: Drewgent Agent - Architecture & Implementation Guide
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Drewgent Agent - Architecture & Implementation Guide
 
 **Version**: 1.1

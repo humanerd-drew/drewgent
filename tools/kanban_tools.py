@@ -72,6 +72,8 @@ KANBAN_CREATE_SCHEMA = {
             "skills": {"type": "array", "items": {"type": "string"}, "description": "Skill names to load for this task", "default": []},
             "max_runtime_seconds": {"type": "integer", "description": "Max runtime before auto-block (0=no limit)", "default": 0},
             "trigger_source": {"type": "string", "description": "What triggered creation: 'manual', 'activity_logger', 'cron', 'integration_workflow', 'subagent'", "default": "manual"},
+            "board": {"type": "string", "description": "Kanban board name (default: 'default')", "default": "default"},
+            "mode": {"type": "string", "description": "Task mode: 'design' (AI decomposes then waits for approval) or 'execution' (auto-run). Default: 'execution'", "default": "execution"},
         },
         "required": ["title"],
     },
@@ -105,6 +107,7 @@ KANBAN_LIST_SCHEMA = {
         "properties": {
             "status": {"type": "string", "description": "Filter by status: 'todo', 'ready', 'in_progress', 'completed', 'blocked', 'canceled'", "default": ""},
             "assignee": {"type": "string", "description": "Filter by assignee name", "default": ""},
+            "board": {"type": "string", "description": "Filter by board name (default: 'default')", "default": ""},
             "limit": {"type": "integer", "description": "Max results to return", "default": 50},
         },
         "required": [],
@@ -131,6 +134,19 @@ KANBAN_BLOCK_SCHEMA = {
         "properties": {
             "task_id": {"type": "string", "description": "Task ID to block"},
             "reason": {"type": "string", "description": "Reason for blocking", "default": ""},
+        },
+        "required": ["task_id"],
+    },
+}
+
+KANBAN_GET_EVENTS_SCHEMA = {
+    "name": "kanban_get_events",
+    "description": "Get event log for a task — history of status changes, claims, completions, blocks, etc.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string", "description": "Task ID"},
+            "limit": {"type": "integer", "description": "Max events to return", "default": 50},
         },
         "required": ["task_id"],
     },
@@ -238,6 +254,7 @@ def handle_kanban_create(args: dict) -> str:
             skills=args.get("skills") or None,
             max_runtime_seconds=args.get("max_runtime_seconds", 0),
             trigger_source=args.get("trigger_source", "manual"),
+            board=args.get("board", "default"),
         )
         return _ok(result)
     except Exception as e:
@@ -268,6 +285,7 @@ def handle_kanban_list(args: dict) -> str:
         tasks = _db_task_list(
             status=args.get("status") or None,
             assignee=args.get("assignee") or None,
+            board=args.get("board") or None,
         )
         # Apply limit
         limit = args.get("limit", 50)
@@ -286,6 +304,26 @@ def handle_kanban_get(args: dict) -> str:
         return _ok({"ok": True, "task": task})
     except Exception as e:
         logger.exception("kanban_get failed")
+        return _err(str(e))
+
+
+def handle_kanban_get_events(args: dict) -> str:
+    from drewgent_kanban_db import _get_connection
+    try:
+        task_id = args["task_id"]
+        limit = args.get("limit", 50)
+        with _get_connection() as conn:
+            rows = conn.execute("""
+                SELECT task_id, run_id, kind, payload, created_at
+                FROM task_events
+                WHERE task_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (task_id, limit)).fetchall()
+        events = [dict(row) for row in rows]
+        return _ok({"ok": True, "task_id": task_id, "events": events, "count": len(events)})
+    except Exception as e:
+        logger.exception("kanban_get_events failed")
         return _err(str(e))
 
 
@@ -455,4 +493,183 @@ registry.register(
     requires_env=[],
     description="Add a comment to a task",
     emoji="💬",
+)
+
+registry.register(
+    name="kanban_get_events",
+    toolset="kanban",
+    schema=KANBAN_GET_EVENTS_SCHEMA,
+    handler=lambda args, **kw: handle_kanban_get_events(args),
+    check_fn=None,
+    requires_env=[],
+    description="Get event log for a task",
+    emoji="📋",
+)
+
+
+# =============================================================================
+# Notify / Delivery Tools
+# =============================================================================
+
+
+def handle_kanban_board_summary(args: dict) -> str:
+    """Send a kanban board summary embed to Discord webhook."""
+    try:
+        from drewgent_kanban_notify import send_board_summary
+        board = args.get("board") or "default"
+        ok = send_board_summary(board)
+        return _ok({"ok": ok, "board": board, "delivered": ok})
+    except Exception as e:
+        logger.exception("kanban_board_summary failed")
+        return _err(str(e))
+
+
+KANBAN_BOARD_SUMMARY_SCHEMA = {
+    "name": "kanban_board_summary",
+    "description": "Send a kanban board summary embed to the configured Discord webhook. "
+                   "Use this to manually post the current board state to Discord.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "board": {"type": "string", "description": "Board name to post (default: 'default')", "default": "default"},
+        },
+        "required": [],
+    },
+}
+
+
+def handle_kanban_notify_subscribe_board(args: dict) -> str:
+    """Subscribe a Discord channel to all notifications for a board."""
+    try:
+        board = args.get("board") or "default"
+        webhook_url = args.get("webhook_url") or ""
+        if not webhook_url:
+            return _err("webhook_url is required")
+        # Store per-board webhook in boards table
+        from drewgent_kanban_db import _get_connection, init_db
+        init_db()
+        with _get_connection() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO boards (name, discord_webhook, updated_at)
+                   VALUES (?, ?, ?)""",
+                (board, webhook_url, datetime.now().isoformat()),
+            )
+        return _ok({"ok": True, "board": board, "subscribed": True})
+    except Exception as e:
+        logger.exception("kanban_notify_subscribe_board failed")
+        return _err(str(e))
+
+
+KANBAN_NOTIFY_SUBSCRIBE_BOARD_SCHEMA = {
+    "name": "kanban_notify_subscribe_board",
+    "description": "Subscribe a Discord channel to kanban board notifications. "
+                   "Stores the webhook URL in the boards table so all future events on this board are posted there.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "board": {"type": "string", "description": "Board name to subscribe", "default": "default"},
+            "webhook_url": {"type": "string", "description": "Discord webhook URL for this channel"},
+        },
+        "required": ["webhook_url"],
+    },
+}
+
+
+def handle_kanban_notify_unsubscribe_board(args: dict) -> str:
+    """Remove the Discord webhook subscription for a board."""
+    try:
+        board = args.get("board") or "default"
+        from drewgent_kanban_db import _get_connection, init_db
+        init_db()
+        with _get_connection() as conn:
+            conn.execute(
+                "UPDATE boards SET discord_webhook=NULL WHERE name=?",
+                (board,),
+            )
+        return _ok({"ok": True, "board": board, "unsubscribed": True})
+    except Exception as e:
+        logger.exception("kanban_notify_unsubscribe_board failed")
+        return _err(str(e))
+
+
+KANBAN_NOTIFY_UNSUBSCRIBE_BOARD_SCHEMA = {
+    "name": "kanban_notify_unsubscribe_board",
+    "description": "Remove the Discord webhook subscription for a kanban board.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "board": {"type": "string", "description": "Board name to unsubscribe", "default": "default"},
+        },
+        "required": [],
+    },
+}
+
+KANBAN_DELETE_SCHEMA = {
+    "name": "kanban_delete",
+    "description": "Delete a task and all its related data (events, comments, links, runs). "
+                  "Cannot be undone. Use only for垃圾 task cleanup.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string", "description": "Task ID to delete (e.g. 't_abc123def456')"},
+        },
+        "required": ["task_id"],
+    },
+}
+
+
+def handle_kanban_delete(args: dict) -> str:
+    from tools.drewgent_kanban_db import task_delete as _db_task_delete
+    try:
+        result = _db_task_delete(task_id=args["task_id"])
+        if not result.get("ok"):
+            return _err(result.get("error", "delete failed"))
+        return _ok(result)
+    except Exception as e:
+        logger.exception("kanban_delete failed")
+        return _err(str(e))
+
+
+registry.register(
+    name="kanban_board_summary",
+    toolset="kanban",
+    schema=KANBAN_BOARD_SUMMARY_SCHEMA,
+    handler=lambda args, **kw: handle_kanban_board_summary(args),
+    check_fn=None,
+    requires_env=[],
+    description="Send a kanban board summary embed to Discord webhook",
+    emoji="📊",
+)
+
+registry.register(
+    name="kanban_notify_subscribe_board",
+    toolset="kanban",
+    schema=KANBAN_NOTIFY_SUBSCRIBE_BOARD_SCHEMA,
+    handler=lambda args, **kw: handle_kanban_notify_subscribe_board(args),
+    check_fn=None,
+    requires_env=[],
+    description="Subscribe a Discord channel to kanban board notifications",
+    emoji="🔔",
+)
+
+registry.register(
+    name="kanban_notify_unsubscribe_board",
+    toolset="kanban",
+    schema=KANBAN_NOTIFY_UNSUBSCRIBE_BOARD_SCHEMA,
+    handler=lambda args, **kw: handle_kanban_notify_unsubscribe_board(args),
+    check_fn=None,
+    requires_env=[],
+    description="Remove Discord webhook subscription for a kanban board",
+    emoji="🔕",
+)
+
+registry.register(
+    name="kanban_delete",
+    toolset="kanban",
+    schema=KANBAN_DELETE_SCHEMA,
+    handler=lambda args, **kw: handle_kanban_delete(args),
+    check_fn=None,
+    requires_env=[],
+    description="Delete a task and all its related data (cascade delete)",
+    emoji="🗑️",
 )

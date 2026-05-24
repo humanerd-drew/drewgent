@@ -372,9 +372,25 @@ class BrainSignalMonitor:
         from drewgent_constants import get_drewgent_home
         monitor_dir = get_drewgent_home() / "monitor"
         monitor_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = monitor_dir / f"brain_signals_{ts}.md"
-        path.write_text(content + "\n")
+        ts = datetime.now()
+        ts_str = ts.strftime("%Y%m%d_%H%M%S")
+        ts_date = ts.strftime("%Y-%m-%d")
+        path = monitor_dir / f"brain_signals_{ts_str}.md"
+        # OpenCrab ontology frontmatter for brain signal monitor logs
+        fm = (
+            "---\n"
+            "title: Brain Signal Monitor %s\n"
+            "type: session-log\n"
+            "space: policy\n"
+            "tags: [brain-signal, monitor]\n"
+            "created: %s\n"
+            "updated: %s\n"
+            "links:\n"
+            '  - "[[P0-brainstem/brain/rules]]"\n'
+            '  - "[[P5-ego/SELF_MODEL]]"\n'
+            "---\n\n"
+        ) % (ts_date, ts_date, ts_date)
+        path.write_text(fm + content + "\n")
         logger.info("BrainSignalMonitor fallback written to %s", path)
 
     def _get_gateway_config(self):

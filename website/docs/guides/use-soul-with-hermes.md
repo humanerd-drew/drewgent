@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Use SOUL.md with Drewgent"
-description: "How to use SOUL.md to shape Drewgent Agent's default voice, what belongs there, and how it differs from AGENTS.md and /personality"
+title: Use Soul With Hermes
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Use SOUL.md with Drewgent
 

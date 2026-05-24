@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Security"
-description: "Security model, dangerous command approval, user authorization, container isolation, and production deployment best practices"
+title: Security
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Security
 

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Environments, Benchmarks & Data Generation"
-description: "Building RL training environments, running evaluation benchmarks, and generating SFT data with the Drewgent-Agent Atropos integration"
+title: Environments
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Environments, Benchmarks & Data Generation
 

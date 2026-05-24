@@ -1,10 +1,18 @@
 ---
-name: polymarket
-description: Query Polymarket prediction market data — search markets, get prices, orderbooks, and price history. Read-only via public REST APIs, no API key needed.
-version: 1.0.0
-author: Drewgent Agent + Teknium
-tags: [polymarket, prediction-markets, market-data, trading]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Polymarket — Prediction Market Data
 

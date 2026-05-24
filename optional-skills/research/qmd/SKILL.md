@@ -1,15 +1,18 @@
 ---
-name: qmd
-description: Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd — a hybrid retrieval engine with BM25, vector search, and LLM reranking. Supports CLI and MCP integration.
-version: 1.0.0
-author: Drewgent Agent + Teknium
-license: MIT
-platforms: [macos, linux]
-metadata:
-  drewgent:
-    tags: [Search, Knowledge-Base, RAG, Notes, MCP, Local-AI]
-    related_skills: [obsidian, native-mcp, arxiv]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # QMD — Query Markup Documents
 

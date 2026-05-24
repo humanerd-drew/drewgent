@@ -1,14 +1,18 @@
 ---
-name: inference-sh-cli
-description: "Run 150+ AI apps via inference.sh CLI (infsh) — image generation, video creation, LLMs, search, 3D, social automation. Uses the terminal tool. Triggers: inference.sh, infsh, ai apps, flux, veo, image generation, video generation, seedream, seedance, tavily"
-version: 1.0.0
-author: okaris
-license: MIT
-metadata:
-  drewgent:
-    tags: [AI, image-generation, video, LLM, search, inference, FLUX, Veo, Claude]
-    related_skills: []
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # inference.sh CLI
 

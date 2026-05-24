@@ -1,16 +1,18 @@
 ---
-name: notion
-description: Notion API for creating and managing pages, databases, and blocks via curl. Search, create, update, and query Notion workspaces directly from the terminal.
-version: 1.0.0
-author: community
-license: MIT
-metadata:
-  drewgent:
-    tags: [Notion, Productivity, Notes, Database, API]
-    homepage: https://developers.notion.com
-prerequisites:
-  env_vars: [NOTION_API_KEY]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Notion API
 

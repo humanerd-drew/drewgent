@@ -1,8 +1,14 @@
 ---
-sidebar_position: 10
-title: "Migrate from OpenClaw"
-description: "Complete guide to migrating your OpenClaw / Clawdbot setup to Drewgent Agent — what gets migrated, how config maps, and what to check after."
+title: Migrate From Openclaw
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Migrate from OpenClaw
 

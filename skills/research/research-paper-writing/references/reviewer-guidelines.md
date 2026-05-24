@@ -1,3 +1,17 @@
+---
+
+title: Reviewer Guidelines & Evaluation Criteria
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Reviewer Guidelines & Evaluation Criteria
 
 This reference documents how reviewers evaluate papers at major ML/AI conferences, helping authors anticipate and address reviewer concerns.

@@ -1,20 +1,18 @@
 ---
-name: google-workspace
-description: Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration via Python. Uses OAuth2 with automatic token refresh. No external binaries needed — runs entirely with Google's Python client libraries in the Drewgent venv.
-version: 1.0.0
-author: HUMANERD
-license: MIT
-required_credential_files:
-  - path: google_token.json
-    description: Google OAuth2 token (created by setup script)
-  - path: google_client_secret.json
-    description: Google OAuth2 client credentials (downloaded from Google Cloud Console)
-metadata:
-  drewgent:
-    tags: [Google, Gmail, Calendar, Drive, Sheets, Docs, Contacts, Email, OAuth]
-    homepage: https://github.com/NousResearch/drewgent-agent
-    related_skills: [himalaya]
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[["new","row","data"]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
+
 
 # Google Workspace
 

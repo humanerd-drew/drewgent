@@ -1,3 +1,17 @@
+---
+
+title: Excalidraw Dark Mode Diagrams
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Excalidraw Dark Mode Diagrams
 
 To create a dark-themed diagram, use a massive dark background rectangle as the **first element** in the array. Make it large enough to cover any viewport:

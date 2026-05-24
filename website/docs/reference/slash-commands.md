@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Slash Commands Reference"
-description: "Complete reference for interactive CLI and messaging slash commands"
+title: Slash Commands
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Slash Commands Reference
 

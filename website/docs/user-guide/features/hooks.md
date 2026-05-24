@@ -1,8 +1,14 @@
 ---
-sidebar_position: 6
-title: "Event Hooks"
-description: "Run custom code at key lifecycle points — log activity, send alerts, post to webhooks"
+title: Hooks
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Event Hooks
 

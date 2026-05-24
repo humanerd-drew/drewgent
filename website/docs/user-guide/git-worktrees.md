@@ -1,9 +1,14 @@
 ---
-sidebar_position: 3
-sidebar_label: "Git Worktrees"
-title: "Git Worktrees"
-description: "Run multiple Drewgent agents safely on the same repository using git worktrees and isolated checkouts"
+title: Git Worktrees
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Git Worktrees
 

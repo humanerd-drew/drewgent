@@ -243,16 +243,6 @@ TOOLSETS = {
     # which is gated on gateway running via its check_fn).
     # ==========================================================================
 
-    "linear": {
-        "description": "Linear issue management — create, update, list, get, comment, and dependency tracking for kanban orchestration",
-        "tools": [
-            "kanban_linear_create", "kanban_linear_update_status",
-            "kanban_linear_list", "kanban_linear_get",
-            "kanban_linear_add_comment", "kanban_linear_get_dependencies",
-        ],
-        "includes": []
-    },
-
     "kanban": {
         "description": "Drewgent internal task store — create, complete, list, get, block, claim, heartbeat tasks in drewgent_tasks.db",
         "tools": [
@@ -322,97 +312,97 @@ TOOLSETS = {
     "drewgent-cli": {
         "description": "Full interactive CLI toolset - all default tools plus cronjob management",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
     
     "drewgent-telegram": {
         "description": "Telegram bot toolset - full access for personal use (terminal has safety checks)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
     
     "drewgent-discord": {
         "description": "Discord bot toolset - full access (terminal has safety checks via dangerous command approval)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
     
     "drewgent-whatsapp": {
         "description": "WhatsApp bot toolset - similar to Telegram (personal messaging, more trusted)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
     
     "drewgent-slack": {
         "description": "Slack bot toolset - full access for workspace use (terminal has safety checks)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
     
     "drewgent-signal": {
         "description": "Signal bot toolset - encrypted messaging platform (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-homeassistant": {
         "description": "Home Assistant bot toolset - smart home event monitoring and control",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-email": {
         "description": "Email bot toolset - interact with Drewgent via email (IMAP/SMTP)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-mattermost": {
         "description": "Mattermost bot toolset - self-hosted team messaging (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-matrix": {
         "description": "Matrix bot toolset - decentralized encrypted messaging (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-dingtalk": {
         "description": "DingTalk bot toolset - enterprise messaging platform (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-feishu": {
         "description": "Feishu/Lark bot toolset - enterprise messaging via Feishu/Lark (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-wecom": {
         "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-sms": {
         "description": "SMS bot toolset - interact with Drewgent via SMS (Twilio)",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-webhook": {
         "description": "Webhook toolset - receive and process external webhook events",
         "tools": _HERMES_CORE_TOOLS,
-        "includes": []
+        "includes": ["kanban"]
     },
 
     "drewgent-gateway": {
         "description": "Gateway toolset - union of all messaging platform tools",
         "tools": [],
-        "includes": ["drewgent-telegram", "drewgent-discord", "drewgent-whatsapp", "drewgent-slack", "drewgent-signal", "drewgent-homeassistant", "drewgent-email", "drewgent-sms", "drewgent-mattermost", "drewgent-matrix", "drewgent-dingtalk", "drewgent-feishu", "drewgent-wecom", "drewgent-webhook"]
+        "includes": ["drewgent-telegram", "drewgent-discord", "drewgent-whatsapp", "drewgent-slack", "drewgent-signal", "drewgent-homeassistant", "drewgent-email", "drewgent-sms", "drewgent-mattermost", "drewgent-matrix", "drewgent-dingtalk", "drewgent-feishu", "drewgent-wecom", "drewgent-webhook", "kanban"]
     }
 }
 

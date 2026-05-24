@@ -1,15 +1,18 @@
 ---
-name: docker-management
-description: Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization.
-version: 1.0.0
-author: sprmn24
-license: MIT
-metadata:
-  drewgent:
-    tags: [docker, containers, devops, infrastructure, compose, images, volumes, networks, debugging]
-    category: devops
-    requires_toolsets: [terminal]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Docker Management
 

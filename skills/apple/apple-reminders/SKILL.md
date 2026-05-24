@@ -1,16 +1,18 @@
 ---
-name: apple-reminders
-description: Manage Apple Reminders via remindctl CLI (list, add, complete, delete).
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-platforms: [macos]
-metadata:
-  drewgent:
-    tags: [Reminders, tasks, todo, macOS, Apple]
-prerequisites:
-  commands: [remindctl]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Apple Reminders
 

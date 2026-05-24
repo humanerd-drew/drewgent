@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Tutorial: Daily Briefing Bot"
-description: "Build an automated daily briefing bot that researches topics, summarizes findings, and delivers them to Telegram or Discord every morning"
+title: Daily Briefing Bot
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Tutorial: Build a Daily Briefing Bot
 

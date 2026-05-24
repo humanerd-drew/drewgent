@@ -3025,6 +3025,12 @@ class AIAgent:
                 prompt_parts = [_soul_content]
                 _soul_loaded = True
 
+        # Dreams — insights from past sessions (Claude-style "dream" system)
+        from agent.prompt_builder import load_dreams
+        _dreams_content = load_dreams()
+        if _dreams_content:
+            prompt_parts.append(_dreams_content)
+
         if not _soul_loaded:
             # Fallback to hardcoded identity
             _ai_peer_name = None if False else None
@@ -11117,6 +11123,56 @@ class AIAgent:
                 )
             except Exception as exc:
                 logger.warning("post_llm_call hook failed: %s", exc)
+
+        # ── Phase 3-2: Dream auto-detection — scan response for value insights ──
+        # Run BEFORE emit_turn_end so the signal fires in the same turn.
+        # Lightweight pattern heuristics — no LLM call needed.
+        try:
+            _DREAM_PATTERNS = [
+                # Meta-commentary about the interaction
+                (r"I'm noticing that", "self-awareness", 3),
+                (r"I've been noticing", "self-awareness", 3),
+                (r"This tells me", "value observation", 3),
+                (r"That suggests", "value observation", 3),
+                (r"There's something important about", "value observation", 3),
+                # Explicit value/communication statements
+                (r"\b(honest|transparent|integrity|clarity|direct)\b", "value statement", 4),
+                (r"\b(second.?filter|soften|hedging|qualifier)\b", "value statement", 4),
+                # Reflection on user preferences/patterns
+                (r"(you tend to|you prefer|you seem to|your style|you always)", "user pattern", 3),
+                # Uncertainty and epistemic humility
+                (r"\b(I'm not sure|I don't know for certain|I'm uncertain)\b", "epistemic humility", 3),
+                (r"\b(on second thought|wait,|actually)", "corrective reflection", 2),
+                # Self-correction or changed approach
+                (r"(let me reconsider|retracting|I'm changing my|revising my)", "self-correction", 3),
+            ]
+            _DREAM_THRESHOLD = 5  # weight sum needed to emit dream.candidate
+
+            if final_response:
+                text = final_response.lower()
+                total_weight = 0
+                triggered_labels = []
+                for pattern, label, weight in _DREAM_PATTERNS:
+                    if re.search(pattern, text, re.IGNORECASE):
+                        total_weight += weight
+                        triggered_labels.append(label)
+
+                if total_weight >= _DREAM_THRESHOLD:
+                    from agent.brain_signals import emit_dream_candidate
+                    emit_dream_candidate(
+                        title=f"Auto-detected: {triggered_labels[0]} (turn {api_call_count + 1})",
+                        content=(
+                            f"Detected in turn {api_call_count + 1} of this session.\n"
+                            f"Signals: {', '.join(triggered_labels)} (weight={total_weight}).\n\n"
+                            f"Response excerpt:\n{final_response[:500]}"
+                        ),
+                        source="dream-autodetect",
+                        tags=triggered_labels,
+                    )
+                    logger.info("Dream auto-detected: turn=%d weight=%d labels=%s",
+                                api_call_count + 1, total_weight, triggered_labels)
+        except Exception as _e:
+            logger.debug("Dream auto-detect failed: %s", _e)
 
         # ── Phase 3-2: Emit turn.end event (P0-brainstem post-verification) ──
         # Fires after each turn completes — before on_session_end.

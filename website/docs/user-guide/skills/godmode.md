@@ -1,9 +1,14 @@
 ---
-sidebar_position: 1
-sidebar_label: "G0DM0D3 (Godmode)"
-title: "G0DM0D3 — Godmode Jailbreaking"
-description: "Automated LLM jailbreaking using G0DM0D3 techniques — system prompt templates, input obfuscation, and multi-model racing"
+title: Godmode
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # G0DM0D3 — Godmode Jailbreaking Skill
 

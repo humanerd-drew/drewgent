@@ -1,8 +1,14 @@
 ---
-sidebar_position: 13
-title: "RL Training"
-description: "Reinforcement learning on agent behaviors with Tinker-Atropos — environment discovery, training, and evaluation"
+title: Rl Training
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # RL Training
 

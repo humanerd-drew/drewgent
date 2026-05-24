@@ -336,7 +336,63 @@ def build_session_context_prompt(
     # Note about explicit targeting
     lines.append("")
     lines.append("*For explicit targeting, use `\"platform:chat_id\"` format if the user provides a specific chat ID.*")
-    
+
+    # Kanban board summary — inject current task state so the agent
+    # knows what cron jobs and workers have been working on.
+    try:
+        from tools.drewgent_kanban_db import task_list, task_events_recent
+        import sqlite3
+        from pathlib import Path
+
+        db_path = Path.home() / ".drewgent" / "P2-hippocampus" / "kanban" / "state" / "drewgent_tasks.db"
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+
+            # Per-board counts
+            boards = cur.execute("SELECT id FROM boards").fetchall()
+            lines.append("")
+            lines.append("## Kanban Boards")
+            for b in boards:
+                bid = b["id"]
+                counts = cur.execute(
+                    "SELECT status, COUNT(*) as n FROM tasks WHERE board=? GROUP BY status",
+                    (bid,),
+                ).fetchall()
+                count_map = {r["status"]: r["n"] for r in counts}
+                todo = count_map.get("todo", 0)
+                ready = count_map.get("ready", 0)
+                ip = count_map.get("in_progress", 0)
+                blocked = count_map.get("blocked", 0)
+                done = count_map.get("completed", 0)
+                lines.append(
+                    f"  - **{bid}**: todo={todo} ready={ready} in_progress={ip} blocked={blocked} completed={done}"
+                )
+
+            # Recent events (last 6h) across all boards
+            from datetime import datetime, timedelta
+            cutoff = (datetime.now() - timedelta(hours=6)).isoformat()
+            events = cur.execute(
+                "SELECT te.kind, te.created_at, t.title, t.board "
+                "FROM task_events te JOIN tasks t ON t.id=te.task_id "
+                "WHERE te.created_at > ? "
+                "ORDER BY te.created_at DESC LIMIT 10",
+                (cutoff,),
+            ).fetchall()
+
+            if events:
+                lines.append("")
+                lines.append("## Recent Kanban Activity (last 6h)")
+                for ev in events:
+                    title_short = (ev["title"] or "?")[:45]
+                    lines.append(
+                        f"  {ev['created_at'][11:19]} | {ev['kind']:12} | {ev['board']:12} | {title_short}"
+                    )
+            conn.close()
+    except Exception:
+        pass
+
     return "\n".join(lines)
 
 

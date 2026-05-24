@@ -1,14 +1,18 @@
 ---
-name: neuronfs-governance-defaults
-description: Default NeuronFS governance rules — demonstrates vorq harness and 禁 micro-opcode patterns. Load to establish baseline AI behavior constraints.
-version: 1.0.0
-author: drewgent-core
-license: MIT
-metadata:
-  drewgent:
-    tags: [governance, neuronfs, vorq, constraints, defaults, security]
-    category: brain
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # NeuronFS Governance Defaults
 
