@@ -1,3 +1,15 @@
+---
+title: Drewgent Refactor Plan — Step 1: run_agent.py 분해
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-24
+updated: 2026-05-24
+links:
+  - "[[P0-brainstem/brain/rules]]"
+  - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
+  - "[[P5-ego/SELF_MODEL]]"
+---
 # Drewgent Refactor Plan — Step 1: run_agent.py 분해
 
 **Date**: 2026-05-24
