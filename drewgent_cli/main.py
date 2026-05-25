@@ -2562,7 +2562,10 @@ def cmd_config(args):
 
 def cmd_version(args):
     """Show version."""
-    print(f"Drewgent Agent v{__version__} ({__release_date__})")
+    from drewgent_cli.version import get_upstream_tag
+    upstream_tag = get_upstream_tag()
+    print(f"Drewgent Agent {__version__} ({__release_date__})")
+    print(f"Upstream sync: {upstream_tag}")
     print(f"Project: {PROJECT_ROOT}")
     
     # Show Python version
@@ -2929,7 +2932,10 @@ def _restore_stashed_changes(
             print("\nReset working tree to clean state so Drewgent can run?")
             print("  (You can re-apply your changes later with: git stash apply)")
             print("[Y/n] ", end="", flush=True)
-            response = input().strip().lower()
+            try:
+                response = input().strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                response = "n"
             if response not in ("", "y", "yes"):
                 do_reset = False
 
@@ -3637,7 +3643,7 @@ def cmd_update(args):
             else:
                 try:
                     response = input("Would you like to configure them now? [Y/n]: ").strip().lower()
-                except EOFError:
+                except (EOFError, KeyboardInterrupt):
                     response = "n"
             
             if response in ('', 'y', 'yes'):

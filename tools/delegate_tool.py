@@ -350,6 +350,9 @@ def _build_child_agent(
     child._print_fn = getattr(parent_agent, '_print_fn', None)
     # Set delegation depth so children can't spawn grandchildren
     child._delegate_depth = getattr(parent_agent, '_delegate_depth', 0) + 1
+    # Inherit branching state from parent — if parent is already branching,
+    # children should not attempt to branch further.
+    child._already_branching = getattr(parent_agent, '_already_branching', False)
 
     # Share a credential pool with the child when possible so subagents can
     # rotate credentials on rate limits instead of getting pinned to one key.

@@ -32,7 +32,7 @@ T = TypeVar("T")
 
 DEFAULT_DB_PATH = get_drewgent_home() / "state.db"
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 8
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -261,6 +261,8 @@ class SessionDB:
         row = cursor.fetchone()
         if row is None:
             cursor.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+            # Fresh DB: run all migrations from current_version=0
+            current_version = 0
         else:
             current_version = row["version"] if isinstance(row, sqlite3.Row) else row[0]
             if current_version < 2:
@@ -330,6 +332,50 @@ class SessionDB:
                     except sqlite3.OperationalError:
                         pass  # Column already exists
                 cursor.execute("UPDATE schema_version SET version = 6")
+            if current_version < 7:
+                # v7: key-value meta table for per-session arbitrary state
+                # (used by GoalManager to persist goal across turns)
+                try:
+                    cursor.execute(
+                        "CREATE TABLE IF NOT EXISTS state_meta ("
+                        "  key TEXT PRIMARY KEY,"
+                        "  value TEXT"
+                        ")"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # Already exists
+                cursor.execute("UPDATE schema_version SET version = 7")
+            if current_version < 8:
+                # v8: integration_workflows table for brain signal system persistence
+                # Stores active IntegrationWorkflows per session — enables workflow
+                # continuity across agent restarts (mid-session interruption recovery).
+                try:
+                    cursor.execute(
+                        "CREATE TABLE IF NOT EXISTS integration_workflows ("
+                        "  workflow_id TEXT PRIMARY KEY,"
+                        "  session_id TEXT NOT NULL,"
+                        "  integration_type TEXT NOT NULL,"  # "tool" or "skill"
+                        "  target_name TEXT NOT NULL,"
+                        "  files_modified TEXT NOT NULL,"  # JSON array
+                        "  steps_completed TEXT NOT NULL,"  # JSON array
+                        "  started INTEGER NOT NULL DEFAULT 0,"
+                        "  completed INTEGER NOT NULL DEFAULT 0,"
+                        "  completed_at TEXT,"
+                        "  correlation_id TEXT,"
+                        "  created_at TEXT NOT NULL"
+                        ")"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # Already exists
+                # Index for fast session workflow lookups
+                try:
+                    cursor.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_workflows_session "
+                        "ON integration_workflows(session_id)"
+                    )
+                except sqlite3.OperationalError:
+                    pass
+                cursor.execute("UPDATE schema_version SET version = 8")
 
         # Unique title index — always ensure it exists (safe to run after migrations
         # since the title column is guaranteed to exist at this point)
@@ -780,6 +826,118 @@ class SessionDB:
                 max_num = max(max_num, int(m.group(1)))
 
         return f"{base} #{max_num + 1}"
+
+    # =========================================================================
+    # Arbitrary key-value meta (used by GoalManager for goal persistence)
+    # =========================================================================
+
+    def get_meta(self, key: str) -> Optional[str]:
+        """Get a metadata value by key. Returns None if not set."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "SELECT value FROM state_meta WHERE key = ?", (key,)
+            )
+            row = cursor.fetchone()
+        return row["value"] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        """Set a metadata key-value pair (upsert)."""
+        def _do(conn):
+            conn.execute(
+                "INSERT OR REPLACE INTO state_meta (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+        self._execute_write(_do)
+
+    def delete_meta(self, key: str) -> None:
+        """Delete a metadata key."""
+        def _do(conn):
+            conn.execute("DELETE FROM state_meta WHERE key = ?", (key,))
+        self._execute_write(_do)
+
+    # =========================================================================
+    # Integration workflow persistence (brain signal system)
+    # =========================================================================
+
+    def save_integration_workflow(self, session_id: str, workflow_json: str) -> None:
+        """Save or update an IntegrationWorkflow for a session.
+
+        Uses INSERT OR REPLACE so repeated saves of the same workflow_id
+        atomically update rather than duplicate.
+        """
+        import json
+        try:
+            data = json.loads(workflow_json)
+            workflow_id = data.get("workflow_id", "")
+            integration_type = data.get("integration_type", "tool")
+            target_name = data.get("target_name", "")
+            files_modified = json.dumps(data.get("files_modified", []))
+            steps_completed = json.dumps(data.get("steps_completed", []))
+            started = 1 if data.get("started") else 0
+            completed = 1 if data.get("completed") else 0
+            completed_at = data.get("completed_at") or None
+            correlation_id = data.get("correlation_id") or None
+            created_at = data.get("detected_at", "")
+        except (json.JSONDecodeError, KeyError):
+            return  # Silently skip invalid JSON
+
+        def _do(conn):
+            conn.execute(
+                """INSERT OR REPLACE INTO integration_workflows
+                   (workflow_id, session_id, integration_type, target_name,
+                    files_modified, steps_completed, started, completed,
+                    completed_at, correlation_id, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (workflow_id, session_id, integration_type, target_name,
+                 files_modified, steps_completed, started, completed,
+                 completed_at, correlation_id, created_at),
+            )
+        self._execute_write(_do)
+
+    def load_integration_workflows(self, session_id: str) -> list:
+        """Load all active (non-completed) IntegrationWorkflows for a session."""
+        import json
+        with self._lock:
+            cursor = self._conn.execute(
+                """SELECT workflow_id, integration_type, target_name,
+                          files_modified, steps_completed, started, completed,
+                          completed_at, correlation_id, created_at
+                   FROM integration_workflows
+                   WHERE session_id = ? AND completed = 0
+                   ORDER BY created_at""",
+                (session_id,),
+            )
+            rows = cursor.fetchall()
+
+        workflows = []
+        for row in rows:
+            try:
+                workflows.append({
+                    "workflow_id": row["workflow_id"],
+                    "integration_type": row["integration_type"],
+                    "target_name": row["target_name"],
+                    "files_modified": json.loads(row["files_modified"]),
+                    "steps_completed": json.loads(row["steps_completed"]),
+                    "started": bool(row["started"]),
+                    "completed": bool(row["completed"]),
+                    "completed_at": row["completed_at"],
+                    "correlation_id": row["correlation_id"],
+                    "detected_at": row["created_at"],
+                })
+            except (json.JSONDecodeError, KeyError):
+                continue
+        return workflows
+
+    def archive_completed_workflow(self, workflow_id: str) -> None:
+        """Mark a workflow as completed (used when session ends)."""
+        import datetime
+        def _do(conn):
+            conn.execute(
+                "UPDATE integration_workflows SET completed = 1, completed_at = ? "
+                "WHERE workflow_id = ?",
+                (datetime.datetime.now().isoformat(), workflow_id),
+            )
+        self._execute_write(_do)
 
     def list_sessions_rich(
         self,

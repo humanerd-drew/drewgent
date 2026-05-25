@@ -415,7 +415,7 @@ def main(
                 response = agent.run_conversation(user_input)
                 print("\n" + "=" * 60)
                 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, EOFError):
                 print("\n\n👋 Interrupted. Goodbye!")
                 break
             except Exception as e:

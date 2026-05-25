@@ -100,7 +100,7 @@ def _curses_select(title: str, items: list[tuple[str, str]], default: int = 0) -
                 idx = int(val) - 1
                 if 0 <= idx < len(items):
                     return idx
-            except (ValueError, EOFError):
+            except (ValueError, EOFError, KeyboardInterrupt):
                 return default
 
 

@@ -152,7 +152,12 @@ MEMORY_GUIDANCE = (
     "Do NOT save task progress, session outcomes, completed-work logs, or temporary TODO "
     "state to memory; use session_search to recall those from past transcripts. "
     "If you've discovered a new way to do something, solved a problem that could be "
-    "necessary later, save it as a skill with the skill tool."
+    "necessary later, save it as a skill with the skill tool.\n"
+    "Your brain (knowledge base at ~/.drewgent/memories/) is also accessible via "
+    "brain_query and brain_record tools. Use brain_query to check existing knowledge "
+    "before making assumptions. Use brain_record to proactively save insights, "
+    "patterns, and user preferences you discover during the session — especially at "
+    "session end when you should summarize what was accomplished and record it."
 )
 
 SESSION_SEARCH_GUIDANCE = (
@@ -221,7 +226,7 @@ SKILLS_GUIDANCE = (
 QA_GUIDANCE_TEMPLATE = (
     "# QA Self-Verification (HP-3 — Garry Tan Complexity Ratchet)\n"
     "This is a LATENT TASK that requires QA evidence before delivery.\n"
-    "Your task_id: {task_id}\n\n"
+    "Your task_id: [TASK_ID]\n\n"
     "You MUST follow the contract-first QA flow — do NOT skip any phase:\n\n"
     "1. CONTRACT phase (BEFORE writing any code):\n"
     "   Open: {qa_evidence_dir}/contract.json\n"
@@ -255,6 +260,24 @@ TOOL_USE_ENFORCEMENT_GUIDANCE = (
     "Every response should either (a) contain tool calls that make progress, or "
     "(b) deliver a final result to the user. Responses that only describe intentions "
     "without acting are not acceptable."
+)
+
+# Orchestrator tool guidance — Drewgent's P4-cortex 8-phase workflow engine.
+# When a task is complex (multi-step, multi-tool, or requires QA verification),
+# use the orchestrate_task tool to execute through the 8-phase orchestrator:
+#   SIMPLE task (1 step) → direct execution
+#   MEDIUM task (2-3 steps) → manager mode (clarify → implement → verify → deliver)
+#   COMPLEX task (4+ steps) → full 8-phase orchestrator (context → clarify → spec → plan → implement → verify → deliver → monitor)
+ORCHESTRATOR_GUIDANCE = (
+    "# Complex task orchestration\n"
+    "When facing a complex, multi-step goal, consider using the orchestrate_task tool.\n"
+    "The orchestrator auto-selects the appropriate mode based on task complexity.\n"
+    "Use it when:\n"
+    "  - The goal requires multiple tools in sequence\n"
+    "  - The task has unclear requirements needing clarification\n"
+    "  - You need QA verification before delivery\n"
+    "  - The goal involves research + implementation + verification\n"
+    "NOT needed for: simple 1-step tasks, or tasks you can complete directly with available tools.\n"
 )
 
 # Model name substrings that trigger tool-use enforcement guidance.

@@ -7850,6 +7850,27 @@ class GatewayRunner:
             # Return final response, or a message if something went wrong
             final_response = result.get("final_response")
 
+            # ── Goal loop ──────────────────────────────────────────────────────
+            # After every turn, run the goal judge and schedule a continuation
+            # prompt if the goal is still active.  The continuation is queued
+            # as a delayed message so it fires in the next tick without
+            # re-entering the agent from within the current message handler.
+            if final_response and not result.get("failed"):
+                try:
+                    from drewgent_cli.goals import GoalManager
+                    gm = GoalManager(session_id)
+                    if gm.is_active():
+                        decision = gm.evaluate_after_turn(final_response)
+                        if decision.get("should_continue") and decision.get("continuation_prompt"):
+                            cont = decision["continuation_prompt"]
+                            # Queue the continuation as a pending message — the session
+                            # loop's pending-message check will fire it on the next tick.
+                            self._pending_messages[session_key] = cont
+                        if decision.get("message"):
+                            logger.info("goal: %s", decision["message"])
+                except Exception:
+                    pass  # Never let the goal loop break response delivery
+
             # Extract actual token counts from the agent instance used for this run
             _last_prompt_toks = 0
             _input_toks = 0

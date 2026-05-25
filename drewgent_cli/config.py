@@ -1692,9 +1692,15 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
             
             if var.get("password"):
                 import getpass
-                value = getpass.getpass(f"  {var['prompt']}: ")
+                try:
+                    value = getpass.getpass(f"  {var['prompt']}: ")
+                except (EOFError, KeyboardInterrupt):
+                    value = ""
             else:
-                value = input(f"  {var['prompt']}: ").strip()
+                try:
+                    value = input(f"  {var['prompt']}: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    value = ""
             
             if value:
                 save_env_value(var["name"], value)
