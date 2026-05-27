@@ -1296,7 +1296,7 @@ class GatewayRunner:
                 # _request_clean_exit only sets flags; keeping the process alive
                 # is the correct behavior when ALL platforms fail non-retryably.
                 # (Returning would trigger launchd restart loop and Discord token resets)
-            elif enabled_platform_count == 0:
+            if connected_count == 0 and enabled_platform_count == 0:
                 reason = (
                     "; ".join(startup_retryable_errors)
                     or "all configured messaging platforms failed to connect"
@@ -1313,7 +1313,7 @@ class GatewayRunner:
                     )
                 except Exception:
                     pass
-                return False
+                return True
             # Even when ALL messaging platforms fail non-retryably, the gateway
             # stays alive for cron jobs and health monitoring.
             # (Non-retryable means human must fix — repeated restarts just waste resources)
@@ -2171,17 +2171,29 @@ class GatewayRunner:
                 _raw_stale_timeout > 0 and _stale_idle >= _raw_stale_timeout
             ) or _stale_age > _wall_ttl
             if _should_evict:
-                logger.warning(
-                    "Evicting stale _running_agents entry for %s "
-                    "(age: %.0fs, idle: %.0fs, timeout: %.0fs)%s",
-                    _quick_key[:30],
-                    _stale_age,
-                    _stale_idle,
-                    _raw_stale_timeout,
-                    _stale_detail,
+                # Do NOT evict _AGENT_PENDING_SENTINEL — the sentinel is
+                # intentionally placed by the current message handler and
+                # must not be removed by staleness eviction (sentinel has
+                # _running_agents_ts=0 so wall-clock age is always huge).
+                _is_sentinel = (
+                    _stale_agent is _AGENT_PENDING_SENTINEL
                 )
-                del self._running_agents[_quick_key]
-                self._running_agents_ts.pop(_quick_key, None)
+                if not _is_sentinel:
+                    logger.warning(
+                        "Evicting stale _running_agents entry for %s "
+                        "(age: %.0fs, idle: %.0fs, timeout: %.0fs)%s",
+                        _quick_key[:30],
+                        _stale_age,
+                        _stale_idle,
+                        _raw_stale_timeout,
+                        _stale_detail,
+                    )
+                    del self._running_agents[_quick_key]
+                    self._running_agents_ts.pop(_quick_key, None)
+                else:
+                    # Sentinel is intentionally young — clear its timestamp
+                    # so it doesn't trigger eviction again on the next message.
+                    self._running_agents_ts.pop(_quick_key, None)
 
         if _quick_key in self._running_agents:
             if event.get_command() == "status":
@@ -3821,10 +3833,14 @@ class GatewayRunner:
         is_running = running_agent is not None and running_agent is not _AGENT_PENDING_SENTINEL
 
         # Prefer agent-reported token counts when available
+        _agent_api_calls = getattr(running_agent, "session_api_calls", None)
+        from unittest.mock import MagicMock as _MagicMock
         if (
             is_running
             and hasattr(running_agent, "session_total_tokens")
-            and running_agent.session_api_calls > 0
+            and _agent_api_calls is not None
+            and not isinstance(_agent_api_calls, _MagicMock)
+            and _agent_api_calls > 0
         ):
             tokens_display = f"{running_agent.session_total_tokens:,}"
         else:

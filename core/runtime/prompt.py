@@ -621,21 +621,14 @@ def _build_system_prompt(self, system_message: str = None) -> str:
 
     return "\n\n".join(prompt_parts)
 
-# =========================================================================
-# Pre/post-call guardrails (inspired by PR #1321 — @alireza78a)
-# =========================================================================
+def _invalidate_system_prompt(self):
+    """
+    Invalidate the cached system prompt, forcing a rebuild on the next turn.
 
-@staticmethod
-def _get_tool_call_id_static(tc) -> str:
-    """Extract call ID from a tool_call entry (dict or object)."""
-    if isinstance(tc, dict):
-        return tc.get("id", "") or ""
-    return getattr(tc, "id", "") or ""
-
-_VALID_API_ROLES = frozenset(
-    {"system", "user", "assistant", "tool", "function", "developer"}
-)
-
-@staticmethod
-def _sanitize_api_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    Called after context compression events. Also reloads memory from disk
+    so the rebuilt prompt captures any writes from this session.
+    """
+    self._cached_system_prompt = None
+    if self._memory_store:
+        self._memory_store.load_from_disk()
 

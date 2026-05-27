@@ -389,7 +389,7 @@ class StreamingHandler:
         filtered = []
         for msg in messages:
             role = msg.get("role")
-            if role not in AIAgent._VALID_API_ROLES:
+            if role not in AIAgentInternals._VALID_API_ROLES:
                 logger.debug(
                     "Pre-call sanitizer: dropping message with invalid role %r",
                     role,
@@ -402,7 +402,7 @@ class StreamingHandler:
         for msg in messages:
             if msg.get("role") == "assistant":
                 for tc in msg.get("tool_calls") or []:
-                    cid = AIAgent._get_tool_call_id_static(tc)
+                    cid = AIAgentInternals._get_tool_call_id_static(tc)
                     if cid:
                         surviving_call_ids.add(cid)
 
@@ -437,7 +437,7 @@ class StreamingHandler:
                 patched.append(msg)
                 if msg.get("role") == "assistant":
                     for tc in msg.get("tool_calls") or []:
-                        cid = AIAgent._get_tool_call_id_static(tc)
+                        cid = AIAgentInternals._get_tool_call_id_static(tc)
                         if cid in missing_results:
                             patched.append(
                                 {

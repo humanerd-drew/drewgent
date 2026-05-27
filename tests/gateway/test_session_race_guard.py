@@ -29,21 +29,6 @@ class _FakeAdapter:
         pass
 
 
-def _make_runner():
-    runner = object.__new__(GatewayRunner)
-    runner.config = GatewayConfig(
-        platforms={Platform.TELEGRAM: PlatformConfig(enabled=True, token="***")}
-    )
-    runner.adapters = {Platform.TELEGRAM: _FakeAdapter()}
-    runner._running_agents = {}
-    runner._pending_messages = {}
-    runner._pending_approvals = {}
-    runner._voice_mode = {}
-    runner._background_tasks = set()
-    runner._is_user_authorized = lambda _source: True
-    return runner
-
-
 def _make_event(text="hello", chat_id="12345"):
     source = SessionSource(
         platform=Platform.TELEGRAM, chat_id=chat_id, chat_type="dm"
@@ -55,11 +40,11 @@ def _make_event(text="hello", chat_id="12345"):
 # Test 1: Sentinel is placed before _handle_message_with_agent runs
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_sentinel_placed_before_agent_setup():
+async def test_sentinel_placed_before_agent_setup(mock_gateway_runner):
     """After passing the 'not running' guard, the sentinel must be
     written into _running_agents *before* any await, so that a
     concurrent message sees the session as occupied."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     event = _make_event()
     session_key = build_session_key(event.source)
 
@@ -83,10 +68,10 @@ async def test_sentinel_placed_before_agent_setup():
 # Test 2: Sentinel is cleaned up after _handle_message_with_agent
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_sentinel_cleaned_up_after_handler_returns():
+async def test_sentinel_cleaned_up_after_handler_returns(mock_gateway_runner):
     """If _handle_message_with_agent returns normally, the sentinel
     must be removed so the session is not permanently locked."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     event = _make_event()
     session_key = build_session_key(event.source)
 
@@ -105,10 +90,10 @@ async def test_sentinel_cleaned_up_after_handler_returns():
 # Test 3: Sentinel cleaned up on exception
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_sentinel_cleaned_up_on_exception():
+async def test_sentinel_cleaned_up_on_exception(mock_gateway_runner):
     """If _handle_message_with_agent raises, the sentinel must still
     be cleaned up so the session is not permanently locked."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     event = _make_event()
     session_key = build_session_key(event.source)
 
@@ -128,11 +113,11 @@ async def test_sentinel_cleaned_up_on_exception():
 # Test 4: Second message during sentinel sees "already running"
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_second_message_during_sentinel_queued_not_duplicate():
+async def test_second_message_during_sentinel_queued_not_duplicate(mock_gateway_runner):
     """While the sentinel is set (agent setup in progress), a second
     message for the same session must hit the 'already running' branch
     and be queued — not start a second agent."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     event1 = _make_event(text="first message")
     event2 = _make_event(text="second message")
     session_key = build_session_key(event1.source)
@@ -173,10 +158,10 @@ async def test_second_message_during_sentinel_queued_not_duplicate():
 # Test 5: Sentinel not placed for command messages
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_command_messages_do_not_leave_sentinel():
+async def test_command_messages_do_not_leave_sentinel(mock_gateway_runner):
     """Slash commands (/help, /status, etc.) return early from
     _handle_message.  They must NOT leave a sentinel behind."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     source = SessionSource(
         platform=Platform.TELEGRAM, chat_id="12345", chat_type="dm"
     )
@@ -202,10 +187,10 @@ async def test_command_messages_do_not_leave_sentinel():
 # Test 6: /stop during sentinel force-cleans and unlocks session
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_stop_during_sentinel_force_cleans_session():
+async def test_stop_during_sentinel_force_cleans_session(mock_gateway_runner):
     """If /stop arrives while the sentinel is set (agent still starting),
     it should force-clean the sentinel and unlock the session."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     event1 = _make_event(text="hello")
     session_key = build_session_key(event1.source)
 
@@ -245,14 +230,14 @@ async def test_stop_during_sentinel_force_cleans_session():
 # Test 6b: /stop hard-kills a running agent and unlocks session
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_stop_hard_kills_running_agent():
+async def test_stop_hard_kills_running_agent(mock_gateway_runner):
     """When /stop arrives while a real agent is running, it must:
     1. Call interrupt() on the agent
     2. Force-clean _running_agents to unlock the session
     3. Return a confirmation message
     This fixes the bug where a hung agent kept the session locked
     forever — showing 'writing...' but never producing output."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     session_key = build_session_key(
         SessionSource(platform=Platform.TELEGRAM, chat_id="12345", chat_type="dm")
     )
@@ -282,10 +267,10 @@ async def test_stop_hard_kills_running_agent():
 # Test 6c: /stop clears pending messages to prevent stale replays
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_stop_clears_pending_messages():
+async def test_stop_clears_pending_messages(mock_gateway_runner):
     """When /stop hard-kills a running agent, any pending messages
     queued during the run must be discarded."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     session_key = build_session_key(
         SessionSource(platform=Platform.TELEGRAM, chat_id="12345", chat_type="dm")
     )
@@ -312,10 +297,10 @@ async def test_stop_clears_pending_messages():
 # Test 7: Shutdown skips sentinel entries
 # ------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_shutdown_skips_sentinel():
+async def test_shutdown_skips_sentinel(mock_gateway_runner):
     """During gateway shutdown, sentinel entries in _running_agents
     should be skipped without raising AttributeError."""
-    runner = _make_runner()
+    runner = mock_gateway_runner
     session_key = "telegram:dm:99999"
 
     # Simulate a sentinel in _running_agents

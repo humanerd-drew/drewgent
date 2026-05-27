@@ -364,16 +364,6 @@ def _save_oversized_tool_result(function_name: str, function_result: str) -> str
         )
 
 
-class AIAgent:
-    """
-    AI Agent with tool calling capabilities.
-
-    This class manages the conversation flow, tool execution, and response handling
-    for AI models that support function calling.
-    """
-
-
-
 class AIAgentInternals:
     """All internal AIAgent methods.
 
@@ -385,189 +375,201 @@ class AIAgentInternals:
     then shrink run_agent.py.
     """
 
-    """Reset all session-scoped token counters to 0 for a fresh session.
-
-    This method encapsulates the reset logic for all session-level metrics
-    including:
-    - Token usage counters (input, output, total, prompt, completion)
-    - Cache read/write tokens
-    - API call count
-    - Reasoning tokens
-    - Estimated cost tracking
-    - Context compressor internal counters
-
-    The method safely handles optional attributes (e.g., context compressor)
-    using ``hasattr`` checks.
-
-    This keeps the counter reset logic DRY and maintainable in one place
-    rather than scattering it across multiple methods.
-    """
-    # Token usage counters
-    self.session_total_tokens = 0
-    self.session_input_tokens = 0
-    self.session_output_tokens = 0
-    self.session_prompt_tokens = 0
-    self.session_completion_tokens = 0
-    self.session_cache_read_tokens = 0
-    self.session_cache_write_tokens = 0
-    self.session_reasoning_tokens = 0
-    self.session_api_calls = 0
-    self.session_estimated_cost_usd = 0.0
-    self.session_cost_status = "unknown"
-    self.session_cost_source = "none"
-
-    # Turn counter (added after reset_session_state was first written — #2635)
-    self._user_turn_count = 0
-
-    # Context compressor internal counters (if present)
-    if hasattr(self, "context_compressor") and self.context_compressor:
-        self.context_compressor.last_prompt_tokens = 0
-        self.context_compressor.last_completion_tokens = 0
-        self.context_compressor.last_total_tokens = 0
-        self.context_compressor.compression_count = 0
-        self.context_compressor._context_probed = False
-        self.context_compressor._context_probe_persistable = False
-        # Iterative summary from previous session must not bleed into new one (#2635)
-        self.context_compressor._previous_summary = None
-
-def switch_model(
-    self, new_model, new_provider, api_key="", base_url="", api_mode=""
-):
-    """Switch the model/provider in-place for a live agent.
-
-    Called by the /model command handlers (CLI and gateway) after
-    ``model_switch.switch_model()`` has resolved credentials and
-    validated the model.  This method performs the actual runtime
-    swap: rebuilding clients, updating caching flags, and refreshing
-    the context compressor.
-
-    The implementation mirrors ``_try_activate_fallback()`` for the
-    client-swap logic but also updates ``_primary_runtime`` so the
-    change persists across turns (unlike fallback which is
-    turn-scoped).
-    """
-    import logging
-    from drewgent_cli.providers import determine_api_mode
-
-    # ── Determine api_mode if not provided ──
-    if not api_mode:
-        api_mode = determine_api_mode(new_provider, base_url)
-
-    old_model = self.model
-    old_provider = self.provider
-
-    # ── Swap core runtime fields ──
-    self.model = new_model
-    self.provider = new_provider
-    self.base_url = base_url or self.base_url
-    self.api_mode = api_mode
-    if api_key:
-        self.api_key = api_key
-
-    # ── Build new client ──
-    if api_mode == "anthropic_messages":
-        from agent.anthropic_adapter import (
-            build_anthropic_client,
-            resolve_anthropic_token,
-            _is_oauth_token,
-        )
-
-        effective_key = api_key or self.api_key or resolve_anthropic_token() or ""
-        self.api_key = effective_key
-        self._anthropic_api_key = effective_key
-        self._anthropic_base_url = base_url or getattr(
-            self, "_anthropic_base_url", None
-        )
-        self._anthropic_client = build_anthropic_client(
-            effective_key,
-            self._anthropic_base_url,
-        )
-        self._is_anthropic_oauth = _is_oauth_token(effective_key)
-        self.client = None
-        self._client_kwargs = {}
-    else:
-        effective_key = api_key or self.api_key
-        effective_base = base_url or self.base_url
-        self._client_kwargs = {
-            "api_key": effective_key,
-            "base_url": effective_base,
-        }
-        self.client = self._create_openai_client(
-            dict(self._client_kwargs),
-            reason="switch_model",
-            shared=True,
-        )
-
-    # ── Re-evaluate prompt caching ──
-    is_native_anthropic = api_mode == "anthropic_messages"
-    self._use_prompt_caching = (
-        "openrouter" in (self.base_url or "").lower()
-        and "claude" in new_model.lower()
-    ) or is_native_anthropic
-
-    # ── Update context compressor ──
-    if hasattr(self, "context_compressor") and self.context_compressor:
-        from agent.model_metadata import get_model_context_length
-
-        new_context_length = get_model_context_length(
-            self.model,
-            base_url=self.base_url,
-            api_key=self.api_key,
-            provider=self.provider,
-        )
-        self.context_compressor.model = self.model
-        self.context_compressor.base_url = self.base_url
-        self.context_compressor.api_key = self.api_key
-        self.context_compressor.provider = self.provider
-        self.context_compressor.context_length = new_context_length
-        self.context_compressor.threshold_tokens = int(
-            new_context_length * self.context_compressor.threshold_percent
-        )
-
-    # ── Invalidate cached system prompt so it rebuilds next turn ──
-    self._cached_system_prompt = None
-
-    # ── Update _primary_runtime so the change persists across turns ──
-    _cc = (
-        self.context_compressor
-        if hasattr(self, "context_compressor") and self.context_compressor
-        else None
+    _VALID_API_ROLES = frozenset(
+        {"system", "user", "assistant", "tool", "function", "developer"}
     )
-    self._primary_runtime = {
-        "model": self.model,
-        "provider": self.provider,
-        "base_url": self.base_url,
-        "api_mode": self.api_mode,
-        "api_key": getattr(self, "api_key", ""),
-        "client_kwargs": dict(self._client_kwargs),
-        "use_prompt_caching": self._use_prompt_caching,
-        "compressor_model": _cc.model if _cc else self.model,
-        "compressor_base_url": _cc.base_url if _cc else self.base_url,
-        "compressor_api_key": getattr(_cc, "api_key", "") if _cc else "",
-        "compressor_provider": _cc.provider if _cc else self.provider,
-        "compressor_context_length": _cc.context_length if _cc else 0,
-        "compressor_threshold_tokens": _cc.threshold_tokens if _cc else 0,
-    }
-    if api_mode == "anthropic_messages":
-        self._primary_runtime.update(
-            {
-                "anthropic_api_key": self._anthropic_api_key,
-                "anthropic_base_url": self._anthropic_base_url,
-                "is_anthropic_oauth": self._is_anthropic_oauth,
+
+    @staticmethod
+    def _get_tool_call_id_static(tc) -> str:
+        """Extract call ID from a tool_call entry (dict or object)."""
+        if isinstance(tc, dict):
+            return tc.get("id", "") or ""
+        return getattr(tc, "id", "") or ""
+
+    def reset_session_state(self):
+        """Reset all session-scoped token counters to 0 for a fresh session.
+
+        This method encapsulates the reset logic for all session-level metrics
+        including:
+        - Token usage counters (input, output, total, prompt, completion)
+        - Cache read/write tokens
+        - API call count
+        - Reasoning tokens
+        - Estimated cost tracking
+        - Context compressor internal counters
+
+        The method safely handles optional attributes (e.g., context compressor)
+        using ``hasattr`` checks.
+
+        This keeps the counter reset logic DRY and maintainable in one place
+        rather than scattering it across multiple methods.
+        """
+        # Token usage counters
+        self.session_total_tokens = 0
+        self.session_input_tokens = 0
+        self.session_output_tokens = 0
+        self.session_prompt_tokens = 0
+        self.session_completion_tokens = 0
+        self.session_cache_read_tokens = 0
+        self.session_cache_write_tokens = 0
+        self.session_reasoning_tokens = 0
+        self.session_api_calls = 0
+        self.session_estimated_cost_usd = 0.0
+        self.session_cost_status = "unknown"
+        self.session_cost_source = "none"
+
+        # Turn counter (added after reset_session_state was first written — #2635)
+        self._user_turn_count = 0
+
+        # Context compressor internal counters (if present)
+        if hasattr(self, "context_compressor") and self.context_compressor:
+            self.context_compressor.last_prompt_tokens = 0
+            self.context_compressor.last_completion_tokens = 0
+            self.context_compressor.last_total_tokens = 0
+            self.context_compressor.compression_count = 0
+            self.context_compressor._context_probed = False
+            self.context_compressor._context_probe_persistable = False
+            # Iterative summary from previous session must not bleed into new one (#2635)
+            self.context_compressor._previous_summary = None
+
+    def switch_model(
+        self, new_model, new_provider, api_key="", base_url="", api_mode=""
+    ):
+        """Switch the model/provider in-place for a live agent.
+
+        Called by the /model command handlers (CLI and gateway) after
+        ``model_switch.switch_model()`` has resolved credentials and
+        validated the model.  This method performs the actual runtime
+        swap: rebuilding clients, updating caching flags, and refreshing
+        the context compressor.
+
+        The implementation mirrors ``_try_activate_fallback()`` for the
+        client-swap logic but also updates ``_primary_runtime`` so the
+        change persists across turns (unlike fallback which is
+        turn-scoped).
+        """
+        import logging
+        from drewgent_cli.providers import determine_api_mode
+
+        # ── Determine api_mode if not provided ──
+        if not api_mode:
+            api_mode = determine_api_mode(new_provider, base_url)
+
+        old_model = self.model
+        old_provider = self.provider
+
+        # ── Swap core runtime fields ──
+        self.model = new_model
+        self.provider = new_provider
+        self.base_url = base_url or self.base_url
+        self.api_mode = api_mode
+        if api_key:
+            self.api_key = api_key
+
+        # ── Build new client ──
+        if api_mode == "anthropic_messages":
+            from agent.anthropic_adapter import (
+                build_anthropic_client,
+                resolve_anthropic_token,
+                _is_oauth_token,
+            )
+
+            effective_key = api_key or self.api_key or resolve_anthropic_token() or ""
+            self.api_key = effective_key
+            self._anthropic_api_key = effective_key
+            self._anthropic_base_url = base_url or getattr(
+                self, "_anthropic_base_url", None
+            )
+            self._anthropic_client = build_anthropic_client(
+                effective_key,
+                self._anthropic_base_url,
+            )
+            self._is_anthropic_oauth = _is_oauth_token(effective_key)
+            self.client = None
+            self._client_kwargs = {}
+        else:
+            effective_key = api_key or self.api_key
+            effective_base = base_url or self.base_url
+            self._client_kwargs = {
+                "api_key": effective_key,
+                "base_url": effective_base,
             }
+            self.client = self._create_openai_client(
+                dict(self._client_kwargs),
+                reason="switch_model",
+                shared=True,
+            )
+
+        # ── Re-evaluate prompt caching ──
+        is_native_anthropic = api_mode == "anthropic_messages"
+        self._use_prompt_caching = (
+            "openrouter" in (self.base_url or "").lower()
+            and "claude" in new_model.lower()
+        ) or is_native_anthropic
+
+        # ── Update context compressor ──
+        if hasattr(self, "context_compressor") and self.context_compressor:
+            from agent.model_metadata import get_model_context_length
+
+            new_context_length = get_model_context_length(
+                self.model,
+                base_url=self.base_url,
+                api_key=self.api_key,
+                provider=self.provider,
+            )
+            self.context_compressor.model = self.model
+            self.context_compressor.base_url = self.base_url
+            self.context_compressor.api_key = self.api_key
+            self.context_compressor.provider = self.provider
+            self.context_compressor.context_length = new_context_length
+            self.context_compressor.threshold_tokens = int(
+                new_context_length * self.context_compressor.threshold_percent
+            )
+
+        # ── Invalidate cached system prompt so it rebuilds next turn ──
+        self._cached_system_prompt = None
+
+        # ── Update _primary_runtime so the change persists across turns ──
+        _cc = (
+            self.context_compressor
+            if hasattr(self, "context_compressor") and self.context_compressor
+            else None
         )
+        self._primary_runtime = {
+            "model": self.model,
+            "provider": self.provider,
+            "base_url": self.base_url,
+            "api_mode": self.api_mode,
+            "api_key": getattr(self, "api_key", ""),
+            "client_kwargs": dict(self._client_kwargs),
+            "use_prompt_caching": self._use_prompt_caching,
+            "compressor_model": _cc.model if _cc else self.model,
+            "compressor_base_url": _cc.base_url if _cc else self.base_url,
+            "compressor_api_key": getattr(_cc, "api_key", "") if _cc else "",
+            "compressor_provider": _cc.provider if _cc else self.provider,
+            "compressor_context_length": _cc.context_length if _cc else 0,
+            "compressor_threshold_tokens": _cc.threshold_tokens if _cc else 0,
+        }
+        if api_mode == "anthropic_messages":
+            self._primary_runtime.update(
+                {
+                    "anthropic_api_key": self._anthropic_api_key,
+                    "anthropic_base_url": self._anthropic_base_url,
+                    "is_anthropic_oauth": self._is_anthropic_oauth,
+                }
+            )
 
-    # ── Reset fallback state ──
-    self._fallback_activated = False
-    self._fallback_index = 0
+        # ── Reset fallback state ──
+        self._fallback_activated = False
+        self._fallback_index = 0
 
-    logging.info(
-        "Model switched in-place: %s (%s) -> %s (%s)",
-        old_model,
-        old_provider,
-        new_model,
-        new_provider,
-    )
+        logging.info(
+            "Model switched in-place: %s (%s) -> %s (%s)",
+            old_model,
+            old_provider,
+            new_model,
+            new_provider,
+        )
 
 def _safe_print(self, *args, **kwargs):
     """Print that silently handles broken pipes / closed stdout.
@@ -2062,7 +2064,7 @@ def _sanitize_api_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any
     filtered = []
     for msg in messages:
         role = msg.get("role")
-        if role not in AIAgent._VALID_API_ROLES:
+        if role not in AIAgentInternals._VALID_API_ROLES:
             logger.debug(
                 "Pre-call sanitizer: dropping message with invalid role %r",
                 role,
@@ -2075,7 +2077,7 @@ def _sanitize_api_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any
     for msg in messages:
         if msg.get("role") == "assistant":
             for tc in msg.get("tool_calls") or []:
-                cid = AIAgent._get_tool_call_id_static(tc)
+                cid = AIAgentInternals._get_tool_call_id_static(tc)
                 if cid:
                     surviving_call_ids.add(cid)
 
@@ -2110,7 +2112,7 @@ def _sanitize_api_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any
             patched.append(msg)
             if msg.get("role") == "assistant":
                 for tc in msg.get("tool_calls") or []:
-                    cid = AIAgent._get_tool_call_id_static(tc)
+                    cid = AIAgentInternals._get_tool_call_id_static(tc)
                     if cid in missing_results:
                         patched.append(
                             {
@@ -6358,5 +6360,28 @@ def _handle_max_iterations(self, messages: list, api_call_count: int) -> str:
         final_response = f"I reached the maximum iterations ({self.max_iterations}) but couldn't summarize. Error: {str(e)}"
 
     return final_response
+
+
+# ─── Bind extracted methods dynamically to AIAgentInternals ──────────────────
+import inspect
+import sys
+import core.runtime.prompt as _prompt_mod
+import core.runtime.streaming as _streaming_mod
+
+_current_module = sys.modules[__name__]
+for _mod in [_current_module, _prompt_mod, _streaming_mod]:
+    for _name, _obj in list(_mod.__dict__.items()):
+        _raw_func = _obj.__func__ if isinstance(_obj, staticmethod) else _obj
+        if inspect.isfunction(_raw_func) and getattr(_raw_func, "__module__", None) == _mod.__name__:
+            if _name.startswith("_") or _name in {"switch_model", "reset_session_state", "_get_tool_call_id_static", "flush_memories"}:
+                try:
+                    _sig = inspect.signature(_raw_func)
+                    _params = list(_sig.parameters.keys())
+                    if _params and _params[0] == "self":
+                        setattr(AIAgentInternals, _name, _raw_func)
+                    else:
+                        setattr(AIAgentInternals, _name, staticmethod(_raw_func))
+                except (ValueError, TypeError):
+                    setattr(AIAgentInternals, _name, _obj)
 
 

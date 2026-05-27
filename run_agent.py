@@ -369,7 +369,7 @@ def _save_oversized_tool_result(function_name: str, function_result: str) -> str
         )
 
 
-class AIAgent:
+class AIAgent(AIAgentInternals):
     """
     AI Agent with tool calling capabilities.
 
@@ -385,6 +385,18 @@ class AIAgent:
     def base_url(self, value: str) -> None:
         self._base_url = value
         self._base_url_lower = value.lower() if value else ""
+
+    # ── Pre/post-call guardrails ─────────────────────────────────────────────
+    @staticmethod
+    def _get_tool_call_id_static(tc) -> str:
+        """Extract call ID from a tool_call entry (dict or object)."""
+        if isinstance(tc, dict):
+            return tc.get("id", "") or ""
+        return getattr(tc, "id", "") or ""
+
+    _VALID_API_ROLES = frozenset(
+        {"system", "user", "assistant", "tool", "function", "developer"}
+    )
 
     def __init__(
         self,

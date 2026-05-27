@@ -39,23 +39,15 @@ class StubAdapter(BasePlatformAdapter):
         return {"id": chat_id}
 
 
-def _make_runner():
-    """Create a minimal GatewayRunner via object.__new__ to skip __init__."""
-    runner = object.__new__(GatewayRunner)
-    runner.config = GatewayConfig(
-        platforms={Platform.TELEGRAM: PlatformConfig(enabled=True, token="test")}
-    )
-    runner._running = True
-    runner._shutdown_event = asyncio.Event()
-    runner._exit_reason = None
-    runner._exit_with_failure = False
-    runner._exit_cleanly = False
+def _make_runner(mock_runner):
+    """Build a GatewayRunner for reconnect watcher tests.
+    
+    Uses the mock_gateway_runner fixture as base (provides session_store,
+    _running_agents_ts, and all other required attributes), then adds
+    the reconnect-watcher-specific _failed_platforms state.
+    """
+    runner = mock_runner
     runner._failed_platforms = {}
-    runner.adapters = {}
-    runner.delivery_router = MagicMock()
-    runner._running_agents = {}
-    runner._pending_messages = {}
-    runner._pending_approvals = {}
     runner._honcho_managers = {}
     runner._honcho_configs = {}
     runner._shutdown_all_gateway_honcho = lambda: None
@@ -67,9 +59,9 @@ def _make_runner():
 class TestStartupFailureQueuing:
     """Verify that failed platforms are queued during startup."""
 
-    def test_failed_platform_queued_on_connect_failure(self):
+    def test_failed_platform_queued_on_connect_failure(self, mock_gateway_runner):
         """When adapter.connect() returns False without fatal error, queue for retry."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
             "config": platform_config,
@@ -79,9 +71,9 @@ class TestStartupFailureQueuing:
         assert Platform.TELEGRAM in runner._failed_platforms
         assert runner._failed_platforms[Platform.TELEGRAM]["attempts"] == 1
 
-    def test_failed_platform_not_queued_for_nonretryable(self):
+    def test_failed_platform_not_queued_for_nonretryable(self, mock_gateway_runner):
         """Non-retryable errors should not be in the retry queue."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         # Simulate: adapter had a non-retryable error, wasn't queued
         assert Platform.TELEGRAM not in runner._failed_platforms
 
@@ -92,9 +84,9 @@ class TestPlatformReconnectWatcher:
     """Test the _platform_reconnect_watcher background task."""
 
     @pytest.mark.asyncio
-    async def test_reconnect_succeeds_on_retry(self):
+    async def test_reconnect_succeeds_on_retry(self, mock_gateway_runner):
         """Watcher should reconnect a failed platform when connect() succeeds."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         runner._sync_voice_mode_state_to_adapter = MagicMock()
 
         platform_config = PlatformConfig(enabled=True, token="test")
@@ -131,9 +123,9 @@ class TestPlatformReconnectWatcher:
         assert Platform.TELEGRAM in runner.adapters
 
     @pytest.mark.asyncio
-    async def test_reconnect_nonretryable_removed_from_queue(self):
+    async def test_reconnect_nonretryable_removed_from_queue(self, mock_gateway_runner):
         """Non-retryable errors should remove the platform from the retry queue."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
@@ -169,9 +161,9 @@ class TestPlatformReconnectWatcher:
         assert Platform.TELEGRAM not in runner.adapters
 
     @pytest.mark.asyncio
-    async def test_reconnect_retryable_stays_in_queue(self):
+    async def test_reconnect_retryable_stays_in_queue(self, mock_gateway_runner):
         """Retryable failures should remain in the queue with incremented attempts."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
@@ -207,9 +199,9 @@ class TestPlatformReconnectWatcher:
         assert runner._failed_platforms[Platform.TELEGRAM]["attempts"] == 2
 
     @pytest.mark.asyncio
-    async def test_reconnect_gives_up_after_max_attempts(self):
+    async def test_reconnect_gives_up_after_max_attempts(self, mock_gateway_runner):
         """After max attempts, platform should be removed from retry queue."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
@@ -241,9 +233,9 @@ class TestPlatformReconnectWatcher:
         mock_create.assert_not_called()  # Should give up without trying
 
     @pytest.mark.asyncio
-    async def test_reconnect_skips_when_not_time_yet(self):
+    async def test_reconnect_skips_when_not_time_yet(self, mock_gateway_runner):
         """Watcher should skip platforms whose next_retry is in the future."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
@@ -275,9 +267,9 @@ class TestPlatformReconnectWatcher:
         mock_create.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_failed_platforms_watcher_idles(self):
+    async def test_no_failed_platforms_watcher_idles(self, mock_gateway_runner):
         """When no platforms are failed, watcher should just idle."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         # No failed platforms
 
         real_sleep = asyncio.sleep
@@ -302,9 +294,9 @@ class TestPlatformReconnectWatcher:
         mock_create.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_adapter_create_returns_none(self):
+    async def test_adapter_create_returns_none(self, mock_gateway_runner):
         """If _create_adapter returns None, remove from queue (missing deps)."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         platform_config = PlatformConfig(enabled=True, token="test")
         runner._failed_platforms[Platform.TELEGRAM] = {
@@ -341,9 +333,9 @@ class TestRuntimeDisconnectQueuing:
     """Test that _handle_adapter_fatal_error queues retryable disconnections."""
 
     @pytest.mark.asyncio
-    async def test_retryable_runtime_error_queued_for_reconnect(self):
+    async def test_retryable_runtime_error_queued_for_reconnect(self, mock_gateway_runner):
         """Retryable runtime errors should add the platform to _failed_platforms."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         runner.stop = AsyncMock()
 
         adapter = StubAdapter(succeed=True)
@@ -356,9 +348,9 @@ class TestRuntimeDisconnectQueuing:
         assert runner._failed_platforms[Platform.TELEGRAM]["attempts"] == 0
 
     @pytest.mark.asyncio
-    async def test_nonretryable_runtime_error_not_queued(self):
+    async def test_nonretryable_runtime_error_not_queued(self, mock_gateway_runner):
         """Non-retryable runtime errors should not be queued for reconnection."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
 
         adapter = StubAdapter(succeed=True)
         adapter._set_fatal_error("auth_error", "bad token", retryable=False)
@@ -372,13 +364,13 @@ class TestRuntimeDisconnectQueuing:
         assert Platform.TELEGRAM not in runner._failed_platforms
 
     @pytest.mark.asyncio
-    async def test_retryable_error_exits_for_service_restart_when_all_down(self):
+    async def test_retryable_error_exits_for_service_restart_when_all_down(self, mock_gateway_runner):
         """Gateway should exit with failure when all platforms fail with retryable errors.
 
         This lets systemd Restart=on-failure restart the process, which is more
         reliable than in-process background reconnection after exhausted retries.
         """
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         runner.stop = AsyncMock()
 
         adapter = StubAdapter(succeed=True)
@@ -393,9 +385,9 @@ class TestRuntimeDisconnectQueuing:
         assert Platform.TELEGRAM in runner._failed_platforms
 
     @pytest.mark.asyncio
-    async def test_retryable_error_no_exit_when_other_adapters_still_connected(self):
+    async def test_retryable_error_no_exit_when_other_adapters_still_connected(self, mock_gateway_runner):
         """Gateway should NOT exit if some adapters are still connected."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         runner.stop = AsyncMock()
 
         failing_adapter = StubAdapter(succeed=True)
@@ -413,9 +405,9 @@ class TestRuntimeDisconnectQueuing:
         assert Platform.TELEGRAM in runner._failed_platforms
 
     @pytest.mark.asyncio
-    async def test_nonretryable_error_triggers_shutdown(self):
+    async def test_nonretryable_error_triggers_shutdown(self, mock_gateway_runner):
         """Gateway should shut down when no adapters remain and nothing is queued."""
-        runner = _make_runner()
+        runner = _make_runner(mock_gateway_runner)
         runner.stop = AsyncMock()
 
         adapter = StubAdapter(succeed=True)

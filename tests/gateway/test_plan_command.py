@@ -54,6 +54,8 @@ def _make_runner():
             "last_prompt_tokens": 0,
         }
     )
+    runner._session_manager = MagicMock()
+    runner._task_manager = AsyncMock()
     return runner
 
 
