@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "ACP Internals"
-description: "How the ACP adapter works: lifecycle, sessions, event bridge, approvals, and tool rendering"
+title: Acp Internals
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # ACP Internals
 

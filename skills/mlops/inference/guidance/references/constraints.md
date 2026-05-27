@@ -1,3 +1,17 @@
+---
+
+title: Comprehensive Constraint Patterns
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Comprehensive Constraint Patterns
 
 Guide to regex constraints, grammar-based generation, and token healing in Guidance.

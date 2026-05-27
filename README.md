@@ -1,3 +1,17 @@
+---
+
+title: Drewgent Agent ☤
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Drewgent Agent ☤
 
 > **Drewgent** is a **Stateful Agent** — not just a tool, but a persistent, self-evolving presence that remembers, grows, and governs itself over time.

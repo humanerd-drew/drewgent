@@ -46,6 +46,14 @@ def _make_runner():
     from gateway.hooks import HookRegistry
     runner.hooks = HookRegistry()
 
+    runner._task_manager = AsyncMock()
+    # Store coroutines so test assertions can verify them
+    runner._task_manager._created_coroutines = []
+    runner._task_manager.create_task = lambda coro: (
+        runner._task_manager._created_coroutines.append(coro),
+        MagicMock()
+    )[1]
+
     return runner
 
 
@@ -87,36 +95,25 @@ class TestHandleBackgroundCommand:
         """Running /background with a prompt returns confirmation and starts task."""
         runner = _make_runner()
 
-        # Patch asyncio.create_task to capture the coroutine
-        created_tasks = []
-        original_create_task = asyncio.create_task
-
-        def capture_task(coro, *args, **kwargs):
-            # Close the coroutine to avoid warnings
-            coro.close()
-            mock_task = MagicMock()
-            created_tasks.append(mock_task)
-            return mock_task
-
-        with patch("gateway.run.asyncio.create_task", side_effect=capture_task):
-            event = _make_event(text="/background Summarize the top HN stories")
-            result = await runner._handle_background_command(event)
+        event = _make_event(text="/background Summarize the top HN stories")
+        result = await runner._handle_background_command(event)
 
         assert "🔄" in result
         assert "Background task started" in result
         assert "bg_" in result  # task ID starts with bg_
         assert "Summarize the top HN stories" in result
-        assert len(created_tasks) == 1  # background task was created
+        # Verify background task was created via _task_manager
+        assert len(runner._task_manager._created_coroutines) == 1
 
     @pytest.mark.asyncio
     async def test_prompt_truncated_in_preview(self):
         """Long prompts are truncated to 60 chars in the confirmation message."""
         runner = _make_runner()
         long_prompt = "A" * 100
+        runner._task_manager._created_coroutines = []
 
-        with patch("gateway.run.asyncio.create_task", side_effect=lambda c, **kw: (c.close(), MagicMock())[1]):
-            event = _make_event(text=f"/background {long_prompt}")
-            result = await runner._handle_background_command(event)
+        event = _make_event(text=f"/background {long_prompt}")
+        result = await runner._handle_background_command(event)
 
         assert "..." in result
         # Should not contain the full prompt
@@ -127,16 +124,16 @@ class TestHandleBackgroundCommand:
         """Each background task gets a unique task ID."""
         runner = _make_runner()
         task_ids = set()
+        runner._task_manager._created_coroutines = []
 
-        with patch("gateway.run.asyncio.create_task", side_effect=lambda c, **kw: (c.close(), MagicMock())[1]):
-            for i in range(5):
-                event = _make_event(text=f"/background task {i}")
-                result = await runner._handle_background_command(event)
-                # Extract task ID from result (format: "Task ID: bg_HHMMSS_hex")
-                for line in result.split("\n"):
-                    if "Task ID:" in line:
-                        tid = line.split("Task ID:")[1].strip()
-                        task_ids.add(tid)
+        for i in range(5):
+            event = _make_event(text=f"/background task {i}")
+            result = await runner._handle_background_command(event)
+            # Extract task ID from result (format: "Task ID: bg_HHMMSS_hex")
+            for line in result.split("\n"):
+                if "Task ID:" in line:
+                    tid = line.split("Task ID:")[1].strip()
+                    task_ids.add(tid)
 
         assert len(task_ids) == 5  # all unique
 
@@ -145,13 +142,13 @@ class TestHandleBackgroundCommand:
         """The /background command works for all platforms."""
         for platform in [Platform.TELEGRAM, Platform.DISCORD, Platform.SLACK]:
             runner = _make_runner()
-            with patch("gateway.run.asyncio.create_task", side_effect=lambda c, **kw: (c.close(), MagicMock())[1]):
-                event = _make_event(
-                    text="/background test task",
-                    platform=platform,
-                )
-                result = await runner._handle_background_command(event)
-                assert "Background task started" in result
+            runner._task_manager._created_coroutines = []
+            event = _make_event(
+                text="/background test task",
+                platform=platform,
+            )
+            result = await runner._handle_background_command(event)
+            assert "Background task started" in result
 
 
 # ---------------------------------------------------------------------------

@@ -297,6 +297,153 @@ class SignalEmitter:
         )
 
     # -------------------------------------------------------------------------
+    # Kanban Signals (P2-hippocampus brain integration)
+    # -------------------------------------------------------------------------
+
+    def kanban_task_created(
+        self, task_id: str, title: str, board: str, trigger: str = "manual"
+    ) -> None:
+        """Emit signal when a kanban task is created."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.task.created",
+            payload={
+                "task_id": task_id,
+                "title": title,
+                "board": board,
+                "trigger": trigger,  # manual | cron | subagent | integration_workflow
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    def kanban_task_claimed(self, task_id: str, worker_pid: int, ttl_seconds: int) -> None:
+        """Emit signal when a worker claims a kanban task."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.task.claimed",
+            payload={
+                "task_id": task_id,
+                "worker_pid": worker_pid,
+                "ttl_seconds": ttl_seconds,
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    def kanban_task_completed(
+        self, task_id: str, board: str, result: str = "", duration_seconds: int = 0
+    ) -> None:
+        """Emit signal when a kanban task is completed."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.task.completed",
+            payload={
+                "task_id": task_id,
+                "board": board,
+                "result": result,
+                "duration_seconds": duration_seconds,
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    def kanban_task_blocked(self, task_id: str, reason: str) -> None:
+        """Emit signal when a kanban task is blocked."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.task.blocked",
+            payload={
+                "task_id": task_id,
+                "reason": reason,
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    def kanban_worker_reclaimed(self, task_id: str, reason: str) -> None:
+        """Emit signal when a stale kanban task is reclaimed by dispatcher."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.worker.reclaimed",
+            payload={
+                "task_id": task_id,
+                "reason": reason,  # ttl_expired | worker_dead | manual
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    def kanban_hallucination_blocked(
+        self, task_id: str, invalid_ids: List[str]
+    ) -> None:
+        """Emit signal when kanban_complete is blocked due to hallucinated task IDs."""
+        bus = self._get_event_bus()
+        if not bus:
+            return
+
+        bus.emit(
+            "kanban.hallucination_blocked",
+            payload={
+                "task_id": task_id,
+                "invalid_ids": invalid_ids,
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    # -------------------------------------------------------------------------
+    # Dream System — Claude-style insight persistence
+    # -------------------------------------------------------------------------
+
+    def dream_candidate(
+        self,
+        title: str,
+        content: str,
+        source: str = "",
+        tags: Optional[List[str]] = None,
+    ) -> None:
+        """Emit dream.candidate — a value insight worth preserving across sessions.
+
+        The signal processor's _on_dream_candidate() handler will write this
+        to ~/.drewgent/dreams/ as a .md file, making it available in future
+        session prompts via load_dreams() in prompt_builder.py.
+
+        Args:
+            title: Short title for the dream (used as filename and heading)
+            content: Full insight content (markdown body)
+            source: Where this insight came from (e.g. "session with DeepSeek")
+            tags: Optional list of tags (e.g. ["insight", "honesty", "second-filter"])
+        """
+        bus = self._get_event_bus()
+        bus.emit(
+            "dream.candidate",
+            payload={
+                "title": title,
+                "content": content,
+                "source": source,
+                "tags": tags or [],
+                "session_id": self._session_id,
+            },
+            source="signal_emitter",
+        )
+
+    # -------------------------------------------------------------------------
     # Utility Methods
     # -------------------------------------------------------------------------
 
@@ -427,3 +574,18 @@ def emit_agent_complete(session_id: str, message_count: int) -> None:
         payload={"session_id": session_id, "message_count": message_count},
         source="brain_signals",
     )
+
+
+def emit_dream_candidate(
+    title: str,
+    content: str,
+    source: str = "",
+    tags: Optional[List[str]] = None,
+) -> None:
+    """Emit dream.candidate — save a value insight to ~/.drewgent/dreams/.
+
+    Drewgent calls this when it discovers something meaningful about values,
+    communication, or itself during a session. The signal processor's
+    _on_dream_candidate() handler writes the dream to disk automatically.
+    """
+    get_signal_emitter().dream_candidate(title, content, source, tags)

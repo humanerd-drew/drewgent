@@ -1,15 +1,18 @@
 ---
-name: canvas
-description: Canvas LMS integration — fetch enrolled courses and assignments using API token authentication.
-version: 1.0.0
-author: community
-license: MIT
-prerequisites:
-  env_vars: [CANVAS_API_TOKEN, CANVAS_BASE_URL]
-metadata:
-  drewgent:
-    tags: [Canvas, LMS, Education, Courses, Assignments]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Canvas LMS — Course & Assignment Access
 

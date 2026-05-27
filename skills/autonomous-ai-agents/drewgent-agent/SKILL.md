@@ -1,15 +1,18 @@
 ---
-name: drewgent-agent
-description: Complete guide to using and extending Drewgent Agent — CLI usage, setup, configuration, spawning additional agents, gateway platforms, skills, voice, tools, profiles, and a concise contributor reference. Load this skill when helping users configure Drewgent, troubleshoot issues, spawn agent instances, or make code contributions.
-version: 2.0.0
-author: Drewgent Agent + Teknium
-license: MIT
-metadata:
-  drewgent:
-    tags: [hermes, setup, configuration, multi-agent, spawning, cli, gateway, development]
-    homepage: https://github.com/NousResearch/drewgent-agent
-    related_skills: [claude-code, codex, opencode]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Drewgent Agent
 

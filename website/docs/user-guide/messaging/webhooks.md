@@ -1,8 +1,14 @@
 ---
-sidebar_position: 13
-title: "Webhooks"
-description: "Receive events from GitHub, GitLab, and other services to trigger Drewgent agent runs"
+title: Webhooks
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Webhooks
 

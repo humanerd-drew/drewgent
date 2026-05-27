@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Mattermost"
-description: "Set up Drewgent Agent as a Mattermost bot"
+title: Mattermost
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Mattermost Setup
 

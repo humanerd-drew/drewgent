@@ -112,7 +112,7 @@ class ProjectContextManager:
         return self._get_project_brain(project_name) / _INDEX_FILE
 
     def create_project(self, project_name: str) -> Path:
-        """Create a new project with .brain structure.
+        """Create a new project with .brain structure + portfolio system.
 
         Args:
             project_name: Name of the project (e.g., "clientX")
@@ -120,6 +120,15 @@ class ProjectContextManager:
         Returns:
             Path to the project directory
         """
+        # Create portfolio project structure first
+        try:
+            from agent.portfolio_logger import create_project as _portfolio_create
+            _portfolio_create(project_id=project_name, title=project_name)
+            logger.info(f"Created portfolio project: {project_name}")
+        except Exception as e:
+            logger.warning(f"Portfolio project creation failed (continuing anyway): {e}")
+
+        # Create .brain structure
         brain = self._get_project_brain(project_name)
         brain.mkdir(parents=True, exist_ok=True)
 

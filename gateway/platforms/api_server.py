@@ -1565,6 +1565,12 @@ class APIServerAdapter(BasePlatformAdapter):
             self._app.router.add_post("/api/jobs/{job_id}/pause", self._handle_pause_job)
             self._app.router.add_post("/api/jobs/{job_id}/resume", self._handle_resume_job)
             self._app.router.add_post("/api/jobs/{job_id}/run", self._handle_run_job)
+            # Kanban board API
+            self._app.router.add_get("/api/kanban/board", self._handle_kanban_board)
+            self._app.router.add_get("/api/kanban/tasks", self._handle_kanban_tasks)
+            self._app.router.add_post("/api/kanban/tasks/{task_id}/complete", self._handle_kanban_complete)
+            self._app.router.add_post("/api/kanban/tasks/{task_id}/block", self._handle_kanban_block)
+            self._app.router.add_post("/api/kanban/tasks/{task_id}/unblock", self._handle_kanban_unblock)
             # Structured event streaming
             self._app.router.add_post("/v1/runs", self._handle_runs)
             self._app.router.add_get("/v1/runs/{run_id}/events", self._handle_run_events)
@@ -1603,6 +1609,194 @@ class APIServerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[%s] Failed to start API server: %s", self.name, e)
             return False
+
+    # -------------------------------------------------------------------------
+    # Kanban Board Handlers
+    # -------------------------------------------------------------------------
+
+    async def _handle_kanban_board(self, request: "web.Request") -> "web.Response":
+        """GET /api/kanban/board — visual kanban board (HTML or JSON)."""
+        import sys as _sys
+        from pathlib import Path
+        _sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from tools.drewgent_kanban_db import task_list, task_get, _get_db_path
+        import sqlite3
+
+        _DB_PATH = _get_db_path()
+        conn = sqlite3.connect(str(_DB_PATH))
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Get boards
+        cur.execute("SELECT name FROM boards ORDER BY name")
+        boards = [r["name"] for r in cur.fetchall()] or ["default"]
+
+        board = request.query.get("board", "default")
+        status = request.query.get("status")
+
+        where = "WHERE board = ?"
+        args = [board]
+        if status:
+            where += " AND status = ?"
+            args.append(status)
+
+        cur.execute(f"""
+            SELECT id, title, body, status, assignee, priority,
+                   created_at, started_at, completed_at, result,
+                   consecutive_failures, worker_pid, last_heartbeat_at
+            FROM tasks {where}
+            ORDER BY priority DESC, created_at ASC
+        """, args)
+        rows = cur.fetchall()
+        conn.close()
+
+        tasks = [dict(r) for r in rows]
+        for t in tasks:
+            for k in ("started_at", "completed_at", "last_heartbeat_at"):
+                if t.get(k):
+                    t[k] = str(t[k])[:19]
+
+        html_mode = request.query.get("html") == "1"
+
+        if html_mode:
+            COLUMNS = ["todo", "ready", "in_progress", "blocked", "completed"]
+            status_labels = {
+                "todo": "📋 To Do",
+                "ready": "🎯 Ready",
+                "in_progress": "🔵 In Progress",
+                "blocked": "🔴 Blocked",
+                "completed": "✅ Completed",
+            }
+            colors = {
+                "todo": "#6b7280",
+                "ready": "#10b981",
+                "in_progress": "#3b82f6",
+                "blocked": "#ef4444",
+                "completed": "#9ca3af",
+            }
+
+            columns_html = ""
+            for col in COLUMNS:
+                col_tasks = [t for t in tasks if t["status"] == col]
+                color = colors.get(col, "#6b7280")
+                label = status_labels.get(col, col)
+                cards_html = ""
+                for t in col_tasks:
+                    assignee = t.get("assignee", "") or ""
+                    pid = t.get("worker_pid") or ""
+                    hb = t.get("last_heartbeat_at", "") or ""
+                    cards_html += f"""
+                    <div class="card" onclick="showTask('{t['id']}')">
+                        <div class="card-title">{__import__("html").escape(t.get('title',''))}</div>
+                        <div class="card-meta">{t['id'][:12]} · {assignee or 'unassigned'}{f' · 👷 {pid}' if pid else ''}</div>
+                    </div>"""
+                columns_html += f"""
+                <div class="column">
+                    <div class="col-header" style="border-top-color:{color}">
+                        {label} <span class="count">{len(col_tasks)}</span>
+                    </div>
+                    <div class="cards">{cards_html or '<div class="empty-col">empty</div>'}</div>
+                </div>"""
+
+            html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><title>Drewgent Kanban</title>
+<style>
+  body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:20px}}
+  .board{{display:flex;gap:16px;overflow-x:auto;padding-bottom:20px}}
+  .column{{flex:0 0 260px;background:#1e293b;border-radius:10px;overflow:hidden}}
+  .col-header{{padding:12px 16px;font-weight:700;font-size:14px;border-top:4px solid #3b82f6;background:#1e293b;display:flex;justify-content:space-between;align-items:center}}
+  .count{{background:#334155;border-radius:10px;padding:1px 8px;font-size:12px}}
+  .cards{{padding:8px;min-height:200px}}
+  .card{{background:#334155;border-radius:6px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:transform .1s}}
+  .card:hover{{transform:translateY(-1px);background:#3b4a5e}}
+  .card-title{{font-size:13px;font-weight:500;margin-bottom:4px;line-height:1.4}}
+  .card-meta{{font-size:11px;color:#94a3b8}}
+  .empty-col{{text-align:center;color:#475569;font-size:12px;padding:20px}}
+  .nav{{display:flex;align-items:center;gap:16px;margin-bottom:20px}}
+  .nav h1{{margin:0;font-size:20px}}
+  .board-link{{color:#60a5fa;font-size:13px;text-decoration:none}}
+</style>
+</head><body>
+<div class="nav">
+  <h1>📋 Drewgent Kanban</h1>
+  <a class="board-link" href="/api/kanban/board?html=1&board={board}">🔄 Refresh</a>
+  <a class="board-link" href="/api/kanban/board?html=1">All boards</a>
+</div>
+<div class="board">{columns_html}</div>
+<script>
+function showTask(id){{
+  fetch('/api/kanban/tasks?task_id='+id)
+    .then(r=>r.json())
+    .then(t=>alert(t.title+'\\n\\nStatus: '+t.status+'\\nID: '+t.id))
+}}
+</script>
+</body></html>"""
+            return web.Response(text=html, content_type="text/html", charset="utf-8")
+
+        # JSON mode
+        return web.json_response({
+            "board": board,
+            "tasks": tasks,
+            "boards": boards,
+            "count": len(tasks),
+        })
+
+    async def _handle_kanban_tasks(self, request: "web.Request") -> "web.Response":
+        """GET /api/kanban/tasks — list tasks with optional filters."""
+        import sys as _sys
+        from pathlib import Path
+        _sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from tools.drewgent_kanban_db import task_list, task_get
+
+        task_id = request.query.get("task_id")
+        if task_id:
+            t = task_get(task_id)
+            return web.json_response(t if t else {"error": "not found"}, status=200 if t else 404)
+
+        status = request.query.get("status") or None
+        assignee = request.query.get("assignee") or None
+        board = request.query.get("board") or None
+        tasks = task_list(status=status, assignee=assignee, board=board)
+        return web.json_response({"tasks": tasks, "count": len(tasks)})
+
+    async def _handle_kanban_complete(self, request: "web.Request") -> "web.Response":
+        """POST /api/kanban/tasks/{task_id}/complete."""
+        import sys as _sys
+        from pathlib import Path
+        _sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from tools.drewgent_kanban_db import task_complete
+
+        task_id = request.match_info["task_id"]
+        body = await request.json() if request.body_exists else {}
+        result = body.get("result", "completed via dashboard")
+        summary = body.get("summary", "")
+        r = task_complete(task_id, result=result, summary=summary)
+        return web.json_response(r)
+
+    async def _handle_kanban_block(self, request: "web.Request") -> "web.Response":
+        """POST /api/kanban/tasks/{task_id}/block."""
+        import sys as _sys
+        from pathlib import Path
+        _sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from tools.drewgent_kanban_db import task_block
+
+        task_id = request.match_info["task_id"]
+        body = await request.json() if request.body_exists else {}
+        reason = body.get("reason", "blocked via dashboard")
+        r = task_block(task_id, reason=reason)
+        return web.json_response(r)
+
+    async def _handle_kanban_unblock(self, request: "web.Request") -> "web.Response":
+        """POST /api/kanban/tasks/{task_id}/unblock."""
+        import sys as _sys
+        from pathlib import Path
+        _sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from tools.drewgent_kanban_db import task_unblock
+
+        task_id = request.match_info["task_id"]
+        r = task_unblock(task_id)
+        return web.json_response(r)
 
     async def disconnect(self) -> None:
         """Stop the aiohttp web server."""

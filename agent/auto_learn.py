@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Set, List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass, field
 
+from drewgent_constants import get_drewgent_home
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +83,7 @@ INSIGHT_TAGS = {
 # =============================================================================
 
 # Path to where session workflow JSON files are stored
-_P4_CORTEX_PATTERNS_DIR = Path.home() / ".drewgent" / "P4-cortex" / "growth" / "patterns"
+_P4_CORTEX_PATTERNS_DIR = get_drewgent_home() / "P4-cortex" / "growth" / "patterns"
 
 
 # ---------------------------------------------------------------------------

@@ -1,15 +1,18 @@
 ---
-name: qdrant-vector-search
-description: High-performance vector similarity search engine for RAG and semantic search. Use when building production RAG systems requiring fast nearest neighbor search, hybrid search with filtering, or scalable vector storage with Rust-powered performance.
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [qdrant-client>=1.12.0]
-metadata:
-  drewgent:
-    tags: [RAG, Vector Search, Qdrant, Semantic Search, Embeddings, Similarity Search, HNSW, Production, Distributed]
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Qdrant - Vector Similarity Search Engine
 

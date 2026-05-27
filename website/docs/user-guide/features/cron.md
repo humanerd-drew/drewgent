@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Scheduled Tasks (Cron)"
-description: "Schedule automated tasks with natural language, manage them with one cron tool, and attach one or more skills"
+title: Cron
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Scheduled Tasks (Cron)
 

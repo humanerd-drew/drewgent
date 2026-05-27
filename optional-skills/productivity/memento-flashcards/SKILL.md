@@ -1,20 +1,18 @@
 ---
-name: memento-flashcards
-description: >-
-  Spaced-repetition flashcard system. Create cards from facts or text,
-  chat with flashcards using free-text answers graded by the agent,
-  generate quizzes from YouTube transcripts, review due cards with
-  adaptive scheduling, and export/import decks as CSV.
-version: 1.0.0
-author: Memento AI
-license: MIT
-platforms: [macos, linux]
-metadata:
-  drewgent:
-    tags: [Education, Flashcards, Spaced Repetition, Learning, Quiz, YouTube]
-    requires_toolsets: [terminal]
-    category: productivity
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Memento Flashcards — Spaced-Repetition Flashcard Skill
 

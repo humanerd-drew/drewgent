@@ -1,3 +1,17 @@
+---
+
+title: Tokenization Pipeline Components
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Tokenization Pipeline Components
 
 Complete guide to normalizers, pre-tokenizers, models, post-processors, and decoders.

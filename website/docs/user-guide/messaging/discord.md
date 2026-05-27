@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Discord"
-description: "Set up Drewgent Agent as a Discord bot"
+title: Discord
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Discord Setup
 

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 14
-title: "API Server"
-description: "Expose drewgent-agent as an OpenAI-compatible API for any frontend"
+title: Api Server
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # API Server
 

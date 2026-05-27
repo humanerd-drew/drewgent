@@ -1,3 +1,17 @@
+---
+
+title: FastMCP CLI Reference
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # FastMCP CLI Reference
 
 Use this file when the task needs exact FastMCP CLI workflows rather than the higher-level guidance in `SKILL.md`.

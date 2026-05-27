@@ -1,9 +1,14 @@
 ---
 title: Credential Pools
-description: Pool multiple API keys or OAuth tokens per provider for automatic rotation and rate limit recovery.
-sidebar_label: Credential Pools
-sidebar_position: 9
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Credential Pools
 

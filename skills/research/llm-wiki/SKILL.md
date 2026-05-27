@@ -1,20 +1,22 @@
 ---
-name: llm-wiki
-description: "Karpathy's LLM Wiki — build and maintain a persistent, interlinked markdown knowledge base. Ingest sources, query compiled knowledge, and lint for consistency."
-version: 2.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [wiki, knowledge-base, research, notes, markdown, rag-alternative]
-    category: research
-    related_skills: [obsidian, arxiv, agentic-research-ideas]
-    config:
-      - key: wiki.path
-        description: Path to the LLM Wiki knowledge base directory
-        default: "~/wiki"
-        prompt: Wiki directory path
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[image.png]]"
+  - "[[links]]"
+  - "[[page-a]]"
+  - "[[page-b]]"
+  - "[[wikilinks]]"
 ---
+
+
+
+
 
 # Karpathy's LLM Wiki
 

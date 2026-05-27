@@ -1,3 +1,17 @@
+---
+
+title: Production-Ready Examples
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Production-Ready Examples
 
 Real-world examples of using Guidance for structured generation, agents, and workflows.

@@ -1,14 +1,18 @@
 ---
-name: native-mcp
-description: Built-in MCP (Model Context Protocol) client that connects to external MCP servers, discovers their tools, and registers them as native Drewgent Agent tools. Supports stdio and HTTP transports with automatic reconnection, security filtering, and zero-config tool injection.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [MCP, Tools, Integrations]
-    related_skills: [mcporter]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Native MCP Client
 

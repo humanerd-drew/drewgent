@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Context Files"
-description: "Project context files — .drewgent.md, AGENTS.md, CLAUDE.md, global SOUL.md, and .cursorrules — automatically injected into every conversation"
+title: Context Files
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Context Files
 

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Gateway Internals"
-description: "How the messaging gateway boots, authorizes users, routes sessions, and delivers messages"
+title: Gateway Internals
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Gateway Internals
 

@@ -1,9 +1,14 @@
 ---
-sidebar_position: 11
-sidebar_label: "Plugins"
-title: "Plugins"
-description: "Extend Drewgent with custom tools, hooks, and integrations via the plugin system"
+title: Plugins
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Plugins
 

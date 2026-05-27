@@ -29,6 +29,15 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# Determine the Python interpreter to use when dispatching cron jobs.
+# The gateway may run under a different Python than the venv where openai
+# is installed (e.g. system/homebrew Python vs .venv Python).  We always
+# use sys.executable so we inherit whatever the gateway already uses —
+# but if that Python lacks openai, run_job() will dispatch to cron_runner.py
+# via subprocess.run([sys.executable, ...]) and cron_runner.py will in turn
+# use the venv python to guarantee openai is importable.
+_venv_python = str(Path(__file__).parent.parent / ".venv" / "bin" / "python")
+
 # Add parent directory to path for imports BEFORE repo-level imports.
 # Without this, standalone invocations (e.g. after `drewgent update` reloads
 # the module) fail with ModuleNotFoundError for drewgent_time et al.
@@ -48,7 +57,10 @@ _KNOWN_DELIVERY_PLATFORMS = frozenset({
     "wecom", "sms", "email", "webhook",
 })
 
-from cron.jobs import get_due_jobs, mark_job_run, save_job_output, advance_next_run
+from cron.jobs import get_due_jobs, mark_job_run, save_job_output, advance_next_run, OUTPUT_DIR
+
+# Path to the drewgent-agent source root (parent of cron/)
+_AGENT_ROOT = Path(__file__).parent.parent.resolve()
 
 # Sentinel: when a cron agent has nothing new to report, it can start its
 # response with this marker to suppress delivery.  Output is still saved
@@ -462,43 +474,86 @@ def _build_job_prompt(job: dict) -> str:
     return "\n".join(parts)
 
 
+def _serialize_env_for_subprocess(job, prompt, model, runtime_kwargs, turn_route,
+                                   max_iterations, reasoning_config, prefill_messages,
+                                   providers_allowed, providers_ignored, providers_order,
+                                   provider_sort, origin, delivery_target, _cron_session_id):
+    """Serialize cron job context to a temp JSON file for the subprocess runner."""
+    import tempfile
+    payload = {
+        "job": job,
+        "prompt": prompt,
+        "model": model,
+        "runtime_kwargs": runtime_kwargs,
+        "turn_route": turn_route,
+        "max_iterations": max_iterations,
+        "reasoning_config": reasoning_config,
+        "prefill_messages": prefill_messages,
+        "providers_allowed": providers_allowed,
+        "providers_ignored": providers_ignored,
+        "providers_order": providers_order,
+        "provider_sort": provider_sort,
+        "origin": origin,
+        "delivery_target": delivery_target,
+        "session_id": _cron_session_id,
+    }
+    fd, path = tempfile.mkstemp(suffix=".json", prefix="cron_runner_env_")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(payload, f)
+    return path
+
+
+def _extract_final_response_from_output(output_file: Path) -> str:
+    """Parse the saved output file and return the final_response text."""
+    try:
+        content = output_file.read_text(encoding="utf-8")
+        # Output format: ## Response\n{logged_response}\n--- or ## Error\n{error}
+        marker = "## Response\n"
+        idx = content.find(marker)
+        if idx < 0:
+            return ""
+        start = idx + len(marker)
+        end = content.find("\n---", start)
+        if end < 0:
+            end = len(content)
+        return content[start:end].strip()
+    except Exception:
+        return ""
+
+
 def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     """
-    Execute a single cron job.
-    
+    Execute a single cron job by dispatching to a subprocess.
+
+    Uses sys.executable (the venv python that has openai) to run the agent,
+    avoiding 'No module named openai' failures when the gateway process uses
+    a different Python interpreter.
+
     Returns:
         Tuple of (success, full_output_doc, final_response, error_message)
     """
-    from run_agent import AIAgent
-    
-    # Initialize SQLite session store so cron job messages are persisted
-    # and discoverable via session_search (same pattern as gateway/run.py).
     _session_db = None
     try:
         from drewgent_state import SessionDB
         _session_db = SessionDB()
     except Exception as e:
         logger.debug("Job '%s': SQLite session store not available: %s", job.get("id", "?"), e)
-    
+
     job_id = job["id"]
     job_name = job["name"]
     prompt = _build_job_prompt(job)
     origin = _resolve_origin(job)
     _cron_session_id = f"cron_{job_id}_{_drewgent_now().strftime('%Y%m%d_%H%M%S')}"
 
-    logger.info("Running job '%s' (ID: %s)", job_name, job_id)
+    logger.info("Running job '%s' (ID: %s) via subprocess", job_name, job_id)
     logger.info("Prompt: %s", prompt[:100])
 
     try:
-        # Inject origin context so the agent's send_message tool knows the chat.
-        # Must be INSIDE the try block so the finally cleanup always runs.
         if origin:
             os.environ["DREW_SESSION_PLATFORM"] = origin["platform"]
             os.environ["DREW_SESSION_CHAT_ID"] = str(origin["chat_id"])
             if origin.get("chat_name"):
                 os.environ["DREW_SESSION_CHAT_NAME"] = origin["chat_name"]
-        # Re-read .env and config.yaml fresh every run so provider/key
-        # changes take effect without a gateway restart.
         from dotenv import load_dotenv
         try:
             load_dotenv(str(_drewgent_home / ".env"), override=True, encoding="utf-8")
@@ -514,7 +569,6 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
 
         model = job.get("model") or os.getenv("DREW_MODEL") or ""
 
-        # Load config.yaml for model, reasoning, prefill, toolsets, provider routing
         _cfg = {}
         try:
             import yaml
@@ -531,14 +585,12 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         except Exception as e:
             logger.warning("Job '%s': failed to load config.yaml, using defaults: %s", job_id, e)
 
-        # Reasoning config from env or config.yaml
         from drewgent_constants import parse_reasoning_effort
         effort = os.getenv("DREW_REASONING_EFFORT", "")
         if not effort:
             effort = str(_cfg.get("agent", {}).get("reasoning_effort", "")).strip()
         reasoning_config = parse_reasoning_effort(effort)
 
-        # Prefill messages from env or config.yaml
         prefill_messages = None
         prefill_file = os.getenv("HERMES_PREFILL_MESSAGES_FILE", "") or _cfg.get("prefill_messages_file", "")
         if prefill_file:
@@ -556,10 +608,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                     logger.warning("Job '%s': failed to parse prefill messages file '%s': %s", job_id, pfpath, e)
                     prefill_messages = None
 
-        # Max iterations
         max_iterations = _cfg.get("agent", {}).get("max_turns") or _cfg.get("max_turns") or 90
 
-        # Provider routing
         pr = _cfg.get("provider_routing", {})
         smart_routing = _cfg.get("smart_model_routing", {}) or {}
 
@@ -593,129 +643,73 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             },
         )
 
-        agent = AIAgent(
-            model=turn_route["model"],
-            api_key=turn_route["runtime"].get("api_key"),
-            base_url=turn_route["runtime"].get("base_url"),
-            provider=turn_route["runtime"].get("provider"),
-            api_mode=turn_route["runtime"].get("api_mode"),
-            acp_command=turn_route["runtime"].get("command"),
-            acp_args=turn_route["runtime"].get("args"),
-            max_iterations=max_iterations,
-            reasoning_config=reasoning_config,
-            prefill_messages=prefill_messages,
+        # Serialize context and dispatch to subprocess
+        env_json_path = _serialize_env_for_subprocess(
+            job, prompt, model, runtime_kwargs, turn_route,
+            max_iterations, reasoning_config, prefill_messages,
             providers_allowed=pr.get("only"),
             providers_ignored=pr.get("ignore"),
             providers_order=pr.get("order"),
             provider_sort=pr.get("sort"),
-            disabled_toolsets=["cronjob", "messaging", "clarify"],
-            quiet_mode=True,
-            skip_memory=True,  # Cron system prompts would corrupt user representations
-            platform="cron",
-            session_id=_cron_session_id,
-            session_db=_session_db,
+            origin=origin,
+            delivery_target=delivery_target,
+            _cron_session_id=_cron_session_id,
         )
-        
-        # Run the agent with an *inactivity*-based timeout: the job can run
-        # for hours if it's actively calling tools / receiving stream tokens,
-        # but a hung API call or stuck tool with no activity for the configured
-        # duration is caught and killed.  Default 600s (10 min inactivity);
-        # override via DREW_CRON_TIMEOUT env var.  0 = unlimited.
-        #
-        # Uses the agent's built-in activity tracker (updated by
-        # _touch_activity() on every tool call, API call, and stream delta).
-        _cron_timeout = float(os.getenv("DREW_CRON_TIMEOUT", 600))
-        _cron_inactivity_limit = _cron_timeout if _cron_timeout > 0 else None
-        _POLL_INTERVAL = 5.0
-        _cron_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        _cron_future = _cron_pool.submit(agent.run_conversation, prompt)
-        _inactivity_timeout = False
+
         try:
-            if _cron_inactivity_limit is None:
-                # Unlimited — just wait for the result.
-                result = _cron_future.result()
+            # Use the venv python (which has openai) to run cron_runner.py.
+            # sys.executable may be the gateway's Python (homebrew/system) which
+            # lacks openai in site-packages — cron_runner.py is built to handle
+            # this by also using the venv python, but we call it directly here
+            # to guarantee openai is available on the first try.
+            runner_path = str(_AGENT_ROOT / "cron_runner.py")
+            result = subprocess.run(
+                [_venv_python, runner_path, env_json_path],
+                capture_output=True,
+                text=True,
+                timeout=None,  # Timeout is handled by cron_runner.py internally
+            )
+            # Read output file written by cron_runner.py
+            # Output dir: ~/.drewgent/cron/output/{job_id}/
+            output_dir = OUTPUT_DIR / job_id
+            if output_dir.exists():
+                # Get most recent output file
+                output_files = sorted(output_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if output_files:
+                    output_file = output_files[0]
+                    with open(output_file, "r", encoding="utf-8") as f:
+                        output = f.read()
+                    final_response = _extract_final_response_from_output(output_file)
+                else:
+                    output = ""
+                    final_response = ""
             else:
-                result = None
-                while True:
-                    done, _ = concurrent.futures.wait(
-                        {_cron_future}, timeout=_POLL_INTERVAL,
-                    )
-                    if done:
-                        result = _cron_future.result()
-                        break
-                    # Agent still running — check inactivity.
-                    _idle_secs = 0.0
-                    if hasattr(agent, "get_activity_summary"):
-                        try:
-                            _act = agent.get_activity_summary()
-                            _idle_secs = _act.get("seconds_since_activity", 0.0)
-                        except Exception:
-                            pass
-                    if _idle_secs >= _cron_inactivity_limit:
-                        _inactivity_timeout = True
-                        break
-        except Exception:
-            _cron_pool.shutdown(wait=False, cancel_futures=True)
-            raise
+                output = ""
+                final_response = ""
+
+            if result.returncode == 0:
+                logger.info("Job '%s' completed successfully", job_name)
+                return True, output, final_response, None
+            else:
+                error_msg = result.stderr.strip() or "Subprocess failed with non-zero exit"
+                # Try to extract error from output file
+                if output and "## Error" in output:
+                    err_start = output.find("## Error\n") + len("## Error\n")
+                    err_end = output.find("\n##", err_start)
+                    error_msg = output[err_start:err_end].strip()
+                logger.error("Job '%s' failed: %s", job_name, error_msg)
+                return False, output, "", error_msg
+
         finally:
-            _cron_pool.shutdown(wait=False)
+            # Clean up temp JSON
+            try:
+                os.unlink(env_json_path)
+            except Exception:
+                pass
 
-        if _inactivity_timeout:
-            # Build diagnostic summary from the agent's activity tracker.
-            _activity = {}
-            if hasattr(agent, "get_activity_summary"):
-                try:
-                    _activity = agent.get_activity_summary()
-                except Exception:
-                    pass
-            _last_desc = _activity.get("last_activity_desc", "unknown")
-            _secs_ago = _activity.get("seconds_since_activity", 0)
-            _cur_tool = _activity.get("current_tool")
-            _iter_n = _activity.get("api_call_count", 0)
-            _iter_max = _activity.get("max_iterations", 0)
-
-            logger.error(
-                "Job '%s' idle for %.0fs (inactivity limit %.0fs) "
-                "| last_activity=%s | iteration=%s/%s | tool=%s",
-                job_name, _secs_ago, _cron_inactivity_limit,
-                _last_desc, _iter_n, _iter_max,
-                _cur_tool or "none",
-            )
-            if hasattr(agent, "interrupt"):
-                agent.interrupt("Cron job timed out (inactivity)")
-            raise TimeoutError(
-                f"Cron job '{job_name}' idle for "
-                f"{int(_secs_ago)}s (limit {int(_cron_inactivity_limit)}s) "
-                f"— last activity: {_last_desc}"
-            )
-
-        final_response = result.get("final_response", "") or ""
-        # Use a separate variable for log display; keep final_response clean
-        # for delivery logic (empty response = no delivery).
-        logged_response = final_response if final_response else "(No response generated)"
-        
-        output = f"""# Cron Job: {job_name}
-
-**Job ID:** {job_id}
-**Run Time:** {_drewgent_now().strftime('%Y-%m-%d %H:%M:%S')}
-**Schedule:** {job.get('schedule_display', 'N/A')}
-
-## Prompt
-
-{prompt}
-
-## Response
-
-{logged_response}
-"""
-        
-        logger.info("Job '%s' completed successfully", job_name)
-        return True, output, final_response, None
-        
     except Exception as e:
         error_msg = f"{type(e).__name__}: {str(e)}"
         logger.exception("Job '%s' failed: %s", job_name, error_msg)
-        
         output = f"""# Cron Job: {job_name} (FAILED)
 
 **Job ID:** {job_id}
@@ -735,7 +729,6 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         return False, output, "", error_msg
 
     finally:
-        # Clean up injected env vars so they don't leak to other jobs
         for key in (
             "DREW_SESSION_PLATFORM",
             "DREW_SESSION_CHAT_ID",
@@ -748,11 +741,11 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         if _session_db:
             try:
                 _session_db.end_session(_cron_session_id, "cron_complete")
-            except (Exception, KeyboardInterrupt) as e:
+            except Exception as e:
                 logger.debug("Job '%s': failed to end session: %s", job_id, e)
             try:
                 _session_db.close()
-            except (Exception, KeyboardInterrupt) as e:
+            except Exception as e:
                 logger.debug("Job '%s': failed to close SQLite session store: %s", job_id, e)
 
 
@@ -798,13 +791,16 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             logger.info("%s - %s job(s) due", _drewgent_now().strftime('%H:%M:%S'), len(due_jobs))
 
         executed = 0
+
+        # Advance next_run_at for ALL due recurring jobs BEFORE any execution.
+        # This prevents a job from appearing due again within the same tick
+        # after advance_next_run() writes the new next_run_at to disk.
+        # One-shot jobs are excluded so they can retry on restart.
+        for job in due_jobs:
+            advance_next_run(job["id"])
+
         for job in due_jobs:
             try:
-                # For recurring jobs (cron/interval), advance next_run_at to the
-                # next future occurrence BEFORE execution.  This way, if the
-                # process crashes mid-run, the job won't re-fire on restart.
-                # One-shot jobs are left alone so they can retry on restart.
-                advance_next_run(job["id"])
 
                 success, output, final_response, error = run_job(job)
 

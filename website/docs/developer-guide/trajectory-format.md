@@ -1,3 +1,13 @@
+---
+title: Trajectory Format
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+---
+
 # Trajectory Format
 
 Drewgent Agent saves conversation trajectories in ShareGPT-compatible JSONL format

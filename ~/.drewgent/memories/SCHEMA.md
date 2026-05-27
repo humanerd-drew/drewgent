@@ -1,7 +1,24 @@
 ---
-title: SCHEMA
-tags: [meta, wiki]
+title: Schema
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[Karpathy LLM Wiki]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[concepts/]]"
+  - "[[entities/]]"
+  - "[[insights/]]"
+  - "[[pagename]]"
+  - "[[pagename#section]]"
+  - "[[pagename^anchor]]"
 ---
+
+
+
+
 
 # Wiki Schema
 

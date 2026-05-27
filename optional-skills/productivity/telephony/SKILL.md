@@ -1,15 +1,18 @@
 ---
-name: telephony
-description: Give Drewgent phone capabilities without core tool changes. Provision and persist a Twilio number, send and receive SMS/MMS, make direct calls, and place AI-driven outbound calls through Bland.ai or Vapi.
-version: 1.0.0
-author: HUMANERD
-license: MIT
-metadata:
-  drewgent:
-    tags: [telephony, phone, sms, mms, voice, twilio, bland.ai, vapi, calling, texting]
-    related_skills: [find-nearby, google-workspace, agentmail]
-    category: productivity
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Telephony — Numbers, Calls, and Texts without Core Tool Changes
 

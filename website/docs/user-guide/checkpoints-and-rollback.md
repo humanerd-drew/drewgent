@@ -1,9 +1,14 @@
 ---
-sidebar_position: 8
-sidebar_label: "Checkpoints & Rollback"
-title: "Checkpoints and /rollback"
-description: "Filesystem safety nets for destructive operations using shadow git repos and automatic snapshots"
+title: Checkpoints And Rollback
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Checkpoints and `/rollback`
 

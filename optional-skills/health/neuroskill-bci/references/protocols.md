@@ -1,3 +1,17 @@
+---
+
+title: NeuroSkill Guided Protocols
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # NeuroSkill Guided Protocols
 
 Over 70 mind-body practices triggered by specific biometric (EXG) signals. These

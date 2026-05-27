@@ -1,8 +1,14 @@
 ---
-sidebar_position: 4
-title: "Provider Runtime Resolution"
-description: "How Drewgent resolves providers, credentials, API modes, and auxiliary models at runtime"
+title: Provider Runtime
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Provider Runtime Resolution
 

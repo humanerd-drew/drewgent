@@ -135,3 +135,108 @@ def _enforce_test_timeout():
     yield
     signal.alarm(0)
     signal.signal(signal.SIGALRM, old)
+
+
+# ── Common GatewayRunner mock fixture ────────────────────────────────────────
+# Every test that creates a mock runner via object.__new__(GatewayRunner)
+# needs the same set of attributes that __init__ normally populates.
+# This fixture replaces the boilerplate that was repeated across 8+ test files.
+
+
+@pytest.fixture
+def mock_gateway_runner():
+    """
+    Return a fully-stubbed GatewayRunner instance (bypasses __init__).
+
+    Use this in gateway tests instead of manually doing:
+        runner = object.__new__(GatewayRunner)
+        runner.config = GatewayConfig(...)
+        runner._running_agents = {}
+        runner._running_agents_ts = {}
+        runner._pending_messages = {}
+        runner._pending_approvals = {}
+        runner._voice_mode = {}
+        runner._background_tasks = set()
+        runner._is_user_authorized = lambda _source: True
+        runner._task_manager = AsyncMock()
+        runner._session_manager = MagicMock()
+        runner.hooks = AsyncMock()
+        runner.session_store = MagicMock()
+        runner.session_store.get_or_create_session = MagicMock()
+        runner.session_store._generate_session_key.return_value = "telegram:dm:12345"
+
+    Returns a real object instance (not a MagicMock), so attribute access
+    and dict operations work as they would on the real GatewayRunner.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from gateway.run import GatewayRunner, GatewayConfig
+    from gateway.config import GatewayConfig, Platform, PlatformConfig
+
+    runner = object.__new__(GatewayRunner)
+
+    runner.config = GatewayConfig(
+        platforms={Platform.TELEGRAM: PlatformConfig(enabled=True, token="test-token")}
+    )
+
+    class _FakeAdapter:
+        def __init__(self):
+            self.sent = []
+            self._pending_messages = {}  # must be dict, not MagicMock
+
+        async def send(self, chat_id, text, *a, **kw):
+            self.sent.append((chat_id, text))
+            return None
+
+        async def send_photo(self, chat_id, photo_path, caption="", *a, **kw):
+            self.sent.append((chat_id, f"[photo] {caption}"))
+            return None
+
+        async def send_typing(self, chat_id, *a, **kw):
+            return None
+
+        async def update_message(self, chat_id, message_id, text, *a, **kw):
+            return None
+
+        async def delete_message(self, chat_id, message_id, *a, **kw):
+            return None
+
+        def clear_sent(self):
+            self.sent.clear()
+
+        # Methods used by sentinel race guard tests
+        def get_pending_message(self, session_key):
+            return self._pending_messages.get(session_key)
+
+        def has_pending_interrupt(self, session_key):
+            return False
+
+    runner.adapters = {Platform.TELEGRAM: _FakeAdapter()}
+    runner.delivery_router = MagicMock()
+
+    runner._running_agents = {}
+    runner._running_agents_ts = {}  # staleness eviction reads this
+    runner._pending_messages = {}
+    runner._pending_approvals = {}
+    runner._voice_mode = {}
+    runner._background_tasks = set()
+
+    runner._is_user_authorized = lambda _source: True
+
+    runner._task_manager = AsyncMock()
+    runner._session_manager = MagicMock()
+    runner.hooks = AsyncMock()
+
+    runner.session_store = MagicMock()
+    # get_or_create_session must return a SessionEntry-like mock with
+    # .session_key matching _running_agents key format
+    _fake_entry = MagicMock()
+    _fake_entry.session_key = "agent:main:telegram:dm:12345"
+    runner.session_store.get_or_create_session = MagicMock(return_value=_fake_entry)
+    # _session_key_for_source tries this first; must return a real str
+    # Must return the SAME key that build_session_key produces, so
+    # _running_agents and _running_agents_ts use the same key format.
+    # build_session_key for telegram DM chat_id=12345 → "agent:main:telegram:dm:12345"
+    runner.session_store._generate_session_key.return_value = "agent:main:telegram:dm:12345"
+
+    return runner

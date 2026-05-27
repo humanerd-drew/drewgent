@@ -1,9 +1,14 @@
 ---
 title: Fallback Providers
-description: Configure automatic failover to backup LLM providers when your primary model is unavailable.
-sidebar_label: Fallback Providers
-sidebar_position: 8
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Fallback Providers
 

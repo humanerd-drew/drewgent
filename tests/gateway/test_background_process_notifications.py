@@ -45,6 +45,8 @@ def _build_runner(monkeypatch, tmp_path, mode: str) -> GatewayRunner:
     monkeypatch.setattr(gateway_run, "_drewgent_home", tmp_path)
 
     runner = GatewayRunner(GatewayConfig())
+    # Ensure _running is True so the watcher loop executes
+    runner._running = True
     adapter = SimpleNamespace(send=AsyncMock())
     runner.adapters[Platform.TELEGRAM] = adapter
     return runner

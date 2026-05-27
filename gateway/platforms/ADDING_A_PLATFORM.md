@@ -1,3 +1,17 @@
+---
+
+title: Adding a New Messaging Platform
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Adding a New Messaging Platform
 
 Checklist for integrating a new messaging platform into the Drewgent gateway.

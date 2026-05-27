@@ -1,8 +1,14 @@
 ---
-sidebar_position: 4
-title: "Contributing"
-description: "How to contribute to Drewgent Agent — dev setup, code style, PR process"
+title: Contributing
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Contributing
 

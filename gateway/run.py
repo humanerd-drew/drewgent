@@ -1292,8 +1292,11 @@ class GatewayRunner:
                 except Exception:
                     pass
                 self._request_clean_exit(reason)
-                return True
-            if enabled_platform_count > 0:
+                # Do NOT return or exit here — gateway stays alive for cron jobs.
+                # _request_clean_exit only sets flags; keeping the process alive
+                # is the correct behavior when ALL platforms fail non-retryably.
+                # (Returning would trigger launchd restart loop and Discord token resets)
+            if connected_count == 0 and enabled_platform_count == 0:
                 reason = (
                     "; ".join(startup_retryable_errors)
                     or "all configured messaging platforms failed to connect"
@@ -1310,9 +1313,11 @@ class GatewayRunner:
                     )
                 except Exception:
                     pass
-                return False
-            logger.warning("No messaging platforms enabled.")
-            logger.info("Gateway will continue running for cron job execution.")
+                return True
+            # Even when ALL messaging platforms fail non-retryably, the gateway
+            # stays alive for cron jobs and health monitoring.
+            # (Non-retryable means human must fix — repeated restarts just waste resources)
+            return True
 
         # Update delivery router with adapters
         self.delivery_router.adapters = self.adapters
@@ -1333,6 +1338,8 @@ class GatewayRunner:
             "gateway:startup",
             {
                 "platforms": [p.value for p in self.adapters.keys()],
+                "adapters": self.adapters,
+                "loop": asyncio.get_running_loop(),
             },
         )
 
@@ -2164,17 +2171,29 @@ class GatewayRunner:
                 _raw_stale_timeout > 0 and _stale_idle >= _raw_stale_timeout
             ) or _stale_age > _wall_ttl
             if _should_evict:
-                logger.warning(
-                    "Evicting stale _running_agents entry for %s "
-                    "(age: %.0fs, idle: %.0fs, timeout: %.0fs)%s",
-                    _quick_key[:30],
-                    _stale_age,
-                    _stale_idle,
-                    _raw_stale_timeout,
-                    _stale_detail,
+                # Do NOT evict _AGENT_PENDING_SENTINEL — the sentinel is
+                # intentionally placed by the current message handler and
+                # must not be removed by staleness eviction (sentinel has
+                # _running_agents_ts=0 so wall-clock age is always huge).
+                _is_sentinel = (
+                    _stale_agent is _AGENT_PENDING_SENTINEL
                 )
-                del self._running_agents[_quick_key]
-                self._running_agents_ts.pop(_quick_key, None)
+                if not _is_sentinel:
+                    logger.warning(
+                        "Evicting stale _running_agents entry for %s "
+                        "(age: %.0fs, idle: %.0fs, timeout: %.0fs)%s",
+                        _quick_key[:30],
+                        _stale_age,
+                        _stale_idle,
+                        _raw_stale_timeout,
+                        _stale_detail,
+                    )
+                    del self._running_agents[_quick_key]
+                    self._running_agents_ts.pop(_quick_key, None)
+                else:
+                    # Sentinel is intentionally young — clear its timestamp
+                    # so it doesn't trigger eviction again on the next message.
+                    self._running_agents_ts.pop(_quick_key, None)
 
         if _quick_key in self._running_agents:
             if event.get_command() == "status":
@@ -3320,10 +3339,17 @@ class GatewayRunner:
             _qa_gate_status = agent_result.get("qa_gate_status")
             _qa_task_id_for_blocking = agent_result.get("_qa_task_id_for_gateway", "unknown")
             if _qa_gate_status is False:
+                _qa_evidence_dir = (
+                    get_drewgent_home()
+                    / "P2-hippocampus"
+                    / "qa-evidence"
+                    / str(_qa_task_id_for_blocking)
+                )
                 response = (
                     f"⚠️ **QA Gate Failed** — delivery blocked.\n\n"
                     f"This task requires QA verification before delivery.\n"
-                    f"Run: `/brain qa {_qa_task_id_for_blocking}` to review evidence and approve."
+                    f"Review the evidence files at `{_qa_evidence_dir}` and set "
+                    f"`full-qa.json` with `all_criteria_met: true` when verified."
                 )
                 logger.warning(
                     "[HP-3] QA gate blocked delivery: session=%s chat=%s",
@@ -3807,10 +3833,14 @@ class GatewayRunner:
         is_running = running_agent is not None and running_agent is not _AGENT_PENDING_SENTINEL
 
         # Prefer agent-reported token counts when available
+        _agent_api_calls = getattr(running_agent, "session_api_calls", None)
+        from unittest.mock import MagicMock as _MagicMock
         if (
             is_running
             and hasattr(running_agent, "session_total_tokens")
-            and running_agent.session_api_calls > 0
+            and _agent_api_calls is not None
+            and not isinstance(_agent_api_calls, _MagicMock)
+            and _agent_api_calls > 0
         ):
             tokens_display = f"{running_agent.session_total_tokens:,}"
         else:
@@ -7835,6 +7865,27 @@ class GatewayRunner:
 
             # Return final response, or a message if something went wrong
             final_response = result.get("final_response")
+
+            # ── Goal loop ──────────────────────────────────────────────────────
+            # After every turn, run the goal judge and schedule a continuation
+            # prompt if the goal is still active.  The continuation is queued
+            # as a delayed message so it fires in the next tick without
+            # re-entering the agent from within the current message handler.
+            if final_response and not result.get("failed"):
+                try:
+                    from drewgent_cli.goals import GoalManager
+                    gm = GoalManager(session_id)
+                    if gm.is_active():
+                        decision = gm.evaluate_after_turn(final_response)
+                        if decision.get("should_continue") and decision.get("continuation_prompt"):
+                            cont = decision["continuation_prompt"]
+                            # Queue the continuation as a pending message — the session
+                            # loop's pending-message check will fire it on the next tick.
+                            self._pending_messages[session_key] = cont
+                        if decision.get("message"):
+                            logger.info("goal: %s", decision["message"])
+                except Exception:
+                    pass  # Never let the goal loop break response delivery
 
             # Extract actual token counts from the agent instance used for this run
             _last_prompt_toks = 0

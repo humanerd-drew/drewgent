@@ -1,17 +1,18 @@
 ---
-name: apple-notes
-description: Manage Apple Notes via the memo CLI on macOS (create, view, search, edit).
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-platforms: [macos]
-metadata:
-  drewgent:
-    tags: [Notes, Apple, macOS, note-taking]
-    related_skills: [obsidian]
-prerequisites:
-  commands: [memo]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Apple Notes
 

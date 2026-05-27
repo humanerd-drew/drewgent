@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Architecture"
-description: "Drewgent Agent internals — major subsystems, execution paths, data flow, and where to read next"
+title: Architecture
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Architecture
 

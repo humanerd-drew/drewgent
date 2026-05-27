@@ -1,8 +1,14 @@
 ---
-sidebar_position: 11
-title: "ACP Editor Integration"
-description: "Use Drewgent Agent inside ACP-compatible editors such as VS Code, Zed, and JetBrains"
+title: Acp
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # ACP Editor Integration
 

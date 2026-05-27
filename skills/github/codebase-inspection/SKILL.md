@@ -1,16 +1,18 @@
 ---
-name: codebase-inspection
-description: Inspect and analyze codebases using pygount for LOC counting, language breakdown, and code-vs-comment ratios. Use when asked to check lines of code, repo size, language composition, or codebase stats.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [LOC, Code Analysis, pygount, Codebase, Metrics, Repository]
-    related_skills: [github-repo-management]
-prerequisites:
-  commands: [pygount]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Codebase Inspection with pygount
 

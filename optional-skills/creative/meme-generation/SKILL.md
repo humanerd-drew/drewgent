@@ -1,15 +1,18 @@
 ---
-name: meme-generation
-description: Generate real meme images by picking a template and overlaying text with Pillow. Produces actual .png meme files.
-version: 2.0.0
-author: adanaleycio
-license: MIT
-metadata:
-  drewgent:
-    tags: [creative, memes, humor, images]
-    related_skills: [ascii-art, generative-widgets]
-    category: creative
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Meme Generation
 

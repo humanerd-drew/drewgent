@@ -1,8 +1,14 @@
 ---
-sidebar_position: 11
-title: "Cron Internals"
-description: "How Drewgent stores, schedules, edits, pauses, skill-loads, and delivers cron jobs"
+title: Cron Internals
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Cron Internals
 

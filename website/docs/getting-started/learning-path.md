@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: 'Learning Path'
-description: 'Choose your learning path through the Drewgent Agent documentation based on your experience level and goals.'
+title: Learning Path
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Learning Path
 

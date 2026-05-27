@@ -1,14 +1,18 @@
 ---
-name: neuronfs-subsumption-ordering
-description: Maps NeuronFS 7-layer brain architecture to Drewgent prompt layers. Explains how P0-brainstem rules override all others.
-version: 1.0.0
-author: drewgent-core
-license: MIT
-metadata:
-  drewgent:
-    tags: [neuronfs, subsumption, brain, architecture, layers]
-    category: brain
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # NeuronFS Subsumption Architecture
 

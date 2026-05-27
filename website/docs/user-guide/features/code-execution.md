@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Code Execution"
-description: "Sandboxed Python execution with RPC tool access — collapse multi-step workflows into a single turn"
+title: Code Execution
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Code Execution (Programmatic Tool Calling)
 

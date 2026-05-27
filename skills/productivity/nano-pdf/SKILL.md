@@ -1,14 +1,18 @@
 ---
-name: nano-pdf
-description: Edit PDFs with natural-language instructions using the nano-pdf CLI. Modify text, fix typos, update titles, and make content changes to specific pages without manual editing.
-version: 1.0.0
-author: community
-license: MIT
-metadata:
-  drewgent:
-    tags: [PDF, Documents, Editing, NLP, Productivity]
-    homepage: https://pypi.org/project/nano-pdf/
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # nano-pdf
 

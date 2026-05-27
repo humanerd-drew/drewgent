@@ -76,6 +76,8 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("status", "Show session info", "Session",
                gateway_only=True),
     CommandDef("profile", "Show active profile name and home directory", "Info"),
+    CommandDef("portfolio", "Show portfolio dashboard (projects, episodes, timeline)", "Info",
+               args_hint="[status|projects|episodes]"),
     CommandDef("sethome", "Set this chat as the home channel", "Session",
                gateway_only=True, aliases=("set-home",)),
     CommandDef("resume", "Resume a previously-named session", "Session",
@@ -83,6 +85,10 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("project", "Manage project context: /project [name|list|create|status]", "Session",
                args_hint="[name|list|create|status]",
                subcommands=("list", "create", "status")),
+    CommandDef("goal", "Set a standing goal that Drewgent works toward across turns", "Session",
+               args_hint="[text|status|resume|pause|clear] [args]",
+               aliases=("g",),
+               subcommands=("status", "resume", "pause", "clear")),
 
     # Configuration
     CommandDef("config", "Show current configuration", "Configuration",
@@ -127,10 +133,11 @@ COMMAND_REGISTRY: list[CommandDef] = [
                subcommands=("connect", "disconnect", "status")),
     CommandDef("plugins", "List installed plugins and their status",
                "Tools & Skills", cli_only=True),
-    CommandDef("brain", "Manage NeuronFS brain: init, emit, fire, bomb, diag",
-               "Tools & Skills",
+    CommandDef("brain", "Manage NeuronFS brain: init, emit, fire, bomb, diag", "Tools & Skills",
                args_hint="[init|emit|fire|bomb|diag|list|activate|scan] [name|path]",
                subcommands=("init", "emit", "fire", "bomb", "diag", "list", "activate", "scan", "unbomb")),
+    CommandDef("qa-cycle", "Run QA check and create .qa-evidence.json for push gate",
+               "Tools & Skills", cli_only=True),
 
     # Info
     CommandDef("commands", "Browse all commands and skills (paginated)", "Info",

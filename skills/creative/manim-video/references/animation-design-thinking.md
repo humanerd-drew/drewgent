@@ -1,3 +1,17 @@
+---
+
+title: Animation Design Thinking
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Animation Design Thinking
 
 How to decide WHAT to animate and HOW to structure it — before writing any code.

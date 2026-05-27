@@ -1,3 +1,19 @@
+---
+title: Segment Anything Troubleshooting Guide
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[[x, y]]"
+  - "[[center_x, center_y]]"
+  - "[[x, y]]"
+---
+
+
+
 # Segment Anything Troubleshooting Guide
 
 ## Installation Issues

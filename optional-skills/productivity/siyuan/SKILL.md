@@ -1,25 +1,18 @@
 ---
-name: siyuan
-description: SiYuan Note API for searching, reading, creating, and managing blocks and documents in a self-hosted knowledge base via curl.
-version: 1.0.0
-author: FEUAZUR
-license: MIT
-metadata:
-  drewgent:
-    tags: [SiYuan, Notes, Knowledge Base, PKM, API]
-    related_skills: [obsidian, notion]
-    homepage: https://github.com/siyuan-note/siyuan
-prerequisites:
-  env_vars: [SIYUAN_TOKEN]
-  commands: [curl, jq]
-required_environment_variables:
-  - name: SIYUAN_TOKEN
-    prompt: SiYuan API token
-    help: "Settings > About in SiYuan desktop app"
-  - name: SIYUAN_URL
-    prompt: SiYuan instance URL (default http://127.0.0.1:6806)
-    required_for: remote instances
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # SiYuan Note API
 

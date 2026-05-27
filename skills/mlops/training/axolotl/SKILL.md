@@ -1,15 +1,18 @@
 ---
-name: axolotl
-description: Expert guidance for fine-tuning LLMs with Axolotl - YAML configs, 100+ models, LoRA/QLoRA, DPO/KTO/ORPO/GRPO, multimodal support
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [axolotl, torch, transformers, datasets, peft, accelerate, deepspeed]
-metadata:
-  drewgent:
-    tags: [Fine-Tuning, Axolotl, LLM, LoRA, QLoRA, DPO, KTO, ORPO, GRPO, YAML, HuggingFace, DeepSpeed, Multimodal]
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Axolotl Skill
 

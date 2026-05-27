@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Configuration"
-description: "Configure Drewgent Agent — config.yaml, providers, models, API keys, and more"
+title: Configuration
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Configuration
 

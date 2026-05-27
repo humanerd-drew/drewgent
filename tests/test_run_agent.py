@@ -1417,7 +1417,18 @@ class TestRunConversation:
 
     def _setup_agent(self, agent):
         """Common setup for run_conversation tests."""
-        agent._cached_system_prompt = "You are helpful."
+        # Clear cached system prompt so _build_system_prompt is called fresh
+        # (tests verify QA guidance is injected during fresh build)
+        agent._cached_system_prompt = None
+        # Mock session DB to return None so stored_prompt path is skipped
+        if hasattr(agent, "_session_db") and agent._session_db:
+            orig_get = agent._session_db.get_session
+
+            def _mock_get(sid):
+                return None
+
+            agent._session_db.get_session = _mock_get
+            agent.__dict__["_orig_session_db_get"] = orig_get
         agent._use_prompt_caching = False
         agent.tool_delay = 0
         agent.compression_enabled = False
@@ -1435,6 +1446,53 @@ class TestRunConversation:
             result = agent.run_conversation("hello")
         assert result["final_response"] == "Final answer"
         assert result["completed"] is True
+
+    def test_latent_task_injects_qa_guidance_and_blocks_without_full_evidence(self, agent):
+        self._setup_agent(agent)
+        resp = _mock_response(content="Implemented", finish_reason="stop")
+        agent.client.chat.completions.create.return_value = resp
+
+        with (
+            patch.object(agent, "_persist_session"),
+            patch.object(agent, "_save_trajectory"),
+            patch.object(agent, "_cleanup_task_resources"),
+        ):
+            result = agent.run_conversation("implement the feature", task_id="qa-test")
+
+        assert result["final_response"] == "Implemented"
+        assert result["qa_gate_status"] is False
+        assert result["_qa_task_id_for_gateway"] == "qa-test"
+
+        # _cached_system_prompt should now include QA guidance (built fresh)
+        assert "QA Self-Verification" in agent._cached_system_prompt, (
+            f"QA guidance not in cached system prompt: {agent._cached_system_prompt[:200]}"
+        )
+        assert "qa-test" in agent._cached_system_prompt
+
+    def test_latent_task_reads_successful_full_qa_status(self, agent):
+        self._setup_agent(agent)
+        resp = _mock_response(content="Implemented", finish_reason="stop")
+        agent.client.chat.completions.create.return_value = resp
+
+        def _emit_successful_full_qa(task_id, phase):
+            evidence_dir = Path(run_agent._qa_evidence_dir_for_task(task_id))
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            if phase == "full":
+                (evidence_dir / "full-qa.json").write_text(
+                    json.dumps({"all_criteria_met": True}),
+                    encoding="utf-8",
+                )
+
+        with (
+            patch.object(agent, "_persist_session"),
+            patch.object(agent, "_save_trajectory"),
+            patch.object(agent, "_cleanup_task_resources"),
+            patch("run_agent._emit_qa_gate_for_task", side_effect=_emit_successful_full_qa),
+        ):
+            result = agent.run_conversation("implement the feature", task_id="qa-pass")
+
+        assert result["qa_gate_status"] is True
+        assert result["_qa_task_id_for_gateway"] == "qa-pass"
 
     def test_tool_calls_then_stop(self, agent):
         self._setup_agent(agent)
@@ -3528,3 +3586,146 @@ class TestDeadRetryCode:
             f"Expected 2 occurrences of 'if retry_count >= max_retries:' "
             f"but found {occurrences}"
         )
+
+
+# ============================================================================
+# Self-Branch Integration Tests
+# ============================================================================
+
+
+class TestSelfBranchIntegration:
+    """End-to-end tests for self-branch hook in run_agent loop.
+
+    Tests the full flow:
+    1. First tool-call turn completes (api_call_count == 1)
+    2. _should_self_branch() is evaluated with original_user_message
+    3. If conjunction gate passes + complexity >= threshold → branching fires
+    """
+
+    def test_execute_tool_calls_sets_tool_name_in_result_messages(self, agent):
+        """Tool result messages must include tool_name for complexity scoring."""
+        tc = _mock_tool_call(name="read_file", arguments='{"path":"x.py"}', call_id="c1")
+        mock_msg = _mock_assistant_msg(content="", tool_calls=[tc])
+        messages = []
+
+        with patch.object(agent, "_invoke_tool", return_value='{"content": "file data"}'):
+            agent._execute_tool_calls(mock_msg, messages, "task-1")
+
+        assert len(messages) == 1
+        assert messages[0]["role"] == "tool"
+        assert messages[0].get("tool_name") == "read_file", \
+            "tool result must include tool_name for SelfBranchDecider scoring"
+
+    def test_should_self_branch_false_on_no_conjunction(self, agent):
+        """No conjunction in user message → _should_self_branch returns False."""
+        messages = [
+            {"role": "user", "content": "Fix the null pointer error"},
+            {"role": "assistant", "content": "ok"},
+        ]
+        result = agent._should_self_branch(messages, "Fix the null pointer error")
+        assert result == False, "No conjunction → should not branch"
+
+    def test_should_self_branch_false_on_simple_message(self, agent):
+        """Simple question with no conjunction → returns False."""
+        messages = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi!"},
+        ]
+        result = agent._should_self_branch(messages, "Hello")
+        assert result == False
+
+    def test_should_self_branch_true_with_conjunction_and_complex_messages(self, agent):
+        """Conjunction + complex messages → branch triggers (via cached decider)."""
+        # First call - should trigger branching
+        messages = [
+            {"role": "user", "content": "Fix error A and also fix error B"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "tool", "tool_call_id": "c1", "tool_name": "read_file", "content": "file a"},
+            {"role": "tool", "tool_call_id": "c2", "tool_name": "search_files", "content": "results"},
+            {"role": "tool", "tool_call_id": "c3", "tool_name": "terminal", "content": "output"},
+        ]
+        result = agent._should_self_branch(
+            messages,
+            "Fix error A and also fix error B"
+        )
+        assert result == True, "Conjunction + 3 different tools → should branch"
+
+    def test_should_self_branch_false_when_already_branching(self, agent):
+        """_already_branching flag set → _should_self_branch returns False."""
+        agent._already_branching = True
+        messages = [
+            {"role": "user", "content": "Fix A and fix B"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "tool", "tool_call_id": "c1", "tool_name": "read_file", "content": "a"},
+            {"role": "tool", "tool_call_id": "c2", "tool_name": "terminal", "content": "b"},
+        ]
+        result = agent._should_self_branch(messages, "Fix A and fix B")
+        assert result == False, "_already_branching=True → should not branch again"
+        agent._already_branching = False  # reset
+
+    def test_should_self_branch_false_on_child_agent(self, agent):
+        """_delegate_depth > 0 → _should_self_branch returns False."""
+        agent._delegate_depth = 1
+        messages = [
+            {"role": "user", "content": "Fix A and fix B"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "tool", "tool_call_id": "c1", "tool_name": "read_file", "content": "a"},
+        ]
+        result = agent._should_self_branch(messages, "Fix A and fix B")
+        assert result == False, "child agent (depth=1) → should not branch"
+        agent._delegate_depth = 0
+
+    def test_execute_self_branch_calls_decider_execute_branching(self, agent):
+        """_execute_self_branch calls SelfBranchDecider.execute_branching."""
+        messages = [
+            {"role": "user", "content": "Fix A and fix B"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "tool", "tool_call_id": "c1", "tool_name": "read_file", "content": "a"},
+        ]
+        # Pre-set the cached decider (as _should_self_branch would have done)
+        from agent.self_brancher import SelfBranchDecider
+        agent._branch_decider = SelfBranchDecider(agent)
+        agent._branch_decider.execute_branching = MagicMock(
+            return_value="Branch 1 result\n\nBranch 2 result"
+        )
+
+        result = agent._execute_self_branch("Fix A and fix B", messages)
+        agent._branch_decider.execute_branching.assert_called_once()
+        call = agent._branch_decider.execute_branching.call_args
+        assert call.kwargs["goal"] == "Fix A and fix B"
+        assert call.kwargs["messages"] == messages
+        assert call.kwargs["parent_agent"] is agent
+        assert result == "Branch 1 result\n\nBranch 2 result"
+
+    def test_decider_cached_on_agent_instance(self, agent):
+        """Calling _should_self_branch with conjunction caches the decider on agent._branch_decider.
+
+        The conjunction gate must pass for the decider to be created and cached.
+        """
+        messages = [{"role": "user", "content": "Hello"}]
+
+        # No conjunction in message → _should_self_branch returns False
+        # before reaching the cache code. Use a message with conjunction.
+        result = agent._should_self_branch(messages, "Fix A and fix B")
+        # Result depends on complexity — but cache should still be set
+
+        assert hasattr(agent, "_branch_decider"), \
+            "_should_self_branch should cache decider on agent"
+        from agent.self_brancher import SelfBranchDecider
+        assert isinstance(agent._branch_decider, SelfBranchDecider)
+
+    def test_branch_response_returned_with_branched_flag(self, agent):
+        """When branching succeeds, run_conversation returns branched=True."""
+        messages = [
+            {"role": "user", "content": "Fix A and fix B"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "tool", "tool_call_id": "c1", "tool_name": "read_file", "content": "a"},
+        ]
+        from agent.self_brancher import SelfBranchDecider
+        agent._branch_decider = SelfBranchDecider(agent)
+        agent._branch_decider.execute_branching = MagicMock(return_value="Fixed A. Fixed B.")
+
+        result = agent._execute_self_branch("Fix A and fix B", messages)
+        assert result is not None
+        assert isinstance(result, str)
+        assert "Fixed" in result

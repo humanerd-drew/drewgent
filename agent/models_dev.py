@@ -185,9 +185,8 @@ def _get_reverse_mapping() -> Dict[str, str]:
 
 def _get_cache_path() -> Path:
     """Return path to disk cache file."""
-    env_val = os.environ.get("DREW_HOME", "")
-    drewgent_home = Path(env_val) if env_val else Path.home() / ".drewgent"
-    return drewgent_home / "models_dev_cache.json"
+    from drewgent_constants import get_drewgent_home
+    return get_drewgent_home() / "models_dev_cache.json"
 
 
 def _load_disk_cache() -> Dict[str, Any]:

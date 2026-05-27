@@ -1,8 +1,14 @@
 ---
-sidebar_position: 2
-title: "Skills System"
-description: "On-demand knowledge documents — progressive disclosure, agent-managed skills, and the Skills Hub"
+title: Skills
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Skills System
 

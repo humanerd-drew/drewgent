@@ -72,6 +72,13 @@ def _make_runner():
     runner._send_voice_reply = AsyncMock()
     runner._capture_gateway_honcho_if_configured = lambda *args, **kwargs: None
     runner._emit_gateway_run_progress = AsyncMock()
+    runner._session_manager = MagicMock()
+    # _handle_status_command calls _session_manager.get_session().total_tokens
+    mock_session_entry = MagicMock()
+    mock_session_entry.total_tokens = 0
+    mock_session_entry.session_id = "sess-1"
+    runner._session_manager.get_session.return_value = mock_session_entry
+    runner._task_manager = AsyncMock()
     return runner
 
 

@@ -1,3 +1,17 @@
+---
+
+title: Scene System & Creative Composition
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Scene System & Creative Composition
 
 > **See also:** architecture.md · composition.md · effects.md · shaders.md

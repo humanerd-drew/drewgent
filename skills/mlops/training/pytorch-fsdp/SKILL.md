@@ -1,15 +1,18 @@
 ---
-name: pytorch-fsdp
-description: Expert guidance for Fully Sharded Data Parallel training with PyTorch FSDP - parameter sharding, mixed precision, CPU offloading, FSDP2
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [torch>=2.0, transformers]
-metadata:
-  drewgent:
-    tags: [Distributed Training, PyTorch, FSDP, Data Parallel, Sharding, Mixed Precision, CPU Offloading, FSDP2, Large-Scale Training]
 
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Pytorch-Fsdp Skill
 

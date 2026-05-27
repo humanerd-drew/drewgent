@@ -1,8 +1,14 @@
 ---
-sidebar_position: 11
-title: "Feishu / Lark"
-description: "Set up Drewgent Agent as a Feishu or Lark bot"
+title: Feishu
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Feishu / Lark Setup
 

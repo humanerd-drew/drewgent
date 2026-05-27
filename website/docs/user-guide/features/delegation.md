@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Subagent Delegation"
-description: "Spawn isolated child agents for parallel workstreams with delegate_task"
+title: Delegation
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Subagent Delegation
 

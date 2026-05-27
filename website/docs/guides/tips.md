@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Tips & Best Practices"
-description: "Practical advice to get the most out of Drewgent Agent — prompt tips, CLI shortcuts, context files, memory, cost optimization, and security"
+title: Tips
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Tips & Best Practices
 

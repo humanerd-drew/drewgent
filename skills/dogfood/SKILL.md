@@ -1,12 +1,18 @@
 ---
-name: dogfood
-description: Systematic exploratory QA testing of web applications — find bugs, capture evidence, and generate structured reports
-version: 1.0.0
-metadata:
-  drewgent:
-    tags: [qa, testing, browser, web, dogfood]
-    related_skills: []
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Dogfood: Systematic Web Application QA Testing
 

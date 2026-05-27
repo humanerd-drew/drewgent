@@ -1,3 +1,17 @@
+---
+
+title: honcho-integration-spec
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # honcho-integration-spec
 
 Comparison of Drewgent Agent vs. openclaw-honcho — and a porting spec for bringing Drewgent patterns into other Honcho integrations.

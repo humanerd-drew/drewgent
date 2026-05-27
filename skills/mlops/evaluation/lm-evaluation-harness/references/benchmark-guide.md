@@ -1,3 +1,17 @@
+---
+
+title: Benchmark Guide
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Benchmark Guide
 
 Complete guide to all 60+ evaluation tasks in lm-evaluation-harness, what they measure, and how to interpret results.

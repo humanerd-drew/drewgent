@@ -1,8 +1,14 @@
 ---
-sidebar_position: 9
-title: "Tools Runtime"
-description: "Runtime behavior of the tool registry, toolsets, dispatch, and terminal environments"
+title: Tools Runtime
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Tools Runtime
 

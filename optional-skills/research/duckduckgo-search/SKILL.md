@@ -1,15 +1,18 @@
 ---
-name: duckduckgo-search
-description: Free web search via DuckDuckGo — text, news, images, videos. No API key needed. Prefer the `ddgs` CLI when installed; use the Python DDGS library only after verifying that `ddgs` is available in the current runtime.
-version: 1.3.0
-author: gamedevCloudy
-license: MIT
-metadata:
-  drewgent:
-    tags: [search, duckduckgo, web-search, free, fallback]
-    related_skills: [arxiv]
-    fallback_for_toolsets: [web]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # DuckDuckGo Search
 

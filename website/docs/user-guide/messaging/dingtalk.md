@@ -1,8 +1,14 @@
 ---
-sidebar_position: 10
-title: "DingTalk"
-description: "Set up Drewgent Agent as a DingTalk chatbot"
+title: Dingtalk
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # DingTalk Setup
 

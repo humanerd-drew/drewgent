@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "WhatsApp"
-description: "Set up Drewgent Agent as a WhatsApp bot via the built-in Baileys bridge"
+title: Whatsapp
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # WhatsApp Setup
 

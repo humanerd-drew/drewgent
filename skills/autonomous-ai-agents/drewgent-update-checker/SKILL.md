@@ -1,8 +1,19 @@
 ---
-name: drewgent-update-checker
-description: "Auto-check Drewgent GitHub updates and notify via Discord or file. Sets up scheduled cron job."
-version: 1.0.0
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[cron]]"
+  - "[[drewgent]]"
 ---
+
+
+
+
 
 # Drewgent Update Checker
 

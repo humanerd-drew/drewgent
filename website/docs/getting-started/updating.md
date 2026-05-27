@@ -1,8 +1,14 @@
 ---
-sidebar_position: 3
-title: "Updating & Uninstalling"
-description: "How to update Drewgent Agent to the latest version or uninstall it"
+title: Updating
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Updating & Uninstalling
 

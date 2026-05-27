@@ -1,3 +1,17 @@
+---
+
+title: Review Output Template
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Review Output Template
 
 Use this as the structure for PR review summary comments. Copy and fill in the sections.

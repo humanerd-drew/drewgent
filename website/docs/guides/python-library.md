@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Using Drewgent as a Python Library"
-description: "Embed AIAgent in your own Python scripts, web apps, or automation pipelines — no CLI required"
+title: Python Library
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Using Drewgent as a Python Library
 

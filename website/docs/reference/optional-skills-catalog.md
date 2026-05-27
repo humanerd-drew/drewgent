@@ -1,8 +1,14 @@
 ---
-sidebar_position: 9
-title: "Optional Skills Catalog"
-description: "Official optional skills shipped with drewgent-agent — install via drewgent skills install official/<category>/<skill>"
+title: Optional Skills Catalog
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Optional Skills Catalog
 

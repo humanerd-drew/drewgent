@@ -1,8 +1,14 @@
 ---
-sidebar_position: 6
-title: "Use MCP with Drewgent"
-description: "A practical guide to connecting MCP servers to Drewgent Agent, filtering their tools, and using them safely in real workflows"
+title: Use Mcp With Hermes
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Use MCP with Drewgent
 

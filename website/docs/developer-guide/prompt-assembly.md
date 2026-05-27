@@ -1,8 +1,14 @@
 ---
-sidebar_position: 5
-title: "Prompt Assembly"
-description: "How Drewgent builds the system prompt, preserves cache stability, and injects ephemeral layers"
+title: Prompt Assembly
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Prompt Assembly
 

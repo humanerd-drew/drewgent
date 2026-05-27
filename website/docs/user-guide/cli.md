@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "CLI Interface"
-description: "Master the Drewgent Agent terminal interface — commands, keybindings, personalities, and more"
+title: Cli
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # CLI Interface
 

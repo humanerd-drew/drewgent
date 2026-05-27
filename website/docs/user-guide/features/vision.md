@@ -1,9 +1,14 @@
 ---
-title: Vision & Image Paste
-description: Paste images from your clipboard into the Drewgent CLI for multimodal vision analysis.
-sidebar_label: Vision & Image Paste
-sidebar_position: 7
+title: Vision
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Vision & Image Paste
 

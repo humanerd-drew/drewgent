@@ -1,3 +1,17 @@
+---
+
+title: Meme Generation Examples
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Meme Generation Examples
 
 ## Example 1: Debugging at 2 AM

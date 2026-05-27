@@ -61,6 +61,7 @@ def _make_runner():
     runner._agent_cache_lock = None  # disables _evict_cached_agent lock path
     runner._is_user_authorized = lambda _source: True
     runner._format_session_info = lambda: ""
+    runner._session_manager = MagicMock()
 
     return runner
 

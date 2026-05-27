@@ -1,14 +1,18 @@
 ---
-name: gitnexus-explorer
-description: Index a codebase with GitNexus and serve an interactive knowledge graph via web UI + Cloudflare tunnel.
-version: 1.0.0
-author: Drewgent Agent + Teknium
-license: MIT
-metadata:
-  drewgent:
-    tags: [gitnexus, code-intelligence, knowledge-graph, visualization]
-    related_skills: [native-mcp, codebase-inspection]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # GitNexus Explorer
 

@@ -1,3 +1,17 @@
+---
+
+title: RetainDB Memory Provider
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # RetainDB Memory Provider
 
 Cloud memory API with hybrid search (Vector + BM25 + Reranking) and 7 memory types.

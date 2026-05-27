@@ -1,3 +1,17 @@
+---
+
+title: Artifacts & Model Registry Guide
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Artifacts & Model Registry Guide
 
 Complete guide to data versioning and model management with W&B Artifacts.

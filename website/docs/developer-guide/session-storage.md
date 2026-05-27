@@ -1,3 +1,13 @@
+---
+title: Session Storage
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+---
+
 # Session Storage
 
 Drewgent Agent uses a SQLite database (`~/.drewgent/state.db`) to persist session

@@ -53,8 +53,22 @@ def _make_runner(session_db=None, current_session_id="current_session_001",
     mock_store.switch_session.return_value = mock_session_entry
     runner.session_store = mock_store
 
-    # Stub out memory flushing
-    runner._async_flush_memories = AsyncMock()
+    # Stub out memory flushing — _task_manager.create_task must call the coroutine
+    async def _mock_flush(session_id):
+        pass  # Synchronous no-op for test
+
+    def _run_flush(coro):
+        # Store coroutine on runner for test assertion
+        runner._flush_coro = coro
+        # Run the coroutine synchronously so _async_flush_memories is actually called
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(coro)
+        return MagicMock()
+
+    runner._async_flush_memories = _mock_flush
+    runner._task_manager = MagicMock()
+    runner._task_manager.create_task = _run_flush
 
     return runner
 
@@ -219,7 +233,8 @@ class TestHandleResumeCommand:
 
         await runner._handle_resume_command(event)
 
-        runner._async_flush_memories.assert_called_once_with(
-            "current_session_001",
-        )
+        # The coroutine was captured and run by _run_flush
+        assert runner._flush_coro is not None
+        # Verify the coroutine was called with current_session_id
+        assert runner._flush_coro.cr_frame.f_locals.get("session_id") == "current_session_001"
         db.close()

@@ -1,8 +1,14 @@
 ---
-sidebar_position: 9
-title: "Matrix"
-description: "Set up Drewgent Agent as a Matrix bot"
+title: Matrix
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Matrix Setup
 

@@ -1,0 +1,19 @@
+# pre-commit hooks for Drewgent
+# Install: python3 -m pre-commit install
+# Run manually: python3 -m pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      - id: no-literal-task-id-in-strings
+        name: Detect literal {task_id} in code strings
+        entry: python3 .pre-commit-hooks/check_literal_task_id.py
+        language: system
+        files: |
+          (?x)
+          (gateway/run\.py|run_agent\.py|agent/signal_processor\.py|agent/prompt_builder\.py)$
+        description: |
+          Detect literal {task_id} in string literals (not f-strings).
+          Fails if "/brain qa {task_id}" appears in a regular string instead of f-string.
+          Allows: f"/brain qa {variable}"
+          Blocks: "/brain qa {task_id}"

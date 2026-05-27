@@ -1,3 +1,17 @@
+---
+
+title: Experiment Design Patterns
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Experiment Design Patterns
 
 Patterns and best practices distilled from running research experiments at scale with the Drewgent agent. These cover experiment infrastructure, evaluation protocols, monitoring, and failure recovery.

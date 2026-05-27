@@ -788,7 +788,7 @@ class TestReadSkillConditions:
     def test_reads_fallback_for_toolsets(self, tmp_path):
         skill_file = tmp_path / "SKILL.md"
         skill_file.write_text(
-            "---\nname: ddg\ndescription: DuckDuckGo\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: ddg\ndescription: DuckDuckGo\nmetadata:\n  drewgent:\n    fallback_for_toolsets: [web]\n---\n"
         )
         conditions = _read_skill_conditions(skill_file)
         assert conditions["fallback_for_toolsets"] == ["web"]
@@ -796,7 +796,7 @@ class TestReadSkillConditions:
     def test_reads_requires_toolsets(self, tmp_path):
         skill_file = tmp_path / "SKILL.md"
         skill_file.write_text(
-            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  hermes:\n    requires_toolsets: [terminal]\n---\n"
+            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  drewgent:\n    requires_toolsets: [terminal]\n---\n"
         )
         conditions = _read_skill_conditions(skill_file)
         assert conditions["requires_toolsets"] == ["terminal"]
@@ -804,7 +804,7 @@ class TestReadSkillConditions:
     def test_reads_multiple_conditions(self, tmp_path):
         skill_file = tmp_path / "SKILL.md"
         skill_file.write_text(
-            "---\nname: test\ndescription: Test\nmetadata:\n  hermes:\n    fallback_for_toolsets: [browser]\n    requires_tools: [terminal]\n---\n"
+            "---\nname: test\ndescription: Test\nmetadata:\n  drewgent:\n    fallback_for_toolsets: [browser]\n    requires_tools: [terminal]\n---\n"
         )
         conditions = _read_skill_conditions(skill_file)
         assert conditions["fallback_for_toolsets"] == ["browser"]
@@ -895,7 +895,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  drewgent:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -908,7 +908,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  drewgent:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -921,7 +921,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "iot" / "openhue"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  hermes:\n    requires_toolsets: [terminal]\n---\n"
+            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  drewgent:\n    requires_toolsets: [terminal]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -934,7 +934,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "iot" / "openhue"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  hermes:\n    requires_toolsets: [terminal]\n---\n"
+            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  drewgent:\n    requires_toolsets: [terminal]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -961,7 +961,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  drewgent:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt()
         assert "duckduckgo" in result
@@ -987,7 +987,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "general" / "nested-null"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: nested-null\ndescription: Null drewgent key\nmetadata:\n  hermes:\n---\n"
+            "---\nname: nested-null\ndescription: Null drewgent key\nmetadata:\n  drewgent:\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),

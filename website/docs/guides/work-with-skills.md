@@ -1,8 +1,14 @@
 ---
-sidebar_position: 12
-title: "Working with Skills"
-description: "Find, install, use, and create skills — on-demand knowledge that teaches Drewgent new workflows"
+title: Work With Skills
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Working with Skills
 

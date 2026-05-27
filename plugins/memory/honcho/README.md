@@ -1,3 +1,17 @@
+---
+
+title: Honcho Memory Provider
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Honcho Memory Provider
 
 AI-native cross-session user modeling with dialectic Q&A, semantic search, peer cards, and persistent conclusions.

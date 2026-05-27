@@ -1,17 +1,18 @@
 ---
-name: honcho
-description: Configure and use Honcho memory with Drewgent -- cross-session user modeling, multi-profile peer isolation, observation config, and dialectic reasoning. Use when setting up Honcho, troubleshooting memory, managing profiles with Honcho peers, or tuning observation and recall settings.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [Honcho, Memory, Profiles, Observation, Dialectic, User-Modeling]
-    homepage: https://docs.honcho.dev
-    related_skills: [drewgent-agent]
-prerequisites:
-  pip: [honcho-ai]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Honcho Memory for Drewgent
 

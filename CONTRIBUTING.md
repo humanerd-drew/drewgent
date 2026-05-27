@@ -1,3 +1,17 @@
+---
+
+title: Contributing to Drewgent Agent
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Contributing to Drewgent Agent
 
 Thank you for contributing to Drewgent Agent! This guide covers everything you need: setting up your dev environment, understanding the architecture, deciding what to build, and getting your PR merged.

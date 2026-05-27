@@ -1,8 +1,14 @@
 ---
-sidebar_position: 11
-title: "Automate Anything with Cron"
-description: "Real-world automation patterns using Drewgent cron — monitoring, reports, pipelines, and multi-skill workflows"
+title: Automate With Cron
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Automate Anything with Cron
 

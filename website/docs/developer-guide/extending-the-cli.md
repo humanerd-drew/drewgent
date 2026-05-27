@@ -1,8 +1,14 @@
 ---
-sidebar_position: 8
-title: "Extending the CLI"
-description: "Build wrapper CLIs that extend the Drewgent TUI with custom widgets, keybindings, and layout changes"
+title: Extending The Cli
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Extending the CLI
 

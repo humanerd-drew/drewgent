@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Quickstart"
-description: "Your first conversation with Drewgent Agent — from install to chatting in 2 minutes"
+title: Quickstart
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Quickstart
 

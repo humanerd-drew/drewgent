@@ -1,9 +1,14 @@
 ---
-sidebar_position: 9
-sidebar_label: "Build a Plugin"
-title: "Build a Drewgent Plugin"
-description: "Step-by-step guide to building a complete Drewgent plugin with tools, hooks, data files, and skills"
+title: Build A Hermes Plugin
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Build a Drewgent Plugin
 

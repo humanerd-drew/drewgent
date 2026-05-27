@@ -1,3 +1,15 @@
 ---
-description: Skills for extracting text from PDFs, scanned documents, images, and other file formats using OCR and document parsing tools.
+
+title: Description
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+

@@ -1,3 +1,17 @@
+---
+
+title: p5.js Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # p5.js Skill
 
 Production pipeline for interactive and generative visual art using [p5.js](https://p5js.org/).

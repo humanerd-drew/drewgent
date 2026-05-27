@@ -1,17 +1,18 @@
 ---
-name: fastmcp
-description: Build, test, inspect, install, and deploy MCP servers with FastMCP in Python. Use when creating a new MCP server, wrapping an API or database as MCP tools, exposing resources or prompts, or preparing a FastMCP server for Claude Code, Cursor, or HTTP deployment.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [MCP, FastMCP, Python, Tools, Resources, Prompts, Deployment]
-    homepage: https://gofastmcp.com
-    related_skills: [native-mcp, mcporter]
-prerequisites:
-  commands: [python3]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # FastMCP
 

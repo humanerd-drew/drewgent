@@ -1,17 +1,18 @@
 ---
-name: scrapling
-description: Web scraping with Scrapling - HTTP fetching, stealth browser automation, Cloudflare bypass, and spider crawling via CLI and Python.
-version: 1.0.0
-author: FEUAZUR
-license: MIT
-metadata:
-  drewgent:
-    tags: [Web Scraping, Browser, Cloudflare, Stealth, Crawling, Spider]
-    related_skills: [duckduckgo-search, domain-intel]
-    homepage: https://github.com/D4Vinci/Scrapling
-prerequisites:
-  commands: [scrapling, python]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Scrapling
 

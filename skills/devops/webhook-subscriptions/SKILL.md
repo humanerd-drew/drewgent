@@ -1,11 +1,18 @@
 ---
-name: webhook-subscriptions
-description: Create and manage webhook subscriptions for event-driven agent activation. Use when the user wants external services to trigger agent runs automatically.
-version: 1.0.0
-metadata:
-  drewgent:
-    tags: [webhook, events, automation, integrations]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # Webhook Subscriptions
 

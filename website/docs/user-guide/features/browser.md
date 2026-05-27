@@ -1,9 +1,14 @@
 ---
-title: Browser Automation
-description: Control browsers with multiple providers, local Chrome via CDP, or cloud browsers for web interaction, form filling, scraping, and more.
-sidebar_label: Browser
-sidebar_position: 5
+title: Browser
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Browser Automation
 

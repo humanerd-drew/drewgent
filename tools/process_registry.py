@@ -410,7 +410,7 @@ class ProcessRegistry:
                                 session.output_buffer = session.output_buffer[-session.max_output_chars:]
                         # Check monitors for pattern matches (non-blocking)
                         self._check_monitors(session.id, text)
-                except EOFError:
+                except (EOFError, KeyboardInterrupt):
                     break
                 except Exception:
                     break

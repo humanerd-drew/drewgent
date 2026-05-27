@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Email"
-description: "Set up Drewgent Agent as an email assistant via IMAP/SMTP"
+title: Email
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Email Setup
 

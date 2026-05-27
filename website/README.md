@@ -1,3 +1,13 @@
+---
+title: Website
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+---
+
 # Website
 
 This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.

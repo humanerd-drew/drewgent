@@ -1,3 +1,17 @@
+---
+
+title: Adding Custom Models to TorchTitan
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+---
+
+
 # Adding Custom Models to TorchTitan
 
 This guide explains how to add a new model to TorchTitan following the established patterns.

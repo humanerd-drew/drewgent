@@ -1,8 +1,14 @@
 ---
-sidebar_position: 7
-title: "Sessions"
-description: "Session persistence, resume, search, management, and per-platform session tracking"
+title: Sessions
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Sessions
 

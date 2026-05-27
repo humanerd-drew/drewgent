@@ -1,8 +1,14 @@
 ---
-sidebar_position: 1
-title: "Tools & Toolsets"
-description: "Overview of Drewgent Agent's tools — what's available, how toolsets work, and terminal backends"
+title: Tools
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
 ---
+
+
 
 # Tools & Toolsets
 

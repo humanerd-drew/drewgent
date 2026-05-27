@@ -510,8 +510,8 @@ def fetch_endpoint_model_metadata(
 
 def _get_context_cache_path() -> Path:
     """Return path to the persistent context length cache file."""
-    drewgent_home = Path(os.environ.get("DREW_HOME", Path.home() / ".drewgent"))
-    return drewgent_home / "context_length_cache.yaml"
+    from drewgent_constants import get_drewgent_home
+    return get_drewgent_home() / "context_length_cache.yaml"
 
 
 def _load_context_cache() -> Dict[str, int]:

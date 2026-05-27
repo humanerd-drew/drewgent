@@ -1,21 +1,18 @@
 ---
-name: one-three-one-rule
-description: >
-  Structured decision-making framework for technical proposals and trade-off analysis.
-  When the user faces a choice between multiple approaches (architecture decisions,
-  tool selection, refactoring strategies, migration paths), this skill produces a
-  1-3-1 format: one clear problem statement, three distinct options with pros/cons,
-  and one concrete recommendation with definition of done and implementation plan.
-  Use when the user asks for a "1-3-1", says "give me options", or needs help
-  choosing between competing approaches.
-version: 1.0.0
-author: Willard Moore
-license: MIT
-category: communication
-metadata:
-  drewgent:
-    tags: [communication, decision-making, proposals, trade-offs]
+
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
 ---
+
+
+
 
 # 1-3-1 Communication Rule
 
