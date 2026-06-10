@@ -129,6 +129,11 @@ cron/output/
 cron/.tick.lock
 cron/jobs.json.bak
 
+# Runtime symlinks (not project structure)
+/cron_link
+/gateway_link
+/skills_link
+
 # Runtime data directories (symlink targets)
 /sessions
 /memories
