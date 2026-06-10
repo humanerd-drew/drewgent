@@ -120,7 +120,7 @@ vault-ontology.jsonl
 
 # Personal / agent-internal directories (not project code)
 /source/
-/P0-brainstem/_agent/
+/P0-brainstem/
 /P1-limbic/
 /P2-hippocampus/
 /P3-sensors/
