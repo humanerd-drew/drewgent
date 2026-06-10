@@ -118,6 +118,18 @@ vault-ontology.jsonl
 # Non-project reference files
 *.txt
 
+# Personal / agent-internal directories (not project code)
+/source/
+/P0-brainstem/_agent/
+/P1-limbic/
+/P2-hippocampus/
+/P3-sensors/
+/P4-cortex/
+/P5-ego/
+
+# Generated skill manifest
+skills/.bundled_manifest
+
 # Obsidian vault config (personal)
 .obsidian/
 
