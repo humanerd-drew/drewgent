@@ -40,6 +40,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from utils import env_var_enabled
 
+from drewgent_constants import get_drewgent_home
+
 try:
     import yaml
 except ImportError:  # pragma: no cover – yaml is optional at import time
@@ -258,7 +260,7 @@ class PluginManager:
         manifests: List[PluginManifest] = []
 
         # 1. User plugins (~/.drewgent/plugins/)
-        drewgent_home = os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))
+        drewgent_home = str(get_drewgent_home())
         user_dir = Path(drewgent_home) / "plugins"
         manifests.extend(self._scan_directory(user_dir, source="user"))
 

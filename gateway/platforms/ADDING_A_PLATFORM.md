@@ -1,3 +1,17 @@
+---
+
+title: Adding a Platform
+type: guide
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Adding a New Messaging Platform
 
 Checklist for integrating a new messaging platform into the Drewgent gateway.

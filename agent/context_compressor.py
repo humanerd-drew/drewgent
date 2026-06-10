@@ -128,9 +128,11 @@ class ContextCompressor:
         self.last_completion_tokens = usage.get("completion_tokens", 0)
         self.last_total_tokens = usage.get("total_tokens", 0)
 
-    def should_compress(self, prompt_tokens: int = None) -> bool:
+    def should_compress(self, prompt_tokens: int = None, messages: List[Dict[str, Any]] = None) -> bool:
         """Check if context exceeds the compression threshold."""
         tokens = prompt_tokens if prompt_tokens is not None else self.last_prompt_tokens
+        if messages:
+            self.adjust_threshold_dynamically(messages, tokens)
         return tokens >= self.threshold_tokens
 
     def should_compress_preflight(self, messages: List[Dict[str, Any]]) -> bool:
@@ -147,6 +149,54 @@ class ContextCompressor:
             "usage_percent": min(100, (self.last_prompt_tokens / self.context_length * 100)) if self.context_length else 0,
             "compression_count": self.compression_count,
         }
+
+    def _recover_previous_summary(self, messages: List[Dict[str, Any]]) -> None:
+        """Scan the message list backwards for any message starting with SUMMARY_PREFIX
+        or LEGACY_SUMMARY_PREFIX, and restore self._previous_summary if found.
+        """
+        for msg in reversed(messages):
+            content = msg.get("content") or ""
+            if not isinstance(content, str):
+                continue
+            for prefix in (SUMMARY_PREFIX, LEGACY_SUMMARY_PREFIX):
+                if content.startswith(prefix):
+                    summary = content[len(prefix):].lstrip()
+                    self._previous_summary = summary
+                    if not self.quiet_mode:
+                        logger.info("Recovered previous summary from messages (length: %d)", len(summary))
+                    return
+
+    def adjust_threshold_dynamically(self, messages: List[Dict[str, Any]], current_tokens: int) -> None:
+        """Dynamically adjust the compression threshold and tail budget based on
+        constant overhead (system prompt, tools) and desired headroom.
+        """
+        # 1. Estimate conversation messages token usage
+        m_tokens = estimate_messages_tokens_rough(messages)
+        # 2. Estimate constant overhead (system prompt + tool schemas)
+        c_overhead = max(0, current_tokens - m_tokens)
+        # 3. Minimum headroom (15% of context window, min 15,000)
+        min_headroom = max(15000, int(self.context_length * 0.15))
+        # 4. Compute required threshold
+        required_threshold = int((c_overhead + self.max_summary_tokens + 1000 + min_headroom) / (1 - self.summary_target_ratio))
+        # 5. Cap at 95% of context window
+        max_threshold = int(self.context_length * 0.95)
+        
+        # Prevent infinite compression loops: if current threshold is too low to even fit
+        # the system overhead and summary budget, we must raise it.
+        # Otherwise, keep the lower threshold to allow compression.
+        loop_prevention_limit = c_overhead + self.max_summary_tokens + 1000
+        
+        old_threshold = self.threshold_tokens
+        if self.threshold_tokens < loop_prevention_limit:
+            self.threshold_tokens = max(self.threshold_tokens, min(required_threshold, max_threshold))
+            
+        self.tail_token_budget = int(self.threshold_tokens * self.summary_target_ratio)
+        
+        if self.threshold_tokens != old_threshold and not self.quiet_mode:
+            logger.info(
+                "Dynamic threshold adjustment: overhead=%d messages=%d, adjusted threshold %d -> %d (tail budget: %d)",
+                c_overhead, m_tokens, old_threshold, self.threshold_tokens, self.tail_token_budget
+            )
 
     # ------------------------------------------------------------------
     # Tool output pruning (cheap pre-pass, no LLM call)
@@ -210,6 +260,16 @@ class ContextCompressor:
         for msg in turns:
             role = msg.get("role", "unknown")
             content = msg.get("content") or ""
+
+            # Filter out previous summary messages to prevent recursive summary bloating
+            if isinstance(content, str):
+                is_summary = False
+                for prefix in (SUMMARY_PREFIX, LEGACY_SUMMARY_PREFIX):
+                    if content.startswith(prefix):
+                        is_summary = True
+                        break
+                if is_summary:
+                    continue
 
             # Tool results: keep more content than before (3000 chars)
             if role == "tool":
@@ -562,6 +622,30 @@ Write only the summary body. Do not include any preamble or prefix."""
     # Main compression entry point
     # ------------------------------------------------------------------
 
+    def get_compression_boundaries(self, messages: List[Dict[str, Any]], current_tokens: int = None) -> tuple[int, int]:
+        """Compute the [compress_start, compress_end] indices for middle turns to summarize."""
+        n_messages = len(messages)
+        if n_messages <= self.protect_first_n + self.protect_last_n + 1:
+            return 0, 0
+
+        display_tokens = current_tokens if current_tokens else self.last_prompt_tokens or estimate_messages_tokens_rough(messages)
+        self.adjust_threshold_dynamically(messages, display_tokens)
+
+        # Pruning is a prerequisite for finding the correct tail boundary because
+        # _find_tail_cut_by_tokens estimates tokens on the pruned messages.
+        temp_messages, _ = self._prune_old_tool_results(
+            messages, protect_tail_count=self.protect_last_n * 3,
+        )
+
+        compress_start = self.protect_first_n
+        compress_start = self._align_boundary_forward(temp_messages, compress_start)
+        compress_end = self._find_tail_cut_by_tokens(temp_messages, compress_start)
+
+        if compress_start >= compress_end:
+            return 0, 0
+
+        return compress_start, compress_end
+
     def compress(self, messages: List[Dict[str, Any]], current_tokens: int = None) -> List[Dict[str, Any]]:
         """Compress conversation messages by summarizing middle turns.
 
@@ -576,33 +660,28 @@ Write only the summary body. Do not include any preamble or prefix."""
         up so the API never receives mismatched IDs.
         """
         n_messages = len(messages)
-        if n_messages <= self.protect_first_n + self.protect_last_n + 1:
+        display_tokens = current_tokens if current_tokens else self.last_prompt_tokens or estimate_messages_tokens_rough(messages)
+        
+        # Recover previous summary if it was lost (e.g. agent restart)
+        if self._previous_summary is None:
+            self._recover_previous_summary(messages)
+
+        compress_start, compress_end = self.get_compression_boundaries(messages, display_tokens)
+        if compress_start == 0 and compress_end == 0:
             if not self.quiet_mode:
                 logger.warning(
-                    "Cannot compress: only %d messages (need > %d)",
+                    "Cannot compress: only %d messages (need > %d) or invalid boundaries",
                     n_messages,
                     self.protect_first_n + self.protect_last_n + 1,
                 )
             return messages
 
-        display_tokens = current_tokens if current_tokens else self.last_prompt_tokens or estimate_messages_tokens_rough(messages)
-
-        # Phase 1: Prune old tool results (cheap, no LLM call)
+        # Phase 1: Prune old tool results (now that we know boundaries are valid, we do it in-place)
         messages, pruned_count = self._prune_old_tool_results(
             messages, protect_tail_count=self.protect_last_n * 3,
         )
         if pruned_count and not self.quiet_mode:
             logger.info("Pre-compression: pruned %d old tool result(s)", pruned_count)
-
-        # Phase 2: Determine boundaries
-        compress_start = self.protect_first_n
-        compress_start = self._align_boundary_forward(messages, compress_start)
-
-        # Use token-budget tail protection instead of fixed message count
-        compress_end = self._find_tail_cut_by_tokens(messages, compress_start)
-
-        if compress_start >= compress_end:
-            return messages
 
         turns_to_summarize = messages[compress_start:compress_end]
 

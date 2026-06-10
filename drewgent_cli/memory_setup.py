@@ -12,6 +12,7 @@ import os
 import sys
 from pathlib import Path
 
+from drewgent_constants import get_drewgent_home
 
 # ---------------------------------------------------------------------------
 # Curses-based interactive picker (same pattern as drewgent tools)
@@ -275,7 +276,7 @@ def cmd_setup_provider(provider_name: str) -> None:
         config["memory"] = {}
 
     if hasattr(provider, "post_setup"):
-        drewgent_home = str(Path(os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))))
+        drewgent_home = str(get_drewgent_home())
         provider.post_setup(drewgent_home, config)
         return
 
@@ -326,7 +327,7 @@ def cmd_setup(args) -> None:
     # If the provider has a post_setup hook, delegate entirely to it.
     # The hook handles its own config, connection test, and activation.
     if hasattr(provider, "post_setup"):
-        drewgent_home = str(Path(os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))))
+        drewgent_home = str(get_drewgent_home())
         provider.post_setup(drewgent_home, config)
         return
 
@@ -336,7 +337,7 @@ def cmd_setup(args) -> None:
     if not isinstance(provider_config, dict):
         provider_config = {}
 
-    env_path = Path(os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))) / ".env"
+    env_path = get_drewgent_home() / ".env"
     env_writes = {}
 
     if schema:
@@ -400,7 +401,7 @@ def cmd_setup(args) -> None:
     save_config(config)
 
     # Write non-secret config to provider's native location
-    drewgent_home = str(Path(os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))))
+    drewgent_home = str(get_drewgent_home())
     if provider_config and hasattr(provider, "save_config"):
         try:
             provider.save_config(provider_config, drewgent_home)

@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from drewgent_constants import get_drewgent_home
+
 logger = logging.getLogger(__name__)
 
 # Minimum manifest version this installer understands.
@@ -26,7 +28,7 @@ _SUPPORTED_MANIFEST_VERSION = 1
 
 def _plugins_dir() -> Path:
     """Return the user plugins directory, creating it if needed."""
-    drewgent_home = os.environ.get("DREW_HOME", os.path.expanduser("~/.drewgent"))
+    drewgent_home = str(get_drewgent_home())
     plugins = Path(drewgent_home) / "plugins"
     plugins.mkdir(parents=True, exist_ok=True)
     return plugins

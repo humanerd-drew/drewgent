@@ -1,14 +1,20 @@
 ---
-name: subagent-driven-development
-description: Use when executing implementation plans with independent tasks. Dispatches fresh delegate_task per task with two-stage review (spec compliance then code quality).
-version: 1.1.0
-author: Drewgent Agent (adapted from obra/superpowers)
-license: MIT
-metadata:
-  drewgent:
-    tags: [delegation, subagent, implementation, workflow, parallel]
-    related_skills: [writing-plans, requesting-code-review, test-driven-development]
+title: Skill
+type: document
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[autonomous-ai-agents/delegate-task-tool]]"
+  - "[[autonomous-ai-agents/opencode]]"
+  - "[[software-development/writing-plans]]"
 ---
+
+
+
+
 
 # Subagent-Driven Development
 
@@ -340,3 +346,27 @@ Catch issues early
 ```
 
 **Quality is not an accident. It's the result of systematic process.**
+
+## Wave-Based Batch Delegation
+
+For parallel multi-task execution, use `delegate_task(tasks=[...], project_structure=..., coordination_instructions=..., shared_result_dir=...)`. See [[autonomous-ai-agents/delegate-task-tool]] for full documentation.
+
+**Example — 3 tasks in parallel:**
+```python
+delegate_task(
+    tasks=[
+        {"goal": "Implement search feature in src/search.py", "context": "See SPEC.md"},
+        {"goal": "Implement auth feature in src/auth.py", "context": "See SPEC.md"},
+        {"goal": "Write tests in tests/", "context": "Import from src/"},
+    ],
+    project_structure="src/\n  search.py\n  auth.py\n  spec.py\ntests/\npyproject.toml",
+    coordination_instructions="Tasks 0 and 1 run in parallel. Task 2 runs after both complete. Coordinator (task 2) writes final summary to {shared_result_dir}/summary.json",
+    shared_result_dir="/tmp/my-implementation"
+)
+```
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]
+- [[autonomous-ai-agents/delegate-task-tool]]
+- [[autonomous-ai-agents/opencode]]
+- [[software-development/writing-plans]]

@@ -11,11 +11,26 @@ import logging
 import tempfile
 import os
 import re
+import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from drewgent_constants import get_drewgent_home
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Iterator
+
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    try:
+        import msvcrt
+        HAS_MSVCRT = True
+    except ImportError:
+        HAS_MSVCRT = False
+
+_jobs_lock_local = threading.local()
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +51,41 @@ CRON_DIR = HERMES_DIR / "cron"
 JOBS_FILE = CRON_DIR / "jobs.json"
 OUTPUT_DIR = CRON_DIR / "output"
 ONESHOT_GRACE_SECONDS = 120
+
+
+@contextmanager
+def _jobs_lock() -> Iterator[None]:
+    """Re-entrant file-level exclusive lock around jobs.json writes.
+
+    Prevents concurrent writes from tick thread + CLI commands + gateway.
+    Re-entrant: safe when save_jobs() is called within another lock scope
+    (e.g. auto-repair from load_jobs).
+    """
+    if getattr(_jobs_lock_local, "held", False):
+        yield
+        return
+    JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = None
+    try:
+        lock_fd = open(JOBS_FILE, "w") if JOBS_FILE.exists() else tempfile.NamedTemporaryFile(dir=str(JOBS_FILE.parent), suffix=".lock", delete=False)
+        if HAS_FCNTL:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        elif HAS_MSVCRT:
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+        _jobs_lock_local.held = True
+        yield
+    finally:
+        _jobs_lock_local.held = False
+        if lock_fd is not None:
+            try:
+                if HAS_FCNTL:
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            except Exception:
+                pass
+            try:
+                lock_fd.close()
+            except Exception:
+                pass
 
 
 def _normalize_skill_list(skill: Optional[str] = None, skills: Optional[Any] = None) -> List[str]:
@@ -328,13 +378,11 @@ def load_jobs() -> List[Dict[str, Any]]:
             data = json.load(f)
             return data.get("jobs", [])
     except json.JSONDecodeError:
-        # Retry with strict=False to handle bare control chars in string values
         try:
             with open(JOBS_FILE, 'r', encoding='utf-8') as f:
                 data = json.loads(f.read(), strict=False)
                 jobs = data.get("jobs", [])
                 if jobs:
-                    # Auto-repair: rewrite with proper escaping
                     save_jobs(jobs)
                     logger.warning("Auto-repaired jobs.json (had invalid control characters)")
                 return jobs
@@ -346,21 +394,22 @@ def load_jobs() -> List[Dict[str, Any]]:
 
 def save_jobs(jobs: List[Dict[str, Any]]):
     """Save all jobs to storage."""
-    ensure_dirs()
-    fd, tmp_path = tempfile.mkstemp(dir=str(JOBS_FILE.parent), suffix='.tmp', prefix='.jobs_')
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump({"jobs": jobs, "updated_at": _drewgent_now().isoformat()}, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, JOBS_FILE)
-        _secure_file(JOBS_FILE)
-    except BaseException:
+    with _jobs_lock():
+        ensure_dirs()
+        fd, tmp_path = tempfile.mkstemp(dir=str(JOBS_FILE.parent), suffix='.tmp', prefix='.jobs_')
         try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump({"jobs": jobs, "updated_at": _drewgent_now().isoformat()}, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, JOBS_FILE)
+            _secure_file(JOBS_FILE)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
 
 def create_job(
@@ -376,6 +425,7 @@ def create_job(
     provider: Optional[str] = None,
     base_url: Optional[str] = None,
     script: Optional[str] = None,
+    script_only: bool = False,
 ) -> Dict[str, Any]:
     """
     Create a new cron job.
@@ -395,6 +445,8 @@ def create_job(
         script: Optional path to a Python script whose stdout is injected into the
                 prompt each run.  The script runs before the agent turn, and its output
                 is prepended as context.  Useful for data collection / change detection.
+        script_only: If True and script is set, run the script directly without AI
+                     agent. Output is delivered raw; [SILENT] suppresses delivery.
 
     Returns:
         The created job dict
@@ -437,6 +489,7 @@ def create_job(
         "provider": normalized_provider,
         "base_url": normalized_base_url,
         "script": normalized_script,
+        "script_only": script_only and normalized_script is not None,
         "schedule": parsed_schedule,
         "schedule_display": parsed_schedule.get("display", schedule),
         "repeat": {
@@ -666,18 +719,23 @@ def get_due_jobs() -> List[Dict[str, Any]]:
 
         next_run = job.get("next_run_at")
         if not next_run:
-            recovered_next = _recoverable_oneshot_run_at(
-                job.get("schedule", {}),
-                now,
-                last_run_at=job.get("last_run_at"),
-            )
+            schedule = job.get("schedule", {})
+            # For cron/interval recurring jobs, compute next_run if missing
+            if schedule.get("kind") in ("cron", "interval"):
+                recovered_next = compute_next_run(schedule)
+            else:
+                recovered_next = _recoverable_oneshot_run_at(
+                    schedule,
+                    now,
+                    last_run_at=job.get("last_run_at"),
+                )
             if not recovered_next:
                 continue
 
             job["next_run_at"] = recovered_next
             next_run = recovered_next
             logger.info(
-                "Job '%s' had no next_run_at; recovering one-shot run at %s",
+                "Job '%s' had no next_run_at; recovering to %s",
                 job.get("name", job["id"]),
                 recovered_next,
             )

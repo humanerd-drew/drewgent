@@ -19,6 +19,8 @@ from typing import Any
 from prompt_toolkit.auto_suggest import AutoSuggest, Suggestion
 from prompt_toolkit.completion import Completer, Completion
 
+from drewgent_constants import get_drewgent_home
+
 
 # ---------------------------------------------------------------------------
 # CommandDef dataclass
@@ -302,7 +304,7 @@ def _resolve_config_gates() -> set[str]:
     try:
         import yaml
         config_path = os.path.join(
-            os.getenv("DREW_HOME", os.path.expanduser("~/.drewgent")),
+            str(get_drewgent_home()),
             "config.yaml",
         )
         if os.path.exists(config_path):

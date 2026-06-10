@@ -1,17 +1,18 @@
 ---
-name: requesting-code-review
-description: >
-  Pre-commit verification pipeline — static security scan, baseline-aware
-  quality gates, independent reviewer subagent, and auto-fix loop. Use after
-  code changes and before committing, pushing, or opening a PR.
-version: 2.0.0
-author: Drewgent Agent (adapted from obra/superpowers + MorAlekss)
-license: MIT
-metadata:
-  drewgent:
-    tags: [code-review, security, verification, quality, pre-commit, auto-fix]
-    related_skills: [subagent-driven-development, writing-plans, test-driven-development, github-code-review]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Pre-Commit Code Verification
 
@@ -280,3 +281,6 @@ tests exist, tests pass, no regressions.
 - **No test framework found** — skip regression check, reviewer verdict still runs
 - **Lint tools not installed** — skip that check silently, don't fail
 - **Auto-fix introduces new issues** — counts as a new failure, cycle continues
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

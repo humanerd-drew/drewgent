@@ -1,14 +1,18 @@
 ---
-name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task. Creates comprehensive implementation plans with bite-sized tasks, exact file paths, and complete code examples.
-version: 1.1.0
-author: Drewgent Agent (adapted from obra/superpowers)
-license: MIT
-metadata:
-  drewgent:
-    tags: [planning, design, implementation, workflow, documentation]
-    related_skills: [subagent-driven-development, test-driven-development, requesting-code-review]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Writing Implementation Plans
 
@@ -294,3 +298,6 @@ Frequent commits
 ```
 
 **A good plan makes implementation obvious.**
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

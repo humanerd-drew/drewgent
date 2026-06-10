@@ -81,6 +81,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+from drewgent_constants import get_drewgent_home
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -268,11 +270,7 @@ def _resolve_stdio_command(command: str, env: dict) -> tuple[str, dict]:
         if which_hit:
             resolved_command = which_hit
         elif resolved_command in {"npx", "npm", "node"}:
-            drewgent_home = os.path.expanduser(
-                os.getenv(
-                    "DREW_HOME", os.path.join(os.path.expanduser("~"), ".drewgent")
-                )
-            )
+            drewgent_home = str(get_drewgent_home())
             candidates = [
                 os.path.join(drewgent_home, "node", "bin", resolved_command),
                 os.path.join(os.path.expanduser("~"), ".local", "bin", resolved_command),

@@ -1,14 +1,18 @@
 ---
-name: plan
-description: Plan mode for Drewgent — inspect context, write a markdown plan into the active workspace's `.drewgent/plans/` directory, and do not execute the work.
-version: 1.0.0
-author: Drewgent Agent
-license: MIT
-metadata:
-  drewgent:
-    tags: [planning, plan-mode, implementation, workflow]
-    related_skills: [writing-plans, subagent-driven-development]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Plan Mode
 
@@ -55,3 +59,6 @@ If not, create a sensible timestamped filename yourself under `.drewgent/plans/`
 - If no explicit instruction accompanies `/plan`, infer the task from the current conversation context.
 - If it is genuinely underspecified, ask a brief clarifying question instead of guessing.
 - After saving the plan, reply briefly with what you planned and the saved path.
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

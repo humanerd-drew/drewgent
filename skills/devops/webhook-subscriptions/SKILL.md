@@ -1,11 +1,18 @@
 ---
-name: webhook-subscriptions
-description: Create and manage webhook subscriptions for event-driven agent activation. Use when the user wants external services to trigger agent runs automatically.
-version: 1.0.0
-metadata:
-  drewgent:
-    tags: [webhook, events, automation, integrations]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Webhook Subscriptions
 
@@ -178,3 +185,6 @@ If webhooks aren't working:
 4. **Signature mismatch?** Verify the secret in your service matches the one from `drewgent` webhook list`. GitHub sends `X-Hub-Signature-256`, GitLab sends `X-Gitlab-Token`.
 5. **Firewall/NAT?** The webhook URL must be reachable from the service. For local development, use a tunnel (ngrok, cloudflared).
 6. **Wrong event type?** Check `--events` filter matches what the service sends. Use `drewgent` webhook test <name>` to verify the route works.
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

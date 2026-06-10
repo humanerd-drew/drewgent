@@ -324,8 +324,19 @@ class BrainSignalMonitor:
         except Exception as e:
             logger.error("BrainSignalMonitor: delivery failed: %s", e)
 
+    def _is_cron_noise(self, entries: List[MonitorEntry]) -> bool:
+        """Check if all entries are cron initialization noise — skip writing."""
+        if not self.session_id or not self.session_id.startswith("cron_"):
+            return False
+        return all(e.event == "brain.awareness.initialized" for e in entries)
+
     def _deliver(self, entries: List[MonitorEntry]) -> None:
         """Send formatted entries to delivery target."""
+        # Skip cron-only initialization noise
+        if self._is_cron_noise(entries):
+            logger.debug("Skipping cron noise (%d entries)", len(entries))
+            return
+
         # Build the report
         lines = [
             f"## 🧠 Brain Signal Monitor — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -363,19 +374,25 @@ class BrainSignalMonitor:
             logger.debug("BrainSignalMonitor delivered %d/%d entries", delivered, len(results))
 
         except Exception as e:
-            # Fallback: write to local file
-            logger.warning("DeliveryRouter unavailable, writing to local fallback: %s", e)
-            self._deliver_fallback(content)
+            logger.debug("DeliveryRouter unavailable, appending to local log: %s", e)
+            self._deliver_fallback(entries)
 
-    def _deliver_fallback(self, content: str) -> None:
-        """Write monitoring output to local file when gateway is unavailable."""
+    def _deliver_fallback(self, entries: List[MonitorEntry]) -> None:
+        """Append entries as JSONL to a single log file instead of creating individual files."""
         from drewgent_constants import get_drewgent_home
         monitor_dir = get_drewgent_home() / "monitor"
         monitor_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = monitor_dir / f"brain_signals_{ts}.md"
-        path.write_text(content + "\n")
-        logger.info("BrainSignalMonitor fallback written to %s", path)
+        path = monitor_dir / "brain_signal_log.jsonl"
+
+        import json as _json
+        batch = []
+        for entry in entries:
+            batch.append(_json.dumps(entry.to_dict(), ensure_ascii=False) + "\n")
+
+        with open(path, "a", encoding="utf-8") as f:
+            f.writelines(batch)
+
+        logger.info("BrainSignalMonitor appended %d entries to %s", len(entries), path)
 
     def _get_gateway_config(self):
         """Load gateway config for DeliveryRouter."""

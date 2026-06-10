@@ -50,13 +50,27 @@ def _build_child_system_prompt(
     context: Optional[str] = None,
     *,
     workspace_path: Optional[str] = None,
+    project_structure: Optional[str] = None,
+    coordination_instructions: Optional[str] = None,
+    shared_result_path: Optional[str] = None,
 ) -> str:
-    """Build a focused system prompt for a child agent."""
+    """Build a focused system prompt for a child agent.
+    
+    Args:
+        goal: The task for this child agent
+        context: Background information (file paths, errors, constraints)
+        workspace_path: Working directory for file operations
+        project_structure: File tree overview for pre-coordination
+        coordination_instructions: How this child should coordinate with siblings
+        shared_result_path: Directory where child should write results for parent/siblings
+    """
     parts = [
         "You are a focused subagent working on a specific delegated task.",
         "",
         f"YOUR TASK:\n{goal}",
     ]
+    if project_structure and project_structure.strip():
+        parts.append(f"\nPROJECT STRUCTURE:\n{project_structure}")
     if context and context.strip():
         parts.append(f"\nCONTEXT:\n{context}")
     if workspace_path and str(workspace_path).strip():
@@ -64,6 +78,15 @@ def _build_child_system_prompt(
             "\nWORKSPACE PATH:\n"
             f"{workspace_path}\n"
             "Use this exact path for local repository/workdir operations unless the task explicitly says otherwise."
+        )
+    if coordination_instructions and coordination_instructions.strip():
+        parts.append(f"\nCOORDINATION INSTRUCTIONS:\n{coordination_instructions}")
+    if shared_result_path and str(shared_result_path).strip():
+        parts.append(
+            f"\nSHARED RESULT DIRECTORY:\n{shared_result_path}\n"
+            "When you complete your task, write your final result as JSON to:\n"
+            f"  {shared_result_path}/result.json\n"
+            "Format: {{\"status\": \"done\", \"summary\": \"...\", \"files\": [...], \"findings\": {{}}}}"
         )
     parts.append(
         "\nComplete this task using the tools available to you. "
@@ -209,6 +232,10 @@ def _build_child_agent(
     # ACP transport overrides — lets a non-ACP parent spawn ACP child agents
     override_acp_command: Optional[str] = None,
     override_acp_args: Optional[List[str]] = None,
+    # Pre-coordination + shared state parameters
+    project_structure: Optional[str] = None,
+    coordination_instructions: Optional[str] = None,
+    shared_result_path: Optional[str] = None,
 ):
     """
     Build a child AIAgent on the main thread (thread-safe construction).
@@ -249,7 +276,13 @@ def _build_child_agent(
         child_toolsets = _strip_blocked_tools(DEFAULT_TOOLSETS)
 
     workspace_hint = _resolve_workspace_hint(parent_agent)
-    child_prompt = _build_child_system_prompt(goal, context, workspace_path=workspace_hint)
+    child_prompt = _build_child_system_prompt(
+        goal, context,
+        workspace_path=workspace_hint,
+        project_structure=project_structure,
+        coordination_instructions=coordination_instructions,
+        shared_result_path=shared_result_path,
+    )
     # Extract parent's API key so subagents inherit auth (e.g. Nous Portal).
     parent_api_key = getattr(parent_agent, "api_key", None)
     if (not parent_api_key) and hasattr(parent_agent, "_client_kwargs"):
@@ -516,6 +549,10 @@ def delegate_task(
     acp_command: Optional[str] = None,
     acp_args: Optional[List[str]] = None,
     parent_agent=None,
+    # Pre-coordination + shared state parameters
+    project_structure: Optional[str] = None,
+    coordination_instructions: Optional[str] = None,
+    shared_result_dir: Optional[str] = None,
 ) -> str:
     """
     Spawn one or more child agents to handle delegated tasks.
@@ -589,6 +626,11 @@ def delegate_task(
     children = []
     try:
         for i, t in enumerate(task_list):
+            # Resolve effective shared_result_path for this child
+            shared_path = None
+            if shared_result_dir and str(shared_result_dir).strip():
+                shared_path = f"{shared_result_dir.rstrip('/')}/worker_{i}"
+
             child = _build_child_agent(
                 task_index=i, goal=t["goal"], context=t.get("context"),
                 toolsets=t.get("toolsets") or toolsets, model=creds["model"],
@@ -598,6 +640,9 @@ def delegate_task(
                 override_api_mode=creds["api_mode"],
                 override_acp_command=t.get("acp_command") or acp_command,
                 override_acp_args=t.get("acp_args") or acp_args,
+                project_structure=t.get("project_structure") or project_structure,
+                coordination_instructions=t.get("coordination_instructions") or coordination_instructions,
+                shared_result_path=shared_path,
             )
             # Override with correct parent tool names (before child construction mutated global)
             child._delegate_saved_tool_names = _parent_tool_names
@@ -850,10 +895,16 @@ DELEGATE_TASK_SCHEMA = {
         "1. Single task: provide 'goal' (+ optional context, toolsets)\n"
         "2. Batch (parallel): provide 'tasks' array with up to 3 items. "
         "All run concurrently and results are returned together.\n\n"
+        "PARALLEL OPTIMIZATION (token-unlimited plans):\n"
+        "- Use 'project_structure' to give all workers the full file tree upfront\n"
+        "- Use 'coordination_instructions' to prevent conflicts and enable wave-based execution\n"
+        "- Use 'shared_result_dir' so workers write results to files: "
+        "parent reads them after all complete for aggregated analysis\n\n"
         "WHEN TO USE delegate_task:\n"
         "- Reasoning-heavy subtasks (debugging, code review, research synthesis)\n"
         "- Tasks that would flood your context with intermediate data\n"
-        "- Parallel independent workstreams (research A and B simultaneously)\n\n"
+        "- Parallel independent workstreams (research A and B simultaneously)\n"
+        "- IO-bound tasks (web search, file analysis) benefit most from parallelism\n\n"
         "WHEN NOT TO USE (use these instead):\n"
         "- Mechanical multi-step work with no reasoning needed -> use execute_code\n"
         "- Single tool call -> just call the tool directly\n"
@@ -943,17 +994,42 @@ DELEGATE_TASK_SCHEMA = {
                     "or other ACP-capable agents from any parent, including Discord/Telegram/CLI."
                 ),
             },
-            "acp_args": {
+"acp_args": {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": (
                     "Arguments for the ACP command (default: ['--acp', '--stdio']). "
                     "Only used when acp_command is set. Example: ['--acp', '--stdio', '--model', 'claude-opus-4-6']"
                 ),
+},
+            "project_structure": {
+                "type": "string",
+                "description": (
+                    "File tree overview of the project for pre-coordination. "
+                    "When provided, all subagents receive the same project structure "
+                    "so they understand the full context before starting their task."
+                ),
+            },
+            "coordination_instructions": {
+                "type": "string",
+                "description": (
+                    "Instructions for how this subagent should coordinate with siblings. "
+                    "E.g. 'worker_0 writes to /tmp/results/w0/, worker_1 reads w0 output before starting'. "
+                    "Helps avoid conflicts and enables staged/wave-based execution."
+                ),
+            },
+            "shared_result_dir": {
+                "type": "string",
+                "description": (
+                    "Shared directory path for intermediate results. "
+                    "Each child writes its result to: <shared_result_dir>/worker_<index>.json "
+                    "Format: {\"status\": \"done\", \"summary\": \"...\", \"files\": [...], \"findings\": {}}. "
+                    "Parent can read these files after all children complete for aggregated analysis."
+                ),
             },
         },
         "required": [],
-    },
+    }
 }
 
 
@@ -972,7 +1048,10 @@ registry.register(
         max_iterations=args.get("max_iterations"),
         acp_command=args.get("acp_command"),
         acp_args=args.get("acp_args"),
-        parent_agent=kw.get("parent_agent")),
+        parent_agent=kw.get("parent_agent"),
+        project_structure=args.get("project_structure"),
+        coordination_instructions=args.get("coordination_instructions"),
+        shared_result_dir=args.get("shared_result_dir")),
     check_fn=check_delegate_requirements,
     emoji="🔀",
 )

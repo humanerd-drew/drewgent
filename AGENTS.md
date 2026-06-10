@@ -1,3 +1,15 @@
+---
+title: Agents
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Drewgent Agent - Development Guide
 
 Instructions for AI coding assistants and developers working on the drewgent-agent codebase.
@@ -545,6 +557,52 @@ SKILL_INTEGRATION_FILES = ["skills/", "agent/skill_commands.py"]
 
 ## Known Pitfalls
 
+### Python 3.14: DO NOT use `json.loads/dumps` after local assignment in the same function
+
+Python 3.14's compiler has a bug where referencing `json` (the module) in an `except` clause causes Python to treat `json` as a local variable throughout the entire function scope. If `json.loads()` or `json.dumps()` is called before the `except` clause, an `UnboundLocalError: cannot access local variable 'json' where it is not associated with a value` is raised.
+
+**Affected pattern (buggy in Python 3.14):**
+```python
+def run_conversation(self, ...):
+    ...
+    try:
+        json.loads(args)          # Causes UnboundLocalError in Python 3.14
+    except json.JSONDecodeError:  # "json" here triggers the scope bug
+        ...
+```
+
+**Correct patterns - choose one:**
+
+1. **Use `__import__()` to bypass the scope resolution:**
+   ```python
+   try:
+       __import__('json').loads(args)
+   except Exception as e:
+       if type(e).__name__ == "JSONDecodeError":
+           ...
+   ```
+
+2. **Move json operations before any `except json.*` clauses, or use a wrapper function:**
+   ```python
+   def _json_loads(s):
+       return __import__('json').loads(s)
+   
+   def run_conversation(self, ...):
+       try:
+           _json_loads(args)   # Also works
+       except Exception as e:
+           ...
+   ```
+
+**Why this happens:** Python 3.14's compiler performs scope analysis before execution. Seeing `json.X` in an `except` clause marks `json` as a local name. When `json.loads()` appears before the `except` clause (in execution order), the local hasn't been assigned yet → UnboundLocalError. This affects **any large function** (`run_conversation` is ~3500 lines), regardless of where the `json` reference appears in source order.
+
+**Current known occurrences** that were fixed:
+- `run_agent.py:10934` — `json.loads(args)` in `run_conversation` tool-call validation loop
+- `run_agent.py:10924` — `json.dumps(args)` in same loop
+- `run_agent.py:10637` — `json.dumps(raw)` in same function
+
+Other files (`tools/*.py`, `agent/*.py`) are smaller and don't trigger this bug because their `except json.*` clauses are in narrow scopes where `json.loads/dumps` calls are either all before or all after the `except`.
+
 ### DO NOT hardcode `~/.drewgent` paths
 Use `get_drewgent_home()` from `drewgent_constants` for code paths. Use `display_drewgent_home()`
 for user-facing print/log messages. Hardcoding `~/.drewgent` breaks profiles — each profile
@@ -580,6 +638,71 @@ def profile_env(tmp_path, monkeypatch):
 
 ---
 
+## Model Configuration & Smart Routing
+
+Drewgent uses a two-tier model strategy to balance cost and capability.
+
+### Current Setup (config.yaml)
+
+```yaml
+# Primary: strong reasoning model for complex coding tasks
+model:
+  provider: minimax
+  model: minimax-m3
+
+# Fallback: when primary is unavailable (rate-limit, overload)
+fallback_model:
+  provider: opencode-go
+  model: deepseek-v4-flash
+
+# Smart routing: cheap model for simple turns (auto-detected)
+smart_model_routing:
+  enabled: true
+  max_simple_chars: 160
+  max_simple_words: 28
+  cheap_model:
+    provider: opencode-go
+    model: deepseek-v4-flash
+
+# Auxiliary tasks (compression, search, MCP, vision, etc.)
+# All routed to cheap model for efficiency
+auxiliary:
+  vision/provider: opencode-go
+  web_extract/provider: opencode-go
+  compression/provider: opencode-go
+  session_search/provider: opencode-go
+  mcp/provider: opencode-go
+  flush_memories/provider: opencode-go
+```
+
+### Routing Logic
+
+| Condition | Route | Cost |
+|-----------|-------|------|
+| Short question (≤160 chars, ≤28 words, no code/URL/keywords) | `opencode-go/deepseek-v4-flash` | $0.14/$0.28 Mtok |
+| Complex task (code blocks, URLs, keywords like "debug/implement/refactor") | `minimax/minimax-m3` | ~$0.60/$2.40 Mtok |
+| Primary unavailable | `opencode-go/deepseek-v4-flash` (fallback) | $0.14/$0.28 Mtok |
+| Compression, search, MCP, vision, flush_memories | `opencode-go/deepseek-v4-flash` | $0.14/$0.28 Mtok |
+
+### Smart Routing Detection
+
+The `choose_cheap_model_route()` function in `agent/smart_model_routing.py` conservatively routes to cheap model only when ALL conditions are met:
+- Message ≤ `max_simple_chars` (160)
+- Word count ≤ `max_simple_words` (28)
+- No newlines beyond 1
+- No code backticks (`` ` `` or `` ``` ``)
+- No URLs
+- No complex keywords (debug, implement, refactor, test, docker, etc.)
+
+### Credential Requirements
+
+- `MINIMAX_API_KEY` — for primary model (MiniMax M3)
+- `OPENCODE_GO_API_KEY` — for fallback, smart routing, and all auxiliary tasks (OpenCode Go subscription)
+
+Both stored in `~/.drewgent/.env` (chmod 600).
+
+---
+
 ## Testing
 
 ```bash
@@ -592,3 +715,77 @@ python -m pytest tests/tools/ -q                 # Tool-level tests
 ```
 
 Always run the full suite before pushing changes.
+
+---
+
+## Cron & AIAgent 상태 (2026-06-05)
+
+### 배경
+`run_agent.py`와 `agent/` 디렉토리에 upstream refactoring 코드가 **반만 적용**된 상태였음.
+- `run_agent.py`에 추출된 모듈(`conversation_loop.py`, `api_retry_loop.py` 등)을 참조하는 코드가 추가됨
+- 하지만 해당 모듈 파일들은 working tree에 없음 (upstream branch 미병합 상태)
+- 이로 인해 `api_start_time`, `retry_count` 등 15+ 변수가 undefined 상태가 되어 AIAgent 기동 불가
+
+### 해결 (2026-06-05)
+- `git checkout HEAD -- run_agent.py agent/`로 HEAD (working pre-refactoring) 상태로 복원
+- AIAgent 정상 작동 확인 (`deepseek-v4-pro`로 OKAY 응답)
+- `cron/scheduler.py`의 cron model config + api_mode 보정 코드는 유지
+- `gateway/run.py`의 `GatewayRunner` stub 메서드는 유지
+
+### 크론 작업
+- SEO/Trend Harvester: `script_only` 모드 유지 (직접 스크립트 실행, AIAgent 불필요)
+- 향후 AIAgent 기반 크론 잡 추가 시 정상 작동 가능
+
+### 게이트웨이 주의사항
+- `gateway/run.py` `GatewayRunner`에 `start()`/`stop()`/`wait_for_shutdown()` 메서드 추가됨
+- 변경사항 적용을 위해 게이트웨이 재시작 필요:
+  ```bash
+  drewgent gateway stop && drewgent gateway run --replace
+  ```
+
+---
+
+## Cron Jobs 전체 현황 (2026-06-05)
+
+### script_only (AIAgent 불필요, 직접 스크립트 실행) — 8개
+
+| 작업 | 주기 | 스크립트 |
+|------|------|---------|
+| SEO Article Harvester | 6시간 | `scripts/cron_seo_harvester.py` |
+| Trend Harvester | 6시간 | `scripts/cron_trend_harvester.py` |
+| kanban-dispatcher | 1분 | `scripts/dispatch_once_default.py` |
+| kanban-dispatcher-content | 1분 | `scripts/dispatch_once_content.py` |
+| kanban-dispatcher-integrations | 1분 | `scripts/dispatch_once_integrations.py` |
+| cron-output-cleanup | 매일 04:00 | `scripts/cron_output_cleanup.py` |
+| brain-signal-report | 매일 09:00 | `scripts/cron_brain_signal_report.py` |
+| kanban-maintenance | 매주 일 03:00 | `scripts/kanban_maintenance.py` |
+
+### LLM 필요 — 2개
+
+| 작업 | 주기 | 비고 |
+|------|------|------|
+| content-pipeline | 3시간 | AIAgent로 콘텐츠 선별·kanban 태스크 생성 |
+| site-spec-audit-weekly | 매주 일 04:00 | AIAgent + MCP 사이트 감사 |
+
+### 전환 배경
+- ALL jobs were going through AIAgent → LLM 예산 + API rate limit 소진
+- kanban-dispatcher 3개는 **매 1분** 실행 → 하루 12,960회 API 호출이 script_only로 0회로 감소
+- `run_agent.py` HEAD 복원으로 AIAgent는 정상 작동 확인됨
+- content-pipeline, site-spec-audit만 AIAgent 유지 (tool calling 필요)
+
+### Log Noise Fixes (2026-06-05)
+- `source/_agent/orchestrator/orchestrate_tool.py`: P4-cortex orchestrator `warning` → `info`
+- `agent/brain_monitor.py`: 죽은 `from gateway.run import GatewayState` 제거 → 뇌신호 리포트 Discord 전달 활성화
+- `agent/signal_processor.py`: QA gate `contract`/`micro` phase는 `info`, "BLOCKED" 문구 제거. `full` phase만 `warning` 유지
+
+### Kanban Dispatcher 개선 (Phase 1-4, 2026-06-05)
+- **Phase 1**: 적응형 MAX_CLAIM (큐 깊이 3/5/10), 실패 태스크 후순위, 소진 태스크 보고
+- **Phase 2**: Backpressure (MAX_CLAIM ≤ ready_count // 2)
+- **Phase 3**: Heartbeat watchdog (5분 무응답 SIGTERM → reclaim)
+- **Phase 4**: Worker affinity (`skills` 기반 cooldown, `worker_affinity.json` 통계)
+
+### Known Issues
+- **content-pipeline tool format**: DeepSeek API가 `tools[0].function: missing field 'name'` 오류 반환.
+  OpenAI SDK로 직접 요청 시 정상, drewgent 에이전트 SDK 선택 로직 문제. `cron/scheduler.py` api_mode 보정 코드 추가 (00:18). 03:00 실행 검증 필요.
+- **upstream refactoring**: `run_agent.py` refactoring 커밋이 main에 미병합 상태. `git checkout HEAD -- run_agent.py agent/`로 pre-refactoring 유지 중.
+

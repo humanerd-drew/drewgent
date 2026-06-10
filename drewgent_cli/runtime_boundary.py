@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import MutableSequence
 
+from drewgent_constants import get_drewgent_home
+
 
 def _resolve_path_entry(entry: str, cwd: Path) -> Path | None:
     if entry == "":
@@ -34,7 +36,7 @@ def ensure_source_import_precedence(
     entries = path_entries if path_entries is not None else sys.path
     cwd = (cwd or Path.cwd()).resolve()
     project_root = project_root.expanduser().resolve()
-    runtime_home = (runtime_home or Path(os.getenv("DREW_HOME", Path.home() / ".drewgent"))).expanduser().resolve()
+    runtime_home = (runtime_home or get_drewgent_home()).expanduser().resolve()
 
     removed_runtime_entries: list[str] = []
     kept: list[str] = []

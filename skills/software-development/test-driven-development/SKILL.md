@@ -1,14 +1,18 @@
 ---
-name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code. Enforces RED-GREEN-REFACTOR cycle with test-first approach.
-version: 1.1.0
-author: Drewgent Agent (adapted from obra/superpowers)
-license: MIT
-metadata:
-  drewgent:
-    tags: [testing, tdd, development, quality, red-green-refactor]
-    related_skills: [systematic-debugging, writing-plans, subagent-driven-development]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Test-Driven Development (TDD)
 
@@ -340,3 +344,6 @@ Otherwise → not TDD
 ```
 
 No exceptions without the user's explicit permission.
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

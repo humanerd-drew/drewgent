@@ -1,14 +1,18 @@
 ---
-name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior. 4-phase root cause investigation — NO fixes without understanding the problem first.
-version: 1.1.0
-author: Drewgent Agent (adapted from obra/superpowers)
-license: MIT
-metadata:
-  drewgent:
-    tags: [debugging, troubleshooting, problem-solving, root-cause, investigation]
-    related_skills: [test-driven-development, writing-plans, subagent-driven-development]
+
+title: Skill
+type: skill
+space: outcome
+tags: [outcome]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
 ---
+
+
+
 
 # Systematic Debugging
 
@@ -364,3 +368,6 @@ From debugging sessions:
 - New bugs introduced: Near zero vs common
 
 **No shortcuts. No guessing. Systematic always wins.**
+
+## Related
+- [[P3-sensors/skills/SKILL-INDEX]]

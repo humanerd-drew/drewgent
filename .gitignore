@@ -46,6 +46,10 @@ testlogs
 # CLI config (may contain sensitive SSH paths)
 cli-config.yaml
 
+# Drewgent config (contains API keys, tokens, secrets in plaintext)
+config.yaml
+config.local.yaml
+
 # Skills Hub state (lives in ~/.hermes/skills/.hub/ at runtime, but just in case)
 skills/.hub/
 ignored/
@@ -60,3 +64,89 @@ mini-swe-agent/
 .direnv/
 result
 update_status.json
+
+# Runtime SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Log files
+*.log
+
+# Auth, secrets, vault
+auth.json
+auth.lock
+.master_pass
+.vault_key
+.vault_salt
+.skills_prompt_snapshot.json
+.update_check
+
+# Runtime state / cache / generated
+state/
+cache/
+checkpoints/
+monitor/
+pastes/
+feedback.jsonl
+models_dev_cache.json
+session_checkpoint.json
+processes.json
+channel_directory.json
+discord_threads.json
+gateway_state.json
+brain_health_state.json
+brain_rule_state.json
+brain_snapshot.json
+
+# Generated HTML dashboards
+brain_dashboard.html
+cron-jobs.html
+kanban-board.html
+
+# Vault / secrets registry
+secrets_registry.json
+secrets_vault.json
+vault-ontology.jsonl
+
+# Runtime history / state
+.drewgent_history
+
+# User shell config
+.zshrc_aliases
+
+# Non-project reference files
+*.txt
+
+# Obsidian vault config (personal)
+.obsidian/
+
+# Secrets directory
+/secrets/
+
+# Cron runtime artifacts
+cron/output/
+cron/.tick.lock
+cron/jobs.json.bak
+
+# Runtime data directories (symlink targets)
+/sessions
+/memories
+/logs
+/sandboxes
+/auto-logs/
+content_pipeline/
+dreams/
+harness_stats/
+humanerd-site/
+portfolio/
+projects/
+run/
+sandbox/
+.trash/
+agents/
+
+# P6 runtime-only subdirectories (not architecture docs)
+P6-prefrontal/archive/
+P6-prefrontal/checkpoints/
+P6-prefrontal/recovery-journal/

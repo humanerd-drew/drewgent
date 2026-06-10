@@ -1,3 +1,17 @@
+---
+
+title: Drewgent Root README
+type: guide
+space: concept
+tags: [concept]
+created: 2026-05-20
+updated: 2026-05-20
+links: []
+links:
+  - "[[P5-ego/SELF_MODEL]]"
+---
+
+
 # Drewgent Agent ☤
 
 > **Drewgent** is a **Stateful Agent** — not just a tool, but a persistent, self-evolving presence that remembers, grows, and governs itself over time.
@@ -118,6 +132,11 @@ Each rule is a `.neuron` file — a self-contained constraint with:
 | `禁task_qa_gate` | Declaring done without QA verification | Completion bias defense |
 | `禁tool_integration_3file` | Tool integration without all 3 files | Incomplete integration breaks workflows |
 | `禁karpathy_coding_principles` | Violating any of 4 coding principles | Common LLM coding mistakes |
+| `禁auto_validate` | Dangerous ops without validation | Pre-validation hook required |
+| `禁subagent_verify` | Subagent output unverified | Verification checklist required |
+| `禁filesystem_truth` | Trust tool output over file read | Must read file directly |
+| `禁rebac_integration` | RBAC integration without full chain | Incomplete access control |
+| `禁rebac_kanban` | Kanban state without manifest sync | Kanban-orphan task drift |
 
 **How it works:** At runtime, `brain_processor.py` classifies every task by type (coding, dangerous operation, tool integration, etc.) and fires relevant P0 rules as **actionable constraints** — not passive injection, but active gating.
 
@@ -248,7 +267,7 @@ detected → started → step_1 → step_2 → completed
                    (P4 provides next hint)
 ```
 
-**8 P0-Brainstem Rules (Enforced by signal_processor):**
+**12 P0-Brainstem Rules (Enforced by signal_processor):**
 
 | Rule | Token | Enforcement |
 |------|-------|-------------|
@@ -260,6 +279,10 @@ detected → started → step_1 → step_2 → completed
 | `禁console_log` | console.log/print() in production | `turn.end` → `rule.violation` |
 | `禁subagent_verify` | Subagent output unverified | Verification checklist required |
 | `禁filesystem_truth` | Trust tool output over file read | Must read file directly |
+| `禁tool_integration_3file` | Partial tool integration | `turn.end` → `workflow.incomplete` |
+| `禁karpathy_coding_principles` | Violating 4 coding principles | `turn.end` → `rule.violation` |
+| `禁rebac_integration` | RBAC integration without full chain | `turn.end` → `rule.violation` |
+| `禁rebac_kanban` | Kanban state without manifest sync | `turn.end` → `rule.violation` |
 
 **ArchitectureModel:**
 
@@ -437,7 +460,7 @@ uv pip install -e ".[all]"
 
 # 3. Configure
 cp .env.example .env
-# Edit .env — add your API key (MiniMax default)
+# Edit .env — add your MiniMax (M3) API key
 
 # 4. Run
 drewgent
@@ -447,7 +470,13 @@ drewgent
 
 Provider selection and skin customization are in `~/.drewgent/config.yaml` (created on first run via `drewgent setup`).
 
-**Provider setup** (`~/.drewgent/.env`):
+**Important:** If your `.drewgent` directory is on an external volume or different path, set `DREW_HOME`:
+```bash
+export DREW_HOME=/Volumes/drew/.drewgent
+```
+The runtime resolves `DREW_HOME` first; without it, defaults to `~/.drewgent`.
+
+**Provider setup** (`$DREW_HOME/.env`):
 ```bash
 MINIMAX_API_KEY=***      # default
 OPENROUTER_API_KEY=***

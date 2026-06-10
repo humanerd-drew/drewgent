@@ -553,6 +553,9 @@ class SignalProcessor:
             )
             return
 
+        # History-based suggestion: check if this target was integrated before
+        workflow_hint = self._suggest_from_history(msg)
+
         # Derive the primary integration file (source file) from target name + type
         source_file = self._derive_source_file(int_type, target or f"new_{int_type}")
 
@@ -580,6 +583,7 @@ class SignalProcessor:
                 "integration_type": int_type,
                 "target_name": workflow.target_name,
                 "session_id": session_id,
+                "workflow_hint": workflow_hint,
             },
             source="signal_processor",
         )
@@ -1352,6 +1356,51 @@ class SignalProcessor:
         except Exception as e:
             logger.debug("_on_turn_end: console_log check failed: %s", e)
 
+    def get_violation_summary(self) -> dict:
+        """Return violation + dangerous-op summary for system-prompt injection.
+
+        Called by AIAgent._build_system_prompt() to make the agent aware
+        of patterns it violated in this session so it can self-correct.
+        """
+        from collections import defaultdict
+        if not self._violation_history and not self._dangerous_ops_history:
+            return {}
+        by_rule = defaultdict(list)
+        for v in self._violation_history:
+            by_rule[v.get('rule_token', 'unknown')].append(v)
+        by_type = defaultdict(list)
+        for op in self._dangerous_ops_history:
+            by_type[op.get('detected_type', 'unknown')].append(op)
+        most_common_violations = sorted(by_rule.items(), key=lambda x: len(x[1]), reverse=True)[:3]
+        most_common_dangerous = sorted(by_type.items(), key=lambda x: len(x[1]), reverse=True)[:2]
+        return {
+            'total_violations': len(self._violation_history),
+            'total_dangerous_ops': len(self._dangerous_ops_history),
+            'by_rule': {r: len(items) for r, items in by_rule.items()},
+            'most_common_violations': most_common_violations,
+            'most_common_dangerous_ops': most_common_dangerous,
+        }
+
+    def _suggest_from_history(self, msg: str) -> Optional[str]:
+        """Suggest a target tool/skill name from previously completed workflows.
+
+        Scans _workflow_history in reverse (most recent first) for completed
+        workflows whose target_name appears in the current message. This lets
+        the agent infer "Oh, you're trying to add X again?" from pattern memory.
+        """
+        if not self._workflow_history:
+            return None
+        msg_lower = msg.lower()
+        for wf in reversed(self._workflow_history):
+            if getattr(wf, 'completed', False) and wf.target_name:
+                if wf.target_name.lower() in msg_lower:
+                    return wf.target_name
+            # Also match on workflow name as fallback
+            wf_name = getattr(wf, 'name', '') or ''
+            if wf_name and wf_name.lower() in msg_lower:
+                return wf.target_name or wf_name
+        return None
+
     def _on_qa_gate(self, event: BrainEvent) -> None:
         """Handle qa.gate — enforce 禁task_qa_gate contract-first QA.
 
@@ -1385,6 +1434,41 @@ class SignalProcessor:
             _file_path = os.path.join(evidence_dir, _required_file)
             _passed = os.path.isfile(_file_path)
             if _passed:
+                # ── P0: QA gate contract placeholder detection ──────────────
+                if phase == "contract":
+                    try:
+                        import json as _json_mod
+                        with open(_file_path, encoding="utf-8") as _f:
+                            _contract = _json_mod.load(_f)
+                        _criteria = _contract.get("criteria", [])
+                        _placeholders = [
+                            c for c in _criteria
+                            if isinstance(c, str) and "<" in c and ">" in c
+                        ]
+                        if _placeholders:
+                            logger.warning(
+                                "QA gate CONTRACT PLACEHOLDER DETECTED: task=%s "
+                                "criteria contain %d placeholder(s): %s",
+                                task_id, len(_placeholders), _placeholders[:3],
+                            )
+                            self._bus.emit(
+                                "qa.gate.contract.placeholder_detected",
+                                payload={
+                                    "task_id": task_id,
+                                    "phase": phase,
+                                    "placeholder_count": len(_placeholders),
+                                    "placeholders": _placeholders[:5],
+                                    "evidence_dir": evidence_dir,
+                                },
+                                source="signal_processor",
+                            )
+                            # Placeholder criteria = substantive check failed
+                            _passed = False
+                    except Exception as e:
+                        logger.debug(
+                            "_on_qa_gate: contract placeholder check failed: %s", e
+                        )
+
                 logger.info(
                     "QA gate PASSED: task=%s phase=%s file=%s",
                     task_id, phase, _required_file,
@@ -1506,6 +1590,82 @@ class SignalProcessor:
         except Exception as e:
             logger.debug("_on_agent_complete: QA check failed: %s", e)
 
+        # ── 4. Disk logging — brain_signal_log.jsonl ───────────────────
+        try:
+            self._write_brain_signal_log(session_id, message_count)
+        except Exception as e:
+            logger.debug("_on_agent_complete: disk logging failed: %s", e)
+
+        # P2: Log violations to brain_signal_log.jsonl
+        try:
+            import json, os
+            from datetime import datetime
+            log_path = os.path.expanduser("~/.drewgent/P2-hippocampus/kanban/state/brain_signal_log.jsonl")
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            log_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "violations": self._violation_history,
+                "dangerous_ops": self._dangerous_ops_history,
+                "workflows_completed": len([w for w in self._workflow_history if getattr(w, 'completed', False)]),
+                "total_violations": len(self._violation_history),
+                "total_dangerous_ops": len(self._dangerous_ops_history),
+            }
+            with open(log_path, "a", encoding="utf-8") as lf:
+                lf.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass  # non-blocking
+
+    def _write_brain_signal_log(self, session_id: str, message_count: int) -> None:
+        """Append a JSONL record to brain_signal_log.jsonl on session end.
+
+        Records all brain signal data for post-session analysis:
+        - violation_history (last 50)
+        - dangerous_ops_history
+        - active_workflows (incomplete only)
+        - qa_gate_status
+        """
+        import json
+        import os
+        from pathlib import Path
+        from datetime import datetime
+
+        log_path = Path.home() / ".drewgent" / "state" / "brain_signal_log.jsonl"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build record
+        record = {
+            "session_id": session_id,
+            "timestamp": datetime.now().isoformat(),
+            "message_count": message_count,
+            "violations": list(self._violation_history[-50:]),
+            "dangerous_ops": list(self._dangerous_ops_history[-20:]),
+            "incomplete_workflows": [
+                {
+                    "workflow_id": wf.workflow_id,
+                    "integration_type": wf.integration_type,
+                    "target_name": wf.target_name,
+                    "status": wf.status,
+                    "started_at": wf.started_at.isoformat() if getattr(wf, "started_at", None) else None,
+                }
+                for wf in self._active_workflows.values()
+                if wf.status not in ("completed", "failed", "cancelled")
+            ],
+            "qa_workflows_unresolved": [
+                {
+                    "workflow_id": wf.workflow_id,
+                    "integration_type": wf.integration_type,
+                    "target_name": wf.target_name,
+                    "status": wf.status,
+                }
+                for wf in self._workflow_history
+                if wf.integration_type in ("qa", "test", "verification")
+                and wf.status not in ("completed", "failed", "cancelled")
+            ],
+        }
+
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
     def _on_dangerous_op(self, event: BrainEvent) -> None:
         """Handle dangerous.op — log and optionally flag for human review.
 
@@ -1531,6 +1691,11 @@ class SignalProcessor:
             "description": payload.get("description"),
             "message_preview": payload.get("message_preview", ""),
             "timestamp": event.timestamp,
+            "enforcement_action": (
+                "high_severity_command_blocked"
+                if severity == "high"
+                else None
+            ),
         }
 
         logger.warning(
@@ -1544,13 +1709,14 @@ class SignalProcessor:
         # Track history for session summary
         self._dangerous_ops_history.append(op_record)
 
-        # If high-severity dangerous op, emit awareness signal
+        # If high-severity dangerous op, emit awareness.integrity signal
         if severity == "high":
             self._bus.emit(
                 "awareness.integrity",
                 payload={
                     "event": "dangerous_op",
-                    "severity": severity,
+                    "severity": "high",
+                    "enforcement_action": "high_severity_command_blocked",
                     "turn_number": turn_number,
                     "detail": payload.get("description") or payload.get("signal_type"),
                     "requires_human_review": True,

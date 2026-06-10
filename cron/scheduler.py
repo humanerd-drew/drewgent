@@ -585,6 +585,13 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         except Exception as e:
             logger.warning("Job '%s': failed to load config.yaml, using defaults: %s", job_id, e)
 
+        # Cron-specific model config (overrides global model for scheduled jobs)
+        _cron_model_cfg = {}
+        if isinstance(_cfg.get("cron"), dict):
+            _cron_model_cfg = _cfg["cron"].get("model", {}) or {}
+        if _cron_model_cfg.get("model") and not job.get("model"):
+            model = _cron_model_cfg["model"]
+
         from drewgent_constants import parse_reasoning_effort
         effort = os.getenv("DREW_REASONING_EFFORT", "")
         if not effort:
@@ -619,11 +626,18 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         )
         try:
             runtime_kwargs = {
-                "requested": job.get("provider") or os.getenv("HERMES_INFERENCE_PROVIDER"),
+                "requested": job.get("provider") or os.getenv("HERMES_INFERENCE_PROVIDER") or _cron_model_cfg.get("provider"),
             }
             if job.get("base_url"):
                 runtime_kwargs["explicit_base_url"] = job.get("base_url")
             runtime = resolve_runtime_provider(**runtime_kwargs)
+            # Fix api_mode: runtime provider uses global model config (minimax-m3)
+            # for api_mode resolution, but cron jobs may use a different model.
+            if runtime.get("provider") in ("opencode-go", "opencode-zen") and model:
+                from drewgent_cli.models import opencode_model_api_mode
+                corrected = opencode_model_api_mode(runtime["provider"], model)
+                if corrected:
+                    runtime["api_mode"] = corrected
         except Exception as exc:
             message = format_runtime_provider_error(exc)
             raise RuntimeError(message) from exc
@@ -749,18 +763,122 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 logger.debug("Job '%s': failed to close SQLite session store: %s", job_id, e)
 
 
+def _execute_script_only_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
+    """Execute a script-only cron job — no AI agent involved.
+
+    The script is resolved via _run_job_script().  If the script outputs
+    ``[SILENT]`` (or empty), delivery is suppressed.  Otherwise the raw
+    script output becomes both the stored output and the delivery content.
+
+    Returns:
+        Tuple of (success, full_output_doc, final_response, error_message)
+    """
+    job_id = job["id"]
+    job_name = job.get("name", job_id)
+    script_path = job.get("script")
+    now = _drewgent_now()
+
+    if not script_path:
+        error_msg = "script_only job has no script path"
+        output = (
+            f"# Cron Job: {job_name} (FAILED)\n\n"
+            f"**Job ID:** {job_id}\n"
+            f"**Run Time:** {now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"## Error\n\n```\n{error_msg}\n```\n"
+        )
+        return False, output, "", error_msg
+
+    # Load .env so scripts have access to API keys / credentials
+    try:
+        from dotenv import load_dotenv
+        try:
+            load_dotenv(str(_drewgent_home / ".env"), override=True, encoding="utf-8")
+        except UnicodeDecodeError:
+            load_dotenv(str(_drewgent_home / ".env"), override=True, encoding="latin-1")
+    except Exception:
+        pass
+
+    success, script_output = _run_job_script(script_path)
+    now_iso = now.strftime('%Y-%m-%d %H:%M:%S')
+
+    if not success:
+        output = (
+            f"# Cron Job: {job_name} (FAILED)\n\n"
+            f"**Job ID:** {job_id}\n"
+            f"**Run Time:** {now_iso}\n"
+            f"**Schedule:** {job.get('schedule_display', 'N/A')}\n\n"
+            f"## Error\n\n```\n{script_output}\n```\n"
+        )
+        return False, output, "", script_output
+
+    stripped = script_output.strip()
+    if not stripped or stripped.upper() == "[SILENT]":
+        logger.info("Job '%s': script returned [SILENT] — skipping delivery", job_name)
+        output = (
+            f"# Cron Job: {job_name}\n\n"
+            f"**Job ID:** {job_id}\n"
+            f"**Run Time:** {now_iso}\n"
+            f"**Schedule:** {job.get('schedule_display', 'N/A')}\n\n"
+            f"## Output\n\n{stripped if stripped else '(empty — suppressed)'}\n"
+        )
+        return True, output, "[SILENT]", None
+
+    output = (
+        f"# Cron Job: {job_name}\n\n"
+        f"**Job ID:** {job_id}\n"
+        f"**Run Time:** {now_iso}\n"
+        f"**Schedule:** {job.get('schedule_display', 'N/A')}\n\n"
+        f"## Output\n\n{script_output}\n"
+    )
+    return True, output, script_output, None
+
+
+def _execute_one_job(job: dict, adapters=None, loop=None) -> bool:
+    """Run a single cron job: advance schedule, execute, save, deliver.
+
+    Designed to be submitted to a ThreadPoolExecutor for concurrent execution.
+
+    Returns:
+        True if the job succeeded, False otherwise.
+    """
+    try:
+        advance_next_run(job["id"])
+        if job.get("script_only"):
+            success, output, final_response, error = _execute_script_only_job(job)
+        else:
+            success, output, final_response, error = run_job(job)
+        output_file = save_job_output(job["id"], output)
+        logger.info("Output saved to: %s", output_file)
+        deliver_content = final_response if success else f"⚠️ Cron job '{job.get('name', job['id'])}' failed:\n{error}"
+        should_deliver = bool(deliver_content)
+        if should_deliver and success and SILENT_MARKER in deliver_content.strip().upper():
+            logger.info("Job '%s': agent returned %s — skipping delivery", job["id"], SILENT_MARKER)
+            should_deliver = False
+        if should_deliver:
+            try:
+                _deliver_result(job, deliver_content, adapters=adapters, loop=loop)
+            except Exception as de:
+                logger.error("Delivery failed for job %s: %s", job["id"], de)
+        mark_job_run(job["id"], success, error)
+        return success
+    except Exception as e:
+        logger.error("Error processing job %s: %s", job['id'], e)
+        mark_job_run(job["id"], False, str(e))
+        return False
+
+
 def tick(verbose: bool = True, adapters=None, loop=None) -> int:
     """
-    Check and run all due jobs.
-    
+    Check and run all due jobs (concurrently via ThreadPoolExecutor).
+
     Uses a file lock so only one tick runs at a time, even if the gateway's
     in-process ticker and a standalone daemon or manual tick overlap.
-    
+
     Args:
         verbose: Whether to print status messages
         adapters: Optional dict mapping Platform → live adapter (from gateway)
         loop: Optional asyncio event loop (from gateway) for live adapter sends
-    
+
     Returns:
         Number of jobs executed (0 if another tick is already running)
     """
@@ -788,46 +906,18 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             return 0
 
         if verbose:
-            logger.info("%s - %s job(s) due", _drewgent_now().strftime('%H:%M:%S'), len(due_jobs))
+            logger.info("%s - %s job(s) due (running concurrently)", _drewgent_now().strftime('%H:%M:%S'), len(due_jobs))
 
-        executed = 0
-        for job in due_jobs:
-            try:
-                # For recurring jobs (cron/interval), advance next_run_at to the
-                # next future occurrence BEFORE execution.  This way, if the
-                # process crashes mid-run, the job won't re-fire on restart.
-                # One-shot jobs are left alone so they can retry on restart.
-                advance_next_run(job["id"])
+        if len(due_jobs) <= 1:
+            for job in due_jobs:
+                _execute_one_job(job, adapters=adapters, loop=loop)
+            return len(due_jobs)
 
-                success, output, final_response, error = run_job(job)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(due_jobs), 8)) as pool:
+            futures = [pool.submit(_execute_one_job, job, adapters, loop) for job in due_jobs]
+            concurrent.futures.wait(futures)
 
-                output_file = save_job_output(job["id"], output)
-                if verbose:
-                    logger.info("Output saved to: %s", output_file)
-
-                # Deliver the final response to the origin/target chat.
-                # If the agent responded with [SILENT], skip delivery (but
-                # output is already saved above).  Failed jobs always deliver.
-                deliver_content = final_response if success else f"⚠️ Cron job '{job.get('name', job['id'])}' failed:\n{error}"
-                should_deliver = bool(deliver_content)
-                if should_deliver and success and SILENT_MARKER in deliver_content.strip().upper():
-                    logger.info("Job '%s': agent returned %s — skipping delivery", job["id"], SILENT_MARKER)
-                    should_deliver = False
-
-                if should_deliver:
-                    try:
-                        _deliver_result(job, deliver_content, adapters=adapters, loop=loop)
-                    except Exception as de:
-                        logger.error("Delivery failed for job %s: %s", job["id"], de)
-
-                mark_job_run(job["id"], success, error)
-                executed += 1
-
-            except Exception as e:
-                logger.error("Error processing job %s: %s", job['id'], e)
-                mark_job_run(job["id"], False, str(e))
-
-        return executed
+        return len(due_jobs)
     finally:
         if fcntl:
             fcntl.flock(lock_fd, fcntl.LOCK_UN)

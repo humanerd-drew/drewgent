@@ -89,7 +89,7 @@ class MemoryManager:
         Only **one** external (non-builtin) provider is allowed — a second
         attempt is rejected with a warning.
         """
-        is_builtin = provider.name == "builtin"
+        is_builtin = provider.name in ("builtin", "episodic")
 
         if not is_builtin:
             if self._has_external:
@@ -286,7 +286,7 @@ class MemoryManager:
                     provider.name, e,
                 )
 
-    def on_pre_compress(self, messages: List[Dict[str, Any]]) -> str:
+    def on_pre_compress(self, messages: List[Dict[str, Any]], compressor: Optional[Any] = None) -> str:
         """Notify all providers before context compression.
 
         Returns combined text from providers to include in the compression
@@ -295,7 +295,12 @@ class MemoryManager:
         parts = []
         for provider in self._providers:
             try:
-                result = provider.on_pre_compress(messages)
+                import inspect
+                sig = inspect.signature(provider.on_pre_compress)
+                if "compressor" in sig.parameters:
+                    result = provider.on_pre_compress(messages, compressor=compressor)
+                else:
+                    result = provider.on_pre_compress(messages)
                 if result and result.strip():
                     parts.append(result)
             except Exception as e:
