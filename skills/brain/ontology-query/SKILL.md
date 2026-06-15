@@ -10,7 +10,7 @@ links:
   - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
   - "[[P4-cortex/knowledge/OPENCRAB_ONTOLOGY]]"
   - "[[P4-cortex/scripts/ontology_frontmatter_sync.py]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 

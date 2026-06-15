@@ -6,22 +6,52 @@ type: document
 space: concept
 tags: [concept]
 created: 2026-05-22
-updated: 2026-06-02
+updated: 2026-06-14
 links:
   - "[[P1-limbic/persona/writing-style-guide]]"
   - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
   - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
   - "[[skills/content-writer]]"
   - "[[skills/kanban-worker]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 
 # Content Pipeline Skill
 
 Aggregator pattern: 이 skill은 content를 수집하지 않음. 
-이미 실행 중인 cron job들의 output을 읽고, topic을 선별해서 kanban task로 만든다.
+monitoring — watch, don't prompt.
+- **Synthesize in batches.** One cycle produces blog draft + X thread + LinkedIn.
+- **Track narrative arc.** Posts accumulate into a story. Season/episode structure keeps continuity.
+- **Start simple.** One agent profile + cron job + one tracking file. No multi-stage pipeline unless proven necessary.
 
-Draft 작성은 `content-writer` skill이 별도로 담당한다.
+## Modes
+
+### Mode A: Aggregator (external → blog)
+
+Collect from external sources (trend-harvester, SEO-harvester), select topics, assign to content-writer via kanban.
+Suitable for: trend posts, SEO-optimized evergreen, tool roundups.
+
+### Mode B: CMO Agent (internal work → content)
+
+Single autonomous agent profile (`content-manager`) observes Drew's recent work and produces multi-format content. Runs daily at 12:00 KST via cron.
+
+**Trigger:** Cron (`0 12 * * *`), deliver to Discord #content-channel.
+**Profile:** `~/.drewgent/agents/content-manager.md` (deepseek-v4-pro, tools: terminal, file, search, session_search, web)
+**Skill prerequisites:** `content-pipeline` (this skill), SVG knowledge, Excalidraw, Mermaid.
+Suitable for: build logs, troubleshooting deep-dives, architecture decisions, project retrospectives.
+
+See `references/cmo-agent-mode.md` for the full implementation guide.
+
+Mode B requires these knowledge base files (in `P4-cortex/content/`):
+- `brand-guide.md` — brand positioning, voice, audience
+- `glossary.md` — project terms (Drewgent, M-LOG, PDC...)
+- `content-inventory.md` — published/drafted content for dedup
+- `narrative_arc.md` — episode tracking, season structure, continuity
+
+The agent reads all four at the start of every cycle before gathering context.
+
+---
 
 ## Editorial North Star
 
@@ -53,10 +83,54 @@ archived           → status: archived   → Quartz EXCLUDE
 
 `content-pipeline`은 `candidate → draft`까지만 자동화한다. `published` 전환은 humanerd가 직접 검토한 뒤에만 한다.
 
-## Trigger
+## Triggers
 
-Cron job: 3시간마다 (`0 */3 * * *` KST)
-- KST 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00, 00:00
+- **Mode A (Aggregator):** Cron job 3시간마다 (`0 */3 * * *` KST)
+- **Mode B (CMO Agent):** Cron job daily (`0 12 * * *`), content-manager agent profile
+  - One story per cycle. SILENT if nothing new since last run.
+  - Material-driven cadence: backlog clears one post per day, not batched.
+
+See `references/cmo-agent-mode.md` for the full Mode B implementation.
+
+## Approach & Decision-Making
+
+When making technical/content recommendations for Drew (site platform, theme, tools, services):
+
+1. **Try first, evaluate later.** Propose a concrete implementation path, apply it to the current environment, and test. Do NOT decide based on imagination, brand reputation, or hypotheticals alone. Retreat only if the tested approach proves genuinely inefficient.
+
+2. **Research, don't pretend.** If you don't have first-hand experience with a tool or technology, say "let me search for that" — not "I think X is good." The user will call out fake expertise immediately. When asked for a recommendation:
+   - Search the web for current options
+   - Test the top candidate in the user's environment
+   - Report what you found and what worked
+   - Don't generate comparison tables from hearsay or brand recall
+
+3. **Don't fear change.** Changing platforms (Quartz → WordPress), tools, or approaches is not inherently bad. Evaluate the migration cost against the benefit honestly, and if the direction makes sense, execute it rather than listing objections.
+
+4. **When asked for a recommendation, search first.** Before saying "I recommend X," search for current options, pick 2-3 concrete candidates, install/test the most promising one, and report results. Let real testing guide the decision, not your training data.
+
+5. **Don't list objections for a direction the user is already committed to.** If the user says "let's use WordPress" or "let's run Huly on NAS," don't produce a comparison table of alternatives. Instead:
+   - Say "let's check if it works" and test it
+   - Surface blocking issues only after the test fails, not before
+   - Default to "yes, let's try that" over "here are the trade-offs"
+
+These rules apply any time the user asks "which X should I use" or "what do you recommend."
+
+## Patching & Conventions
+
+When updating or extending skills, follow these conventions:
+
+### Reference File Updates
+
+- **`references/` files preserve session-specific detail.** When a one-time setup or workflow is discovered, add a reference file rather than bloating SKILL.md. Each reference file starts with a one-line summary of what it covers.
+- **Scripts live in `scripts/`.** Anything the agent should run rather than hand-type. Scripts are documented in SKILL.md with their usage example.
+- **Templates live in `templates/`.** Boilerplate configs, scaffolding, starter files meant to be copied and modified.
+
+### When to Add vs. Update
+
+- **Add a reference file** when a new technique, tool, or workflow was discovered during the session (e.g., fixing NAS SSH, setting up WordPress MCP).
+- **Update SKILL.md** when the core workflow changes (e.g., a new Mode, a step order change, a new image type).
+- **Update memory** when a USER preference or environment fact is learned (e.g., "user prefers trying first over analysis").
+- **Don't save** if nothing was learned that a future session would benefit from.
 
 ---
 
@@ -337,48 +411,176 @@ Topic 관련 정보가 충분하지 않으면 web search로 보강. 출처: URL,
 
 ---
 
-기술 심화 글의 경우, Drewgent의 내장 이미지 생성 도구로 커버 이미지나 다이어그램을 만들 수 있음.
+### Image Types in Blog Posts
 
-Drewgent는 FAL.ai FLUX 2 Pro 모델 + Clarity Upscaler (2x 자동 업스케일)를 사용함.
+Blog posts use THREE types of visual content, each with a different production path:
 
-**사용 방법:**
-```python
-# image_generate tool을 호출 (Drewgent toolset에 이미 등록됨)
-# 파라미터: prompt, aspect_ratio, num_inference_steps, guidance_scale, num_images
-# aspect_ratio: "landscape" (16:9), "square" (1:1), "portrait" (9:16)
-```
+| Type | Production | Cost | When |
+|------|-----------|------|------|
+| **Mermaid** (inline) | ```mermaid code blocks — Quartz renders to SVG | $0 | Flows, sequences, state machines |
+| **Excalidraw PNG** (exported) | `.excalidraw.json` → `excalidraw-to-png.js` → `.png` | $0 | Architecture diagrams, before/after, data flow |
+| **SVG Cover** (inline) | Model writes SVG XML → saved as `.svg` | $0 | Hero/banner, article cover image |
 
-**용도별 생성 가이드:**
+**SVG** is the primary cover/hero image format — model writes SVG XML directly. **Mermaid** is for inline flow diagrams. **Excalidraw** is for complex architecture visuals.
 
-| 용도 | 비율 | 프롬프트 스타일 |
-|------|------|---------------|
-| 커버 이미지 | `landscape` (16:9) | 글 제목을 시각적으로 표현, 미니멀한 컴포지션 |
-| 아키텍처 다이어그램 | `landscape` (16:9) | 시스템 구조를 플로우차트로, 다이어그램 스타일 |
-| 비교 이미지 | `square` (1:1) | Before/After, A vs B 등의 시각화 |
-| UI 모의 | `landscape` (16:9) | 깔끔한 앱/대시보드 스크린샷 스타일 |
+### SVG Meme Templates (Mode B only)
 
-**이미지 프롬프트 작성 원칙:**
-1. **영문으로 작성** — FLUX 2 Pro는 영문에 최적화
-2. **스타일 지정** 포함 — "minimalist diagram", "dark mode UI screenshot", "clean architecture diagram"
-3. **글의 색상에 맞추기** — humanerd.kr 색상 참고: `--humanerd-accent: #7b5f3d` (amber), `--humanerd-paper: #fbfaf7` (warm off-white)
-4. **최대 50단어** — 장황한 프롬프트보다 간결한 설명이 결과가 좋음
+For stories with a natural humor angle, create a meme SVG alongside the cover. Memes make technical content more approachable on social/X.
 
-**예시 이미지 프롬프트:**
-```
-"AI agent investigating production incident across multiple tools — clean dark mode dashboard with timeline, evidence cards, and correlation graph. Modern minimal UI, amber accents on dark background."
-```
+Supported templates:
 
-**생성 후 Obsidian에 저장 + 배치:**
+| Template | Use Case | Structure |
+|----------|----------|-----------|
+| Drake Reject/Approve | Before/after comparison | Two panels: red ✗ (old) → green ✓ (new) |
+| "This is fine" | Recognizable pain/bug | Burning room, "it's fine" caption |
+| Galaxy Brain | Escalating understanding | 4 levels of insight, last one mind-blowing |
+| Distracted Boyfriend | Three-way comparison | 3 labeled elements: old → new → shiny |
+
+Save as `YYYY-MM-DD-slug-meme.svg`. Embed optionally: `![[slug-meme.svg|600]]`
+
+**Pitfall:** Don't force a meme where none fits. If the story is serious (incident, security, reflection), skip it. Memes are for "this is ridiculous" or "this pattern is obvious in hindsight" angles only.
+
+⚠️ **Pitfall: Do not conflate Mermaid with exported images.** Mermaid renders inline as SVG. Excalidraw PNGs are separate files. The blog post needs BOTH — Mermaid for inline flows, Excalidraw PNG for architecture visuals.
+
+### Excalidraw → PNG Pipeline
+
+The content-manager creates `.excalidraw.json` files for complex architecture. The full pipeline is:
+
+#### Step 1: Create JSON → Validate
+
+Create `.excalidraw.json` with proper JSON structure. **Must validate before proceeding:**
+
 ```bash
-# FAL.ai 결과 URL을 Obsidian assets에 다운로드
-# 저장 위치: memories/insights/images/{slug}-{n}.png
-
-# Obsidian embed (설명 전에 배치 — ReefWatch 규칙)
-![[images/{slug}-{n}.png|너비]]
-
-# 너비 조절: |300, |400, |600 등 (픽셀)
-# 예: ![[images/reefwatch-flow-1.png|600]]
+python3 -c "import json; json.load(open('diagram.excalidraw.json'))" && echo "VALID" || echo "INVALID"
 ```
+
+Common pitfall: trailing comma in the last element of an array or object. JSON does not allow trailing commas. Use `write_file` which includes a JSON lint step, or run the validation above.
+
+#### Step 2: Create .excalidraw binary
+
+```bash
+excalidraw create diagram.excalidraw.json -o diagram.excalidraw
+# Requires: npm install -g excalidraw-cli (Homebrew)
+```
+
+This step converts the JSON into a binary `.excalidraw` file. This is a required intermediate step — the PNG script below needs it.
+
+#### Step 3: Export to URL
+
+```bash
+excalidraw export diagram.excalidraw
+# Returns: URL: https://excalidraw.com/#json=<id>,<key>
+```
+
+Uploads to excalidraw.com, returns a shareable URL. Requires internet access.
+
+#### Step 4: Screenshot to PNG
+
+```bash
+node /Users/drew/.drewgent/scripts/excalidraw-to-png.js \
+  /path/to/diagram.excalidraw.json \
+  /path/to/diagram.png
+```
+
+This runs Puppeteer (headless Chrome) to open the URL in `?embed=1` mode and screenshot the canvas.
+
+**Setup:**
+```bash
+npm install -g excalidraw-cli              # CLI for upload/export (Step 2-3)
+cd /Users/drew/.drewgent/scripts           # local install for puppeteer (Step 4)
+npm install puppeteer
+```
+
+**Runtime requirements:** Node.js, internet access to excalidraw.com, puppeteer in `~/.drewgent/scripts/node_modules/`.
+
+**Shortcut** — the `excalidraw-to-png.js` script combines Steps 3+4 (export + screenshot). You still need Step 2 (`excalidraw create`) separately.
+
+**Embed in blog post:**
+```markdown
+![[diagram.png|700]]
+*{caption}*
+```
+
+### SVG Cover Image (Generated Inline, $0)
+
+The content-manager generates an SVG cover image for each blog post. SVG is XML text — the model writes it directly. No API calls, no extra cost.
+
+**Template** (1200×630, humanerd.kr dark theme):
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f1a"/>
+      <stop offset="100%" style="stop-color:#1a1a2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- title, subtitle, illustration, tags, date -->
+</svg>
+```
+
+**Design rules:**
+- Background: `#0f0f1a` → `#1a1a2e` gradient
+- Accent: `#7b5f3d` (amber — brand color)
+- Secondary: `#4a90d9` (blue) or `#50c878` (teal)
+- Text: `#e8e4df` (warm white), `#8a8680` (muted)
+- Subtle grid: `#ffffff` at 3% opacity
+- Include: title, subtitle, simple architecture illustration, tags, date
+- Embed as: `![[YYYY-MM-DD-slug-cover.svg|800]]`
+
+The SVG replaces the old `<!-- COVER: ... -->` HTML comment pattern (deprecated). No paid API needed — the model writes SVG markup directly.
+
+**Pitfall: Do NOT fall back to paid image APIs** (FAL, OpenAI, Gemini Image). The user explicitly rejected these. SVG generation is the designated zero-cost approach. If the SVG is too complex, simplify it — don't suggest payment.
+
+### X Thread Production
+
+Every blog post gets a companion X thread. The thread is a **self-contained narrative** — it should be understandable without reading the blog post, while linking back to it.
+
+#### Thread Structure (12 tweets — sweet spot for читатель retention)
+
+```
+1/HOOK — Bold claim or surprising question. Make the reader pause.
+        Example: "\"Is this even working?\" This question found 3 silently broken
+        bugs. Here's what happened."
+2-3/  — Problem setup. What was supposed to work, what was actually happening.
+         One tweet per bug or per layer of the problem.
+4-7/  — The discovery process. How you found it, what the root cause was.
+         Concrete details matter: error codes, line counts, hours stranded.
+8-9/  — The pattern. What these bugs share. The lesson that generalizes beyond
+         your specific setup.
+10-11/— The fix. What changed. Keep it short — the detail is in the blog post.
+12-13/— Broader implication + CTA. "This is what taste in engineering looks like."
+         Link to the blog post.
+```
+
+#### Tweet Content Rules
+- **Each tweet is self-contained.** Don't assume the reader saw the previous tweet (but do assume Twitter threading renders them in order).
+- **Korean only** (following brand guide). English terms allowed for proper nouns (PYTHONPATH, GraphQL, etc.)
+- **Use emoji sparingly** — 🧵 at the end of tweet 1, that's it. Bug emoji (🐛) OK for bug posts.
+- **One tweet = one idea.** Don't cram 3 bugs into one tweet.
+- **Link in last tweet only** (or penultimate). Earlier tweets that link cannibalize engagement.
+- **No hashtags** in tweet body (they look spammy). Hashtags in last tweet only if at all.
+
+#### Thread Ending
+Last tweet: Season/Episode tag (e.g., "Season 1: Taste Engineering — Episode 3") + link.
+
+#### X Thread File Convention
+Save as `YYYY-MM-DD-slug-thread.txt` in `memories/insights/`. Plain text, one tweet per paragraph separated by blank lines. The numbered "N/15" prefix is added by the human on posting.
+
+```text
+Hooked question
+
+2/ Bug description
+3/ Pattern discovery
+...
+Last/ Link + season tag
+```
+
+**Pitfall:** Don't write the "N/15" counting in the file — the human decides the final tweet count. Write the content; the `/N` comes from the posting interface.
+
+Cover images are `<!-- COVER: description -->` HTML comments — no image generation. The content-manager describes the ideal image; a human or future tool generates it.
+
+**This pattern is deprecated in favor of SVG cover generation above.** Keep only if SVG generation fails (unlikely — SVG is just XML text).
 
 **이미지 배치 원칙 — "설명 전에 보여주기":**
 1. 섹션 내에서 **핵심 개념을 먼저 설명하면** 독자가 그림을 보면서 내용을 자연스럽게 이해함
@@ -409,9 +611,9 @@ Drewgent는 FAL.ai FLUX 2 Pro 모델 + Clarity Upscaler (2x 자동 업스케일)
 이 원칙을 지키기 위해 Coral을 데이터 플레인으로 사용하면...
 ```
 
-### 4-4. Language Polish — DeepSeek 한글 윤문
+### 4-4. Language Polish — DeepSeek 한글 윤문 (Aggregator Mode Only)
 
-AI 티 제거 + 한글 교정을 DeepSeek로 윤문. Phase 4-3 draft 완성 후 실행.
+AI 티 제거 + 한글 교정을 DeepSeek로 윤문. CMO Agent mode에서는 skip (content-manager가 직접 작성).
 
 **Vault에서 API 키 조회:**
 ```python
@@ -455,8 +657,6 @@ vault.register("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY", "sk-your-key-he
 ### 4-5. Language Polish 체크리스트 (DeepSeek 윤문 후)
 
 DeepSeek 윤문을 사용할 경우 이 단계는 **skip** — DeepSeek가 처리함.
-
-DeepSeek를 사용하지 않는 경우에만 실행:
 ```python
 # 1. 불필요한 한문/한자/일어 → 한글 변환
 # 한자: "倫理" → "윤리", "機能" → "기능", "存在" → "존재"
@@ -482,46 +682,9 @@ DeepSeek를 사용하지 않는 경우에만 실행:
 > 이 기능은 당신의 삶에 매우 중요합니다
 
 ---
-
-### 4-5. DeepSeek Korean Humanization
-
-|MiniMax-M3의 한글 출력质量问题 + 일반적인 AI 글특성(형식적, 비문장적)을 해결하기 위해, DeepSeek를使った 윤문 단계를 실행:
-
-```python
-# deepseek_humanize.py 실행
-import subprocess, sys
-result = subprocess.run([
-    sys.executable,
-    "~/.drewgent/scripts/deepseek_humanize.py",
-    "--input", draft_file,
-    "--output", f"{draft_file}.tmp"
-], capture_output=True, text=True)
-if result.returncode == 0:
-    # 윤문 결과를 원본에 적용
-    import shutil
-    shutil.move(f"{draft_file}.tmp", draft_file)
-    print("DeepSeek humanization: DONE")
-else:
-    print(f"DeepSeek humanization: FAILED — {result.stderr[:200]}")
-```
-
-**실행 전 조건:**
-- Draft 파일이 존재하고 500바이트 이상
-- DeepSeek API key가 vault에 등록됨 (`vault_948a246f`)
-
-**DeepSeek Humanization 체크리스트 (실행 후 출력):**
-```
-DeepSeek Humanization: DONE
-  Input chars: N
-  Output chars: N
-  Changes: N sentences modified
-  Hanyang detection: N hanja/haneo converted
-PASS
-```
-
 **실패 시:** 원본 draft 파일 그대로 유지 (작업 실패가 아님). Phase 5로 진행.
 
-### 4-6. Kanban Complete
+### 4-6. Kanban Complete (Aggregator Mode Only)
 ```python
 draft_file = f"/Users/drew/.drewgent/P2-hippocampus/memories/insights/{YYYY-MM}-{slug}.md"
 kanban_complete(
@@ -534,6 +697,23 @@ kanban_complete(
 
 **result에는 반드시 절대경로 포함** — Phase 5 Periodic Delivery의 SQLite regex가 `~` 또는 `/Users/drew/`로 시작하는 경로를 추출함.
 Phase 5 regex: `r'memories/insights/(20\d{2}-\d{2}-[^.]+\.md)'` 또는 `r'/Users/drew/.drewgent/P2-hippocampus/memories/insights/(20\d{2}-\d{2}-[^.]+\.md)'`
+
+---
+
+### 4-7. Post-production: narrative_arc + content-inventory Sync
+
+After every blog post + X thread, update BOTH tracking files before completing the cycle.
+
+**narrative_arc.md** (`P4-cortex/content/narrative_arc.md`) — Two updates:
+1. Episodes table: add new row
+2. Decision log: add entry explaining why
+
+**content-inventory.md** (`P4-cortex/content/content-inventory.md`) — Three updates:
+1. Published table: add post row
+2. Drafts table: add all supporting files
+3. Topics Covered: add 1-2 dedup bullets
+
+**Pitfall:** Do not list the same draft file in both Published and Drafts tables.
 
 ---
 
@@ -755,7 +935,36 @@ tail -f ~/Library/Logs/quartz-fswatch.log
 tail -f ~/Library/Logs/quartz-deploy.log
 ```
 
-### Publishing Checklist (Obsidian에서)
+### Content → Site Mapping
+
+Content-manager drafts live at `/Users/drew/.drewgent/P2-hippocampus/memories/insights/`. The Quartz site maps this directory into its content tree via symlink:
+
+```bash
+# Current mapping (June 2026):
+humanerd-site/content/insights → P2-hippocampus/memories/insights/  # drafts + SVGs + PNGs
+```
+
+⚠️ **Pitfall: The symlink was previously pointing to `P4-cortex/knowledge`** (wrong dir). If drafts aren't appearing in the build, check:
+```bash
+readlink /Users/drew/.drewgent/humanerd-site/content/insights
+# Should point to: /Users/drew/.drewgent/P2-hippocampus/memories/insights
+```
+
+### Deploy Loop Prevention
+
+The fswatch → quartz build → wrangler deploy pipeline can enter an infinite loop if build output triggers another fswatch event. Symptoms: deploy log repeating every 10 seconds, launch agents showing error exit codes.
+
+**Fix:** The deploy script should check if a build is already running before starting a new one. Use a lock file:
+```bash
+LOCKFILE=/tmp/quartz-deploy.lock
+if [ -f "$LOCKFILE" ] && [ $(($(date +%s) - $(cat "$LOCKFILE"))) -lt 60 ]; then
+    log "Deploy already running, skipping"
+    exit 0
+fi
+date +%s > "$LOCKFILE"
+# ... build + deploy ...
+rm -f "$LOCKFILE"
+```
 
 ```
 [ ] 오탈자·내용 수정
@@ -790,37 +999,43 @@ wrangler pages deploy public/ --project-name=humanerd-site
 └── quartz-fswatch.sh         ← fswatch 파일 변경 감지 → debounce → deploy
 ```
 
----
+## Diagrams & Images in Blog Posts
 
-## Quality Gate (writer용)
+### Mermaid Diagrams (Inline, Auto-Rendered by Quartz)
 
-Draft 작성 완료 시 확인:
-1. **Language Polish** (4-4 단계) 먼저 수행 — 한자/한문/일어→한글 변환, 비문 수정
-2. **forbidden.patterns** grep → 0건
-3. **Bold** 섹션 강조 2~4개 존재
-4. **"당신"** 직접호칭 + 1인칭 "저"/"나" 포함
-5. **본문 날짜** 없음 (X월 X일 금지)
-6. **출처 없는 주장** 없음 (모르면 "확인 필요" 표기)
-7. **SEO 키워드** 3~7개, **해시태그** 8~14개
-8. aliases in frontmatter (`/blog/{slug}`)
+Quartz at humanerd.kr has Mermaid enabled (`quartz/components/scripts/mermaid.inline.ts`). Write ````mermaid code blocks directly in blog post markdown:
 
-**Polish 체크리스트 출력 예시:**
+```markdown
+```mermaid
+graph TD
+    subgraph "Source"
+        A[Git] --> D
+        B[Kanban] --> D
+    end
+    D{Agent} --> E[Blog Draft]
+    D --> F[X Thread]
 ```
-Language Polish: DONE
-  한자→한글: 3건 변환
-  한문 표현: 1건 변환
-  일어 외래어: 0건
-  비문 수정: 2건
-Forbidden: 0건
-Bold sections: 3
-Direct address ("당신"): YES
-1인칭 ("저"/"나"): YES
-Dates in body: 0
-SEO keywords: 5
-해시태그: 11
-aliases: /blog/gemini-cli-shutdown
-PASS
 ```
+
+Common types: `graph TD` (top-down), `graph LR` (left-right), `sequenceDiagram`, `flowchart TD`.
+
+### Excalidraw Diagrams (Hand-Drawn Architecture Style)
+
+For complex architecture/flow diagrams, create an `.excalidraw.json` companion file. Follows the visual style from the ReefWatch article (dev.to/siiddhantt/building-reefwatch).
+
+The blog post references it as: `<!-- EXCALIDRAW: slug.excalidraw.json -- architecture diagram -->`
+
+The JSON opens in Obsidian (Excalidraw plugin) or excalidraw.com for PNG export.
+
+### Cover Image Descriptions
+
+Add an HTML comment describing the ideal cover image:
+
+```markdown
+<!-- COVER: Dark mode dev dashboard showing architecture, amber accents, humanerd.kr style. -->
+```
+
+Placeholder — image generated later by image_gen tool or human designer.
 
 ---
 
@@ -853,9 +1068,37 @@ Slug 생성 규칙:
 
 ---
 
+## WordPress Publishing (Mode B)
+
+Drafts can be pushed to the humanerd.kr WordPress site via the WordPress MCP server.
+
+### Review & Approve Workflow
+
+```
+content-manager draft → memories/insights/ 저장
+  → (future) Huly issue 생성 (status: Todo)
+  → Drew reviews in Huly → Done
+  → publisher cron → WordPress MCP push
+```
+
+See `references/wordpress-publish-workflow.md` for the full implementation guide.
+
 ## Related
 
-- [[P1-limbic/persona/writing-style-guide]] — Writing tone & rules
+- [[skills/wordpress-cms]] — WordPress Docker + Blocksy + MCP setup
+- [[writing-style-guide]] — Writing tone & rules
 - [[P2-hippocampus/kanban/KANBAN_INDEX]] — Kanban board integration
 - [[skills/kanban-worker]] — Worker execution model
 - [[skills/content-writer]] — Draft writing skill (별도)
+
+---
+
+## ⚠️ Path Pitfalls (all modes)
+
+Draft paths in agent profiles, cron prompts, and workflow documents must be **absolute paths** (`/Users/drew/.drewgent/P2-hippocampus/memories/insights/`). Do NOT use:
+- Relative paths like `memories/insights/` — the agent's cwd may not resolve correctly
+- `~` expansion like `~/.drewgent/...` — some contexts (cron, subagent spawned by dispatcher) don't expand tilde
+
+✅ Safe: `/Users/drew/.drewgent/P2-hippocampus/memories/insights/filename.md`
+❌ Unsafe: `memories/insights/filename.md`
+❌ Unsafe: `~/.drewgent/P2-hippocampus/memories/insights/filename.md`

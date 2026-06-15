@@ -196,3 +196,11 @@ def check_status(path: Path) -> str:
 - [[skills/humanerd-content-status-enforcement]] — agent self-apply skill
 - [[P6-prefrontal/incidents/cron-job-failure-20260518]] — 직전 incident
 - [[P0-brainstem/brain/rules]] — P0 brainstem governance
+
+## Links
+- [[P4-cortex/growth/INTEGRATION_PROTOCOL]]
+
+## Related Neurons
+- [[禁auto_validate.neuron]]
+- [[禁subagent_verify.neuron]]
+- [[禁blind_write.neuron]]

@@ -10,7 +10,7 @@ links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
   - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
   - "[[skills/humanerd-site]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # SEO + GEO Audit — humanerd.site 감사 및 관리
 

@@ -1,0 +1,6 @@
+/vendor/
+/node_modules/
+.DS_Store
+/build/
+/wordpress-mcp.zip
+/.phpunit.result.cache

@@ -8,14 +8,14 @@ tags: [skill, quartz, draft, content-pipeline, obsidian, humanerd-site, state-ma
 created: 2026-06-01
 updated: 2026-06-02
 links:
-  - "[[skills/content-pipeline]]"
+  - "[[skills/content-pipeline/SKILL]]"
   - "[[skills/humanerd-site]]"
   - "[[skills/humanerd-content-status-enforcement]]"
   - "[[skills/site-spec-audit]]"
   - "[[skills/filesystem-truth-audit]]"
   - "[[skills/patch-secret-safety]]"
   - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 # quartz-remove-drafts-customization
@@ -588,7 +588,7 @@ def add_status_published(path: Path) -> str:
 
 ## Related
 
-- [[skills/content-pipeline]] — content-pipeline skill (Phase 3에서 status: draft 작성)
+- [[skills/content-pipeline/SKILL]] — content-pipeline skill (Phase 3에서 status: draft 작성)
 - [[skills/humanerd-site]] — humanerd-site 운영 skill
 - [[skills/humanerd-content-status-enforcement]] — agent self-apply 규칙 (status field 자동 enforce)
 - [[skills/site-spec-audit]] — humanerd.kr 감사 (agent-readiness / well-known 등 점검)

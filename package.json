@@ -16,10 +16,20 @@
   },
   "homepage": "https://github.com/NousResearch/Drewgent-Agent#readme",
   "dependencies": {
+    "@askjo/camoufox-browser": "^1.0.0",
+    "@hcengineering/api-client": "^0.7.423",
     "agent-browser": "^0.13.0",
-    "@askjo/camoufox-browser": "^1.0.0"
+    "puppeteer": "^25.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs"
 }

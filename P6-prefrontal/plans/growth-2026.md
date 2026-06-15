@@ -61,3 +61,7 @@ links:
 ## Related
 - [[P6-prefrontal/plans/path-integrity-report-2026-05-17]]
 - [[P6-prefrontal/incidents/cron-job-failure-20260518]]
+
+## Links
+- [[P0-brainstem/brain/rules]]
+- [[P5-ego/SELF_MODEL]]

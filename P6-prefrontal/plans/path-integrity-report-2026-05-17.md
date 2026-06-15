@@ -93,3 +93,6 @@ Recommendation: wikilinks should be handled in a separate graph hygiene pass, no
 - [[P6-prefrontal/plans/growth-2026]]
 - [[P6-prefrontal/migrations/drewgent-root-consolidation-20260506]]
 - [[P4-cortex/knowledge/obsidian-vault-site-principle]]
+
+## Links
+- [[P4-cortex/growth/INTEGRATION_PROTOCOL]]

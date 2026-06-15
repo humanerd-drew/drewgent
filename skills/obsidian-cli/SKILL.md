@@ -9,7 +9,7 @@ links:
   - "[[P1-limbic/persona/SOUL]]"
   - "[[P2-hippocampus/memories/SCHEMA]]"
   - "[[P5-ego/SELF_MODEL]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 # Obsidian CLI

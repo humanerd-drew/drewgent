@@ -12,6 +12,28 @@ import yaml
 TRUTHY_STRINGS = frozenset({"1", "true", "yes", "on"})
 
 
+# Re-export atomic_replace from hermes-agent/utils.py so Drewgent's
+# utils.py doesn't shadow Hermes' required symbols (hermes_cli/config.py
+# does `from utils import atomic_replace`).  Copy is intentional to
+# avoid circular-import / path-resolution issues.
+def atomic_replace(tmp_path: Union[str, Path], target: Union[str, Path]) -> str:
+    """Atomically move *tmp_path* onto *target*, preserving symlinks.
+
+    os.replace(tmp, target) atomically swaps tmp into place at target.
+    When target is a symlink, the symlink itself is replaced with a
+    regular file — silently detaching managed deployments that symlink
+    config files from ~/.hermes/ to a git-tracked profile (GH #16743).
+
+    This helper resolves the symlink first so os.replace writes to the
+    real file in-place while the symlink survives.  For non-symlink and
+    non-existent paths the behavior is identical to a plain os.replace.
+    """
+    target_str = str(target)
+    real_path = os.path.realpath(target_str) if os.path.islink(target_str) else target_str
+    os.replace(str(tmp_path), real_path)
+    return real_path
+
+
 def is_truthy_value(value: Any, default: bool = False) -> bool:
     """Coerce bool-ish values using the project's shared truthy string set."""
     if value is None:

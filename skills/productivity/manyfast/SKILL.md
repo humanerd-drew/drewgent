@@ -11,7 +11,7 @@ links:
   - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
   - "[[P4-cortex/knowledge/prd-template]]"
   - "[[memories/concepts/prd-schema]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 # Manyfast 아키텍처 분석 — Drewgent 내재화

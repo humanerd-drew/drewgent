@@ -265,3 +265,7 @@ ls -lt ~/.drewgent/cron/output/kanban-maintenance/  # output dir
 ---
 
 *This follow-up accepted (H4). 6/7 03:00 KST verification pending.*
+
+## Related Neurons
+- [[禁incident_aware.neuron]]
+- [[禁filesystem_truth.neuron]]

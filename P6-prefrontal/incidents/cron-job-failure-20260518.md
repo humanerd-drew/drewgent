@@ -82,3 +82,7 @@ Cron job들이 제대로 작동하지 않음 (Trend Harvester disabled, SEO over
 - [[P6-prefrontal/plans/growth-2026]] — growth plan reference
 - [[P4-cortex/growth/INTEGRATION_PROTOCOL]] — integration protocol
 - [[P0-brainstem/brain/rules]] — P0 brainstem governance
+
+## Related Neurons
+- [[禁auto_validate.neuron]]
+- [[禁subagent_verify.neuron]]

@@ -8,10 +8,10 @@ tags: [skill, filesystem-truth, audit, memory, vault, diagnostics]
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth]]"
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]]"
   - "[[P5-ego/SELF_MODEL]]"
   - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # Filesystem Truth Audit — Memory vs Reality 검증
 
@@ -118,6 +118,6 @@ echo "claimed=$N_CLAIM real=$N_REAL"
 
 ## Related
 
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth]] — P0 강제 규칙
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — P0 강제 규칙
 - [[P5-ego/SELF_MODEL]] — self-model에 path claim
 - [[P6-prefrontal/migrations/drewgent-root-consolidation-20260506]] — root 변경 migration

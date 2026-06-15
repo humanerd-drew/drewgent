@@ -14,7 +14,7 @@ links:
   - "[[skills/software-development/yaml-config-patch-drewgent]]"
   - "[[skills/software-development/llm-model-migration]]"
   - "[[P4-cortex/growth/KANBAN-REVIEW-20260520]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # Drewgent LLM Cost Optimization — 3-Round Implementation
 

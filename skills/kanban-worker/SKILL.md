@@ -1,17 +1,18 @@
 ---
-title: Skill
+title: Kanban Worker
+name: kanban-worker
 type: document
 space: concept
 tags: [concept]
 created: 2026-05-20
-updated: 2026-05-20
+updated: 2026-06-10
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
   - "[[P4-cortex/growth/drewgent-kanban-implementation-plan]]"
   - "[[kanban-dashboard]]"
   - "[[kanban-orchestrator]]"
   - "[[references/protocol.md]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 
@@ -148,10 +149,34 @@ See [[references/protocol.md]] for the full task lifecycle protocol, API schema,
 | `KANBAN_BOARD` | Board name (default: 'default') |
 | `DREWENT_HOME` | Drewgent home path (`~/.drewgent`) |
 
+## Dispatcher Notes (for cron job agents)
+
+The kanban dispatcher is **not** invoked via `from tools.drewgent_kanban_db import dispatch_once` — that import path does not resolve in production. The actual dispatch mechanism uses standalone scripts:
+
+**Scripts**: `~/.drewgent/scripts/dispatch_once_{board}.py` (one per board: `default`, `content`, `integrations`)
+
+**Execution** (run directly, no import gymnastics):
+```bash
+~/.drewgent/source/drewgent-agent/.venv/bin/python ~/.drewgent/scripts/dispatch_once_default.py
+```
+
+Each script opens its own SQLite connection and runs 5 phases:
+1. **Phase 0 (watchdog)**: `os.kill(pid, 0)` to check worker liveness; dead workers reclaimed immediately
+2. **Phase 0.5 (affinity)**: Skips tasks with 3+ consecutive failures (cooldown)
+3. **Phase 1 (TTL reclaim)**: Reclaims tasks past `claim_expires` (but skips if worker PID is still alive)
+4. **Phase 2 (claim)**: Claims ready tasks with adaptive `MAX_CLAIM` (scales with queue depth)
+5. **Phase 3 (spawn)**: Spawns `run_kanban_worker.py` via `Popen` with logfile redirect (no PIPE deadlock)
+
+**Worker logs**: `~/.drewgent/P4-cortex/scripts/kanban/logs/workers/{task_id}.log`
+
+**Output protocol**: `[SILENT]` if no work done; otherwise detailed breakdown with per-task details.
+
 ## Related Skills
 
 - [[kanban-orchestrator]] — Task decomposition and linking
 - [[kanban-dashboard]] — Board visualization via n8n
+- [[kanban-dispatcher-hardening]] — Dispatcher watchdog + logfile redirect internals
+- [[kanban-dispatcher-stalled]] — Diagnose dispatcher stalls when cron stops running
 
 ## Related
 

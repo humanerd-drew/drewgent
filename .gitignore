@@ -118,6 +118,15 @@ vault-ontology.jsonl
 # Non-project reference files
 *.txt
 
+# Runtime history / cache state (Hermes-generated)
+.hermes_history
+.scratch_tip_shown
+*_cache.json
+*.lock
+*.bak.*
+lsp/
+huly_test.js
+
 # Personal / agent-internal directories (not project code)
 /source/
 /P0-brainstem/

@@ -11,7 +11,7 @@ updated: 2026-06-02
 links:
   - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
   - "[[P5-ego/SELF_MODEL]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # MiniMax Token Plan — Terminal Usage Check
 

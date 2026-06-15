@@ -11,7 +11,7 @@ links:
   - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
   - "[[P4-cortex/growth/kanban-stuck-task-recovery]]"
   - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # Kanban Dispatcher Stalled — 진단 스킬
 
@@ -232,6 +232,57 @@ save_jobs(jobs)
 # V5. mode 5 fix 후: patch 60~180초 안에 3/5+ job spawn 확인, next_run_at이 compute_next_run 결과로 미래 시각으로 재계산됨
 # V6. mode 5 prevention: gateway restart 후 jobs.py fix disk reload 확인 (다음 tick에서 null next_run이 자동 복구되는지)
 ```
+
+### 6. Sequential tick blocked by LLM cron job (T4, 2026-06-10)
+
+**Root cause**: `cron/scheduler.py:tick()` processes `for job in due_jobs:` **sequentially**. If an LLM-based cron job (one with no `script` field) gets stuck in `run_job()` — for example, hitting the `task_qa_gate` neuron's contract phase — it blocks ALL subsequent jobs in the same tick. With the gateway's 60s tick interval, a single stuck LLM job can stall the dispatcher for 15-26 minutes.
+
+**Pattern**: cron-runner log shows 0 new `=== ISO ===` blocks for 10+ minutes. Gateway log shows "QA gate FAILED: phase=contract" followed by no further cron activity for minutes.
+
+#### 6a. Diagnosis
+
+```bash
+# Check cron-runner fire frequency in last 5 min
+grep -E '=== 2026-' ~/.drewgent/logs/cron-runner/$(date +%Y-%m-%d).log \
+  | awk -F'[T:.]' '{print $2":"$3}' | tail -5
+# 0 entries in 5+ min = likely Mode 6 stall
+```
+
+Also checked by harmony check Layer 3.5b.
+
+#### 6b. Immediate recovery
+
+```bash
+UID_NUM=$(id -u)
+launchctl kickstart -k gui/${UID_NUM}/ai.drewgent.gateway
+# Gateway restarts, missed jobs fast-forward, normal tick resumes in 60-90s
+```
+
+#### 6c. Permanent fix options
+
+**Option A (recommended — disable redundant LLM jobs)**:  
+If the LLM-based cron job duplicates work already done by a script-based job, disable it:
+```python
+# Mark enabled: false in jobs.json for the blocking job
+j['enabled'] = False; j['state'] = 'paused'
+# Gateway reads jobs.json fresh each tick — no restart needed
+```
+
+**Option B (systemic — script jobs before LLM jobs)**:
+`scheduler.py:tick()` was patched (2026-06-10) to process script-based jobs FIRST:
+```python
+_script_jobs = [j for j in due_jobs if j.get("script")]
+_llm_jobs = [j for j in due_jobs if not j.get("script")]
+for job in _script_jobs + _llm_jobs:
+```
+
+**Option C (watchdog)**: Harmony check Layer 3.5b detects 0 fires in 5 min.  
+`drewgent_cron_watchdog.sh` auto-kickstarts if 0 fires + gateway uptime > 5 min.
+
+#### 6d. Verification
+
+After fix: cron-runner fires every 60s without gaps > 2 min.  
+Gateway log shows NO long gaps between `Running job` entries for script-based jobs.
 
 ## Related
 

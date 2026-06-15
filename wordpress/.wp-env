@@ -1,0 +1,13 @@
+# WordPress credentials — humanerd.kr (local Docker, NAS-backed)
+WP_URL=http://localhost:8080
+WP_ADMIN_USER=humanerd
+WP_ADMIN_PASS=QAq&#q8Zrt(Fxy0vNO
+WP_DB_HOST=localhost:3307
+WP_DB_NAME=humanerd
+WP_DB_USER=humanerd
+WP_DB_PASS=dEr/yG4klqLL4WhzwhG4Dg==
+WP_TABLE_PREFIX=hnr_
+MYSQL_ROOT_PASS=Ulw/MkYZNYc7FOihWLLD5w==
+DOCKER_COMPOSE_DIR=/Users/drew/.drewgent/wordpress
+NAS_DATA_DIR=/Volumes/humanerd/docker/wordpress
+NGINX_DOMAIN=http://localhost:8080

@@ -2,790 +2,415 @@
 title: Agents
 type: guide
 space: concept
-tags: [concept]
+tags: [concept, agent-guide]
 created: 2026-05-20
-updated: 2026-05-20
+updated: 2026-06-14
 links:
   - "[[P5-ego/SELF_MODEL]]"
+  - "[[P0-brainstem/brain/rules]]"
+  - "[[P1-limbic/persona/SOUL]]"
 ---
 
+# Drewgent — Agent Guide
 
-# Drewgent Agent - Development Guide
-
-Instructions for AI coding assistants and developers working on the drewgent-agent codebase.
-
-## Development Environment
-
-```bash
-source venv/bin/activate  # ALWAYS activate before running Python
-```
-
-## Project Structure
-
-```
-drewgent-agent/
-├── run_agent.py          # AIAgent class — core conversation loop
-├── model_tools.py        # Tool orchestration, _discover_tools(), handle_function_call()
-├── toolsets.py           # Toolset definitions, _HERMES_CORE_TOOLS list
-├── cli.py                # DrewgentCLI class — interactive CLI orchestrator
-├── drewgent_state.py       # SessionDB — SQLite session store (FTS5 search)
-├── agent/                # Agent internals
-│   ├── prompt_builder.py     # System prompt assembly
-│   ├── context_compressor.py # Auto context compression
-│   ├── prompt_caching.py     # Anthropic prompt caching
-│   ├── auxiliary_client.py   # Auxiliary LLM client (vision, summarization)
-│   ├── model_metadata.py     # Model context lengths, token estimation
-│   ├── models_dev.py         # models.dev registry integration (provider-aware context)
-│   ├── display.py            # KawaiiSpinner, tool preview formatting
-│   ├── skill_commands.py     # Skill slash commands (shared CLI/gateway)
-│   └── trajectory.py         # Trajectory saving helpers
-├── drewgent_cli/           # CLI subcommands and setup
-│   ├── main.py           # Entry point — all `drewgent`` subcommands
-│   ├── config.py         # DEFAULT_CONFIG, OPTIONAL_ENV_VARS, migration
-│   ├── commands.py       # Slash command definitions + SlashCommandCompleter
-│   ├── callbacks.py      # Terminal callbacks (clarify, sudo, approval)
-│   ├── setup.py          # Interactive setup wizard
-│   ├── skin_engine.py    # Skin/theme engine — CLI visual customization
-│   ├── skills_config.py  # `drewgent skills` — enable/disable skills per platform
-│   ├── tools_config.py   # `drewgent` tools` — enable/disable tools per platform
-│   ├── skills_hub.py     # `/skills` slash command (search, browse, install)
-│   ├── models.py         # Model catalog, provider model lists
-│   ├── model_switch.py   # Shared /model switch pipeline (CLI + gateway)
-│   └── auth.py           # Provider credential resolution
-├── tools/                # Tool implementations (one file per tool)
-│   ├── registry.py       # Central tool registry (schemas, handlers, dispatch)
-│   ├── approval.py       # Dangerous command detection
-│   ├── terminal_tool.py  # Terminal orchestration
-│   ├── process_registry.py # Background process management
-│   ├── file_tools.py     # File read/write/search/patch
-│   ├── web_tools.py      # Web search/extract (Parallel + Firecrawl)
-│   ├── browser_tool.py   # Browserbase browser automation
-│   ├── code_execution_tool.py # execute_code sandbox
-│   ├── delegate_tool.py  # Subagent delegation
-│   ├── mcp_tool.py       # MCP client (~1050 lines)
-│   └── environments/     # Terminal backends (local, docker, ssh, modal, daytona, singularity)
-├── gateway/              # Messaging platform gateway
-│   ├── run.py            # Main loop, slash commands, message dispatch
-│   ├── session.py        # SessionStore — conversation persistence
-│   └── platforms/        # Adapters: telegram, discord, slack, whatsapp, homeassistant, signal
-├── acp_adapter/          # ACP server (VS Code / Zed / JetBrains integration)
-├── cron/                 # Scheduler (jobs.py, scheduler.py)
-├── environments/         # RL training environments (Atropos)
-├── tests/                # Pytest suite (~3000 tests)
-└── batch_runner.py       # Parallel batch processing
-```
-
-**User config:** `~/.drewgent/config.yaml` (settings), `~/.drewgent/.env` (API keys)
-
-## File Dependency Chain
-
-```
-tools/registry.py  (no deps — imported by all tool files)
-       ↑
-tools/*.py  (each calls registry.register() at import time)
-       ↑
-model_tools.py  (imports tools/registry + triggers tool discovery)
-       ↑
-run_agent.py, cli.py, batch_runner.py, environments/
-```
+AI agent를 위한 Drewgent 프로젝트 구조·규칙·컨벤션 가이드.
 
 ---
 
-## AIAgent Class (run_agent.py)
+## Current Architecture (2026-06-14)
 
-```python
-class AIAgent:
-    def __init__(self,
-        model: str = "anthropic/claude-opus-4.6",
-        max_iterations: int = 90,
-        enabled_toolsets: list = None,
-        disabled_toolsets: list = None,
-        quiet_mode: bool = False,
-        save_trajectories: bool = False,
-        platform: str = None,           # "cli", "telegram", etc.
-        session_id: str = None,
-        skip_context_files: bool = False,
-        skip_memory: bool = False,
-        # ... plus provider, api_mode, callbacks, routing params
-    ): ...
+Drewgent는 **fork 없이** plain Hermes-Agent 위에 customize layer를 올려서 운영한다.
 
-    def chat(self, message: str) -> str:
-        """Simple interface — returns final response string."""
+```
+~/.hermes/                      # Hermes-Agent 설치 (plain, NOT forked)
+  config.yaml                   # 메인 설정
+  .env                          # API keys (chmod 600)
+  skills/                       # Hermes 기본 스킬 (읽기 전용)
+  profiles/                     # Hermes 프로필
+  plugins/                      # Hermes 플러그인
 
-    def run_conversation(self, user_message: str, system_message: str = None,
-                         conversation_history: list = None, task_id: str = None) -> dict:
-        """Full interface — returns dict with final_response + messages."""
+~/.drewgent/                    # Drewgent 커스터마이징 + Obsidian vault (P0-P6)
+  customize/                    # PYTHONPATH override 레이어
+    sitecustomize.py            # Python startup hook
+    hermes_cli/gateway.py       # launchd label override (ai.drewgent.*)
+    hermes_cli/cron.py          # cron pid resolution
+  skills/                       # Drewgent 전용 스킬 (100+)
+  P0-brainstem/                 # 룰, 禁 규칙
+  P1-limbic/                    # 정체성, persona, voice
+  P2-hippocampus/               # 메모리 저장소
+  P3-sensors/                   # 게이트웨이, 툴
+  P4-cortex/                    # 스킬 색인, 성장 기록
+  P5-ego/                       # 셀프 모델
+  P6-prefrontal/                # 인시던트, 회고
+  config.yaml                   # 레거시 설정 (일부)
+  AGENTS.md                     # ↔ 이 파일
+
+~/.local/bin/hermes             # Wrapper: PYTHONPATH 패치, unset PYTHONPATH 제거
+                                # 원본은 hermes.bak
 ```
 
-### Agent Loop
+### Customize Layer 작동 방식
 
-The core loop is inside `run_conversation()` — entirely synchronous:
+1. `~/.zshrc`에서 `export PYTHONPATH=~/.drewgent/customize:$PYTHONPATH`
+2. Python이 `from hermes_cli.gateway import ...` 할 때 customize/ 디렉토리를 먼저 탐색
+3. customize/hermes_cli/ 아래에 같은 모듈이 있으면 그게 우선 적용
+4. Gateway plist에도 동일 PYTHONPATH 설정
 
-```python
-while api_call_count < self.max_iterations and self.iteration_budget.remaining > 0:
-    response = client.chat.completions.create(model=model, messages=messages, tools=tool_schemas)
-    if response.tool_calls:
-        for tool_call in response.tool_calls:
-            result = handle_function_call(tool_call.name, tool_call.args, task_id)
-            messages.append(tool_result_message(result))
-        api_call_count += 1
-    else:
-        return response.content
-```
+### 현재 적용된 override
 
-Messages follow OpenAI format: `{"role": "system/user/assistant/tool", ...}`. Reasoning content is stored in `assistant_msg["reasoning"]`.
+| Hermes 기본값 | Drewgent override | 파일 |
+|--------------|-------------------|------|
+| `ai.hermes.gateway` | `ai.drewgent.gateway` | `customize/hermes_cli/gateway.py` |
+| `ai.hermes.cron-runner` | `ai.drewgent.cron-runner` | `customize/hermes_cli/gateway.py` |
+| macOS Sonoma+ plist 파싱 | pid 추출 보정 | `customize/hermes_cli/gateway.py` |
+
+### Config
+
+- **Primary**: `~/.hermes/config.yaml` — Hermes-Agent 표준 설정
+- **Legacy**: `~/.drewgent/config.yaml` — 일부 Drewgent 설정 (점진적 마이그레이션 중)
 
 ---
 
-## CLI Architecture (cli.py)
+## Agent Navigation Guide
 
-- **Rich** for banner/panels, **prompt_toolkit** for input with autocomplete
-- **KawaiiSpinner** (`agent/display.py`) — animated faces during API calls, `┊` activity feed for tool results
-- `load_cli_config()` in cli.py merges hardcoded defaults + user config YAML
-- **Skin engine** (`drewgent_cli/skin_engine.py`) — data-driven CLI theming; initialized from `display.skin` config key at startup; skins customize banner colors, spinner faces/verbs/wings, tool prefix, response box, branding text
-- `process_command()` is a method on `DrewgentCLI` — dispatches on canonical command name resolved via `resolve_command()` from the central registry
-- Skill slash commands: `agent/skill_commands.py` scans `~/.drewgent/skills/`, injects as **user message** (not system prompt) to preserve prompt caching
+### 이 파일들을 참조하라
 
-### Slash Command Registry (`drewgent_cli/commands.py`)
+| 파일 | 용도 |
+|------|------|
+| `P0-brainstem/brain/rules.md` | 禁 Critical Rules (P0 우선) |
+| `P5-ego/SELF_MODEL.md` | 셀프 모델, 정체성 |
+| `P1-limbic/persona/SOUL.md` | 성격, 어조, voice |
+| `P1-limbic/persona/writing-style-guide.md` | 글쓰기 컨벤션 |
+| `skills/<category>/SKILL.md` | 각 스킬 가이드 |
 
-All slash commands are defined in a central `COMMAND_REGISTRY` list of `CommandDef` objects. Every downstream consumer derives from this registry automatically:
+### 절대 수정 금지 (read-only)
 
-- **CLI** — `process_command()` resolves aliases via `resolve_command()`, dispatches on canonical name
-- **Gateway** — `GATEWAY_KNOWN_COMMANDS` frozenset for hook emission, `resolve_command()` for dispatch
-- **Gateway help** — `gateway_help_lines()` generates `/help` output
-- **Telegram** — `telegram_bot_commands()` generates the BotCommand menu
-- **Slack** — `slack_subcommand_map()` generates `/hermes` subcommand routing
-- **Autocomplete** — `COMMANDS` flat dict feeds `SlashCommandCompleter`
-- **CLI help** — `COMMANDS_BY_CATEGORY` dict feeds `show_help()`
+- `~/.hermes/skills/` — Hermes 기본 번들 스킬
+- `~/.hermes/plugins/` — 명시적 요청 없이 수정 금지
+- `customize/` 아래 파일 — 패턴을 먼저 읽고, 이해한 후에만 수정
 
-### Adding a Slash Command
+### 일반 작업 시 탐색 순서
 
-1. Add a `CommandDef` entry to `COMMAND_REGISTRY` in `drewgent_cli/commands.py`:
-```python
-CommandDef("mycommand", "Description of what it does", "Session",
-           aliases=("mc",), args_hint="[arg]"),
-```
-2. Add handler in `DrewgentCLI.process_command()` in `cli.py`:
-```python
-elif canonical == "mycommand":
-    self._handle_mycommand(cmd_original)
-```
-3. If the command is available in the gateway, add a handler in `gateway/run.py`:
-```python
-if canonical == "mycommand":
-    return await self._handle_mycommand(event)
-```
-4. For persistent settings, use `save_config_value()` in `cli.py`
-
-**CommandDef fields:**
-- `name` — canonical name without slash (e.g. `"background"`)
-- `description` — human-readable description
-- `category` — one of `"Session"`, `"Configuration"`, `"Tools & Skills"`, `"Info"`, `"Exit"`
-- `aliases` — tuple of alternative names (e.g. `("bg",)`)
-- `args_hint` — argument placeholder shown in help (e.g. `"<prompt>"`, `"[name]"`)
-- `cli_only` — only available in the interactive CLI
-- `gateway_only` — only available in messaging platforms
-- `gateway_config_gate` — config dotpath (e.g. `"display.tool_progress_command"`); when set on a `cli_only` command, the command becomes available in the gateway if the config value is truthy. `GATEWAY_KNOWN_COMMANDS` always includes config-gated commands so the gateway can dispatch them; help/menus only show them when the gate is open.
-
-**Adding an alias** requires only adding it to the `aliases` tuple on the existing `CommandDef`. No other file changes needed — dispatch, help text, Telegram menu, Slack mapping, and autocomplete all update automatically.
+1. **설정 변경** → `~/.hermes/config.yaml`
+2. **스킬 생성/수정** → `~/.drewgent/skills/<category>/SKILL.md` (skill_manage 툴 사용)
+3. **메모리 저장** → `memory()` 툴 (target: memory 또는 user)
+4. **규칙 추가** → `P0-brainstem/brain/rules.md` (禁 규칙은 별도 .neuron 파일)
+5. **오류 진단** → `P6-prefrontal/incidents/` 참조
 
 ---
 
-## Adding New Tools
+## Provenance Convention (신규)
 
-Requires changes in **3 files**:
+**원칙:** 모든 artifact 생성/수정 시 그 결정을 내리게 된 **trigger/context**를 함께 기록한다.
 
-**1. Create `tools/your_tool.py`:**
-```python
-import json, os
-from tools.registry import registry
+### Skill Frontmatter
 
-def check_requirements() -> bool:
-    return bool(os.getenv("EXAMPLE_API_KEY"))
-
-def example_tool(param: str, task_id: str = None) -> str:
-    return json.dumps({"success": True, "data": "..."})
-
-registry.register(
-    name="example_tool",
-    toolset="example",
-    schema={"name": "example_tool", "description": "...", "parameters": {...}},
-    handler=lambda args, **kw: example_tool(param=args.get("param", ""), task_id=kw.get("task_id")),
-    check_fn=check_requirements,
-    requires_env=["EXAMPLE_API_KEY"],
-)
+```
+---
+title: skill-name
+trigger: "이 스킬을 만든 동기 (무슨 문제/요청에서 비롯되었는가)"
+provenance:
+  session: "YYYY-MM-DD topic-description"
+  decision: "왜 이렇게 설계했는가, 어떤 대안을 검토했는가"
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
 ```
 
-**2. Add import** in `model_tools.py` `_discover_tools()` list.
+예시:
+```
+---
+title: drewgent-provenance-convention
+trigger: "Pratik '30x AI Engineer with Taste' — 결정 맥락을 artifact에 박기 위해"
+provenance:
+  session: "2026-06-14 taste-discussion"
+  decision: "taste 수용 결정 #1 — skill/memory/config 생성 시 trigger 기록을 의무화"
+created: 2026-06-14
+---
+```
 
-**3. Add to `toolsets.py`** — either `_HERMES_CORE_TOOLS` (all platforms) or a new toolset.
+### Memory 저장 시
 
-The registry handles schema collection, dispatch, availability checking, and error wrapping. All handlers MUST return a JSON string.
+`memory()` 툴 content에 trigger 맥락 포함:
+```
+User preference for provenance tracking (from taste discussion 2026-06-14 — "Prompt alongside PR" 원칙)
+```
 
-**Path references in tool schemas**: If the schema description mentions file paths (e.g. default output directories), use `display_drewgent_home()` to make them profile-aware. The schema is generated at import time, which is after `_apply_profile_override()` sets `HERMES_HOME`.
+### Config 변경 시
 
-**State files**: If a tool stores persistent state (caches, logs, checkpoints), use `get_drewgent_home()` for the base directory — never `Path.home() / ".hermes"`. This ensures each profile gets its own state.
+변경 이유를 commit message나 인접 문서에 기록.
+직접 수정 시 `# Reason: <trigger>` 주석을 config에 추가.
 
-**Brain tools example** (`tools/brain_tool.py`):
-brain_tool registers two tools — `brain_query` and `brain_record` — giving the agent
-active bidirectional access to its wiki-based knowledge base. Unlike most tools which
-perform an action and return a result, brain tools query/record structured knowledge
-in the Obsidian wiki at `~/.drewgent/memories/`. See `tools/brain_tool.py` for the
-implementation pattern.
+### Kanban Task 생성 시
 
-**Brain maintenance** (`agent/auto_learn.py`):
-The `WikiMaintenance` class provides autonomous wiki health operations:
-- `retire_stale_entries()` — decision-matrix retirement (180d hard, 90d cold, 120d low-engagement)
-- `deduplicate_wiki()` — removes duplicate daily log entries (normalized comparison)
-- `detect_knowledge_gaps()` — identifies tracked topics without wiki coverage
-- `run_autonomous_maintenance()` — runs all three with a single call
-
-`AutoLearner.run_maintenance()` is called automatically at `shutdown_memory_provider()`
-(session end) and also from the gateway cron ticker (every ~1 hour when gateway is running),
-keeping the wiki healthy without requiring user intervention.
-
-Access tracking: `query_wiki()` records which entries are returned via `_touch_result_ids()`,
-updating `last_accessed` + `access_count` in the vector store. `Insight.should_retire()`
-uses access frequency alongside file age for smarter retirement decisions.
-
-Knowledge gap system: `detect_knowledge_gaps()` finds missing topics.
-`get_growth_suggestions()` + `fill_gap()` let the agent proactively explore and fill gaps.
-`query_wiki()` falls back to gap suggestions when no direct match is found.
-
-**Agent-level tools** (todo, memory): intercepted by `run_agent.py` before
-`handle_function_call()` — these are internal agent mechanisms, not external tools.
-See `todo_tool.py` for the pattern. Brain tools are NOT agent-level tools; they
-are regular registry tools like any other.
+body에 provenance 포함:
+```
+## Origin
+- Trigger: [문제/요청]
+- Session: [날짜 topic]
+- Decision rationale: [왜 이렇게 하는가]
+```
 
 ---
 
-## Adding Configuration
+## Kanban Leverage Score (신규)
 
-### config.yaml options:
-1. Add to `DEFAULT_CONFIG` in `drewgent_cli/config.py`
-2. Bump `_config_version` (currently 5) to trigger migration for existing users
+**원칙:** "이 작업이 해결되면, 몇 개의 다른 문제가 자동으로 사라지는가?"
 
-### .env variables:
-1. Add to `OPTIONAL_ENV_VARS` in `drewgent_cli/config.py` with metadata:
-```python
-"NEW_API_KEY": {
-    "description": "What it's for",
-    "prompt": "Display name",
-    "url": "https://...",
-    "password": True,
-    "category": "tool",  # provider, tool, messaging, setting
-},
+### Task 생성 시 (kanban_create)
+
+Body에 Leverage Assessment 포함:
+```
+## Leverage Assessment
+- 이 작업 해결 시 자동 해결되는 문제:
+  1. ...
+  2. ...
+- Leverage Score (1-5): N
+- 근거: (왜 이 점수인지 간단히)
 ```
 
-### Config loaders (two separate systems):
+### Task 완료 시 (kanban_complete)
 
-| Loader | Used by | Location |
-|--------|---------|----------|
-| `load_cli_config()` | CLI mode | `cli.py` |
-| `load_config()` | `drewgent` tools`, `drewgent setup` | `drewgent_cli/config.py` |
-| Direct YAML load | Gateway | `gateway/run.py` |
+metadata에 실제 impact 기록:
+```json
+{
+  "leverage_score": 4,
+  "problems_eliminated": ["problem A", "problem B"],
+  "taste_decision": "왜 이 접근법이 최선이었는지"
+}
+```
+
+### 점수 기준
+
+| Score | 의미 | 예시 |
+|-------|------|------|
+| 5 | 전체 시스템의 근본 문제 해결 | 아키텍처 변경으로 클래스 전체 제거 |
+| 4 | 여러 하위 문제를 한 번에 해결 | 공통 모듈 추출로 N개 중복 제거 |
+| 3 | 명확한 개선 + 1-2개 부수 효과 | config 정리로 수동 스탭 제거 |
+| 2 | 국소적 개선, 부수 효과 없음 | 버그 수정 |
+| 1 | 표면적 변경, 영향 제한적 | 오타 수정, 문서 업데이트 |
 
 ---
 
-## Skin/Theme System
-
-The skin engine (`drewgent_cli/skin_engine.py`) provides data-driven CLI visual customization. Skins are **pure data** — no code changes needed to add a new skin.
-
-### Architecture
+## Vault Structure (P0-P6)
 
 ```
-drewgent_cli/skin_engine.py    # SkinConfig dataclass, built-in skins, YAML loader
-~/.drewgent/skins/*.yaml       # User-installed custom skins (drop-in)
+~/.drewgent/
+├── P0-brainstem/         # 절대 규칙, 禁 뉴런
+├── P1-limbic/            # 정체성, persona, voice, writing style
+├── P2-hippocampus/       # 메모리, 지식 저장소
+├── P3-sensors/           # 게이트웨이, 툴 통합, 데이터 흐름
+├── P4-cortex/            # 스킬 인덱스, 성장 기록, 리팩토링 이력
+├── P5-ego/               # 셀프 모델, 자기 인식
+├── P6-prefrontal/        # 인시던트, 회고, 장기 계획
+└── skills/               # 카테고리별 SKILL.md (100+)
 ```
 
-- `init_skin_from_config()` — called at CLI startup, reads `display.skin` from config
-- `get_active_skin()` — returns cached `SkinConfig` for the current skin
-- `set_active_skin(name)` — switches skin at runtime (used by `/skin` command)
-- `load_skin(name)` — loads from user skins first, then built-ins, then falls back to default
-- Missing skin values inherit from the `default` skin automatically
+각 P-layer는 Obsidian vault의 폴더. 파일 간 wikilink로 연결되어 그래프를 형성.
 
-### What skins customize
+---
 
-| Element | Skin Key | Used By |
-|---------|----------|---------|
-| Banner panel border | `colors.banner_border` | `banner.py` |
-| Banner panel title | `colors.banner_title` | `banner.py` |
-| Banner section headers | `colors.banner_accent` | `banner.py` |
-| Banner dim text | `colors.banner_dim` | `banner.py` |
-| Banner body text | `colors.banner_text` | `banner.py` |
-| Response box border | `colors.response_border` | `cli.py` |
-| Spinner faces (waiting) | `spinner.waiting_faces` | `display.py` |
-| Spinner faces (thinking) | `spinner.thinking_faces` | `display.py` |
-| Spinner verbs | `spinner.thinking_verbs` | `display.py` |
-| Spinner wings (optional) | `spinner.wings` | `display.py` |
-| Tool output prefix | `tool_prefix` | `display.py` |
-| Per-tool emojis | `tool_emojis` | `display.py` → `get_tool_emoji()` |
-| Agent name | `branding.agent_name` | `banner.py`, `cli.py` |
-| Welcome message | `branding.welcome` | `cli.py` |
-| Response box label | `branding.response_label` | `cli.py` |
-| Prompt symbol | `branding.prompt_symbol` | `cli.py` |
+## Tiered Autonomy (신규)
 
-### Built-in skins
+작업 유형별 AI agent의 판단 권한 레벨. 불필요한 확인 요청을 줄이고, 위험한 결정은 반드시 인간을 거치게 한다.
 
-- `default` — Classic Drewgent gold/kawaii (the current look)
-- `ares` — Crimson/bronze war-god theme with custom spinner wings
-- `mono` — Clean grayscale monochrome
-- `slate` — Cool blue developer-focused theme
+| Tier | 범위 | 내 판단 권한 | 예시 |
+|------|------|------------|------|
+| 1 | 문서/코멘트/오타 | **Autonomous.** 완료 후 간단히 보고 | 오타 수정, README 업데이트, `memory()` 저장, skill 문서화 개선 |
+| 2 | 기존 패턴 내 작업 | **Autonomous.** 단, provenance 포함 + 검증 | 기존 스킬 패치, 규칙에 명시된 config 변경, AGENTS.md 업데이트 |
+| 3 | 구조 내 변경 | **제안 → 승인 후 실행.** draft + 옵션 제시 | customize layer 변경, 새 메커니즘 도입, skill 구조 변경 |
+| 4 | 아키텍처/방향 | **사전 제안만.** 결정은 인간 | P-layer 구조 변경, 새 전략 도입, fork/repot 결정 |
 
-### Adding a built-in skin
+### 운영 규칙
 
-Add to `_BUILTIN_SKINS` dict in `drewgent_cli/skin_engine.py`:
+- **Tier 1-2는 지연 없이 실행.** 굳이 "해도 될까요?" 묻지 않음.
+- **Tier 3은 반드시 draft 제시:** `[제안]` prefix + 2-3개 옵션 + "내 추천"
+- **Tier 4는 한 문장 요약** → 상세 논의는 결정 후
+- 불확실하면 Tier 3으로 기본값. **더 위험하게 추측하지 말 것.**
 
-```python
-"mytheme": {
-    "name": "mytheme",
-    "description": "Short description",
-    "colors": { ... },
-    "spinner": { ... },
-    "branding": { ... },
-    "tool_prefix": "┊",
-},
+### 근거 (Taste 원칙)
+
+Codex 팀의 tiered code review system에서 영감:
+- *"Non-critical code gets AI review only. Core agent code gets mandatory human review."*
+- 핵심은 "어떤 코드가 critical한지 아는 것" 자체가 taste.
+- 등급을 명시함으로써 판단 비용을 줄이고 일관된 수준 유지.
+
+---
+
+## Answer-First Communication (신규)
+
+**원칙:** 복잡한 응답은 결과/결론을 먼저, 과정은 그 다음에.
+
+### 구조
+
+```
+[요약/결론] — 한두 문장
+[상세] — 필요한 경우에만
+[부록] — 툴 출력, 로그, 참조
 ```
 
-### User skins (YAML)
+### 이유 (Taste)
 
-Users create `~/.drewgent/skins/<name>.yaml`:
+기사 Month 1 연습에서: *"The good ones all do something in the first 30 seconds (usually show you the outcome before explaining the process)."*
+CLI 환경에서는 특히 중요 — 사용자는 스크롤하지 않고 결과를 원함.
 
-```yaml
-name: cyberpunk
-description: Neon-soaked terminal theme
+### 예외 사항
 
-colors:
-  banner_border: "#FF00FF"
-  banner_title: "#00FFFF"
-  banner_accent: "#FF1493"
+- 문제 진단/디버깅 맥락은 과정-먼저가 올바름 (사고 과정 공유)
+- 사용자가 명시적으로 "어떻게 했어?"라고 물은 경우
 
-spinner:
-  thinking_verbs: ["jacking in", "decrypting", "uploading"]
-  wings:
-    - ["⟨⚡", "⚡⟩"]
+---
 
-branding:
-  agent_name: "Cyber Agent"
-  response_label: " ⚡ Cyber "
+## Taste Review (신규)
 
-tool_prefix: "▏"
-```
+Trend Harvester keep 리스트에서 고품질 툴을 선정하여 **심층 분석**하고 taste 결정을 추출하는 주 2회 루틴.
 
-Activate with `/skin cyberpunk` or `display.skin: cyberpunk` in config.yaml.
+| 항목 | 값 |
+|------|-----|
+| Cron job | `29ccd2c5d019` |
+| 일정 | 화/금 10:00 KST |
+| 채널 | Discord #growth |
+| 소스 | Trend Harvester keep 리스트 (≥6.0 점수) |
+| 분석 저장 | `P4-cortex/taste-reviews/YYYY-MM-DD-slug.md` |
+
+### 분석 프레임워크 (5 Questions)
+
+1. **One-Liner**: 이 툴을 한 문장으로?
+2. **훔칠 Taste 결정**: 제작자가 내린 결정 중 Drewgent에 적용할 가치가 있는 것
+3. **아키텍처 인사이트**: 구조적으로 배울 점
+4. **Drewgent 적용 가능성**: 적용 가능? 어떻게?
+5. **Leverage Score (1-5)**
+
+### 원칙
+
+- **양보다 질.** 모든 keep을 처리하는 게 목표가 아님. 진짜 가치 있는 인사이트에 집중.
+- 분석 완료된 항목은 keep → applied로 이동.
+- 자세한 내용: `taste-review` 스킬 참조.
 
 ---
 
 ## Important Policies
-### Prompt Caching Must Not Break
 
-Drewgent-Agent ensures caching remains valid throughout a conversation. **Do NOT implement changes that would:**
-- Alter past context mid-conversation
-- Change toolsets mid-conversation
-- Reload memories or rebuild system prompts mid-conversation
+### Prompt Caching 유지
 
-Cache-breaking forces dramatically higher costs. The ONLY time we alter context is during context compression.
+시스템 프롬프트를 세션 중간에 변경하지 않는다. 컨텍스트 압축 시에만 변경.
+- 절대 `system` 메시지에 변하는 내용을 넣지 않음 (link-resolve 등)
+- 스킬은 user 메시지로 주입 (system 아님)
 
-### Working Directory Behavior
-- **CLI**: Uses current directory (`.` → `os.getcwd()`)
-- **Messaging**: Uses `MESSAGING_CWD` env var (default: home directory)
+### Filesystem = Truth
 
-### Background Process Notifications (Gateway)
+파일 시스템 상태를 canonical source로 간주한다. 메모리/캐시보다 직접 파일 읽기를 우선.
+- search_files → file read 순서로 검증
+- 확인되지 않은 subagent 출력은 수락 금지
 
-When `terminal(background=true, check_interval=...)` is used, the gateway runs a watcher that
-pushes status updates to the user's chat. Control verbosity with `display.background_process_notifications`
-in config.yaml (or `HERMES_BACKGROUND_NOTIFICATIONS` env var):
+### 리팩토링 원칙
 
-- `all` — running-output updates + final message (default)
-- `result` — only the final completion message
-- `error` — only the final message when exit code != 0
-- `off` — no watcher messages at all
+- **절대 빅뱅 금지.** change → dev server test → confirm → next
+- 위험도 0% 변경부터 시작 (데드코드 제거)
+- 결정 전 충분한 분석 데이터 제시 ("조치 결정 할 수 있도록")
+- 옵션 → "내 추천" → user go 구조
+
+### QA 게이트
+
+3-phase QA: contract → micro → full. kanban task는 각 phase 통과 후 complete.
+
+### 모델 라우팅
+
+| 조건 | 경로 |
+|------|------|
+| 메인 (interactive) | opencode-go/deepseek-v4-flash |
+| subagent (복잡) | opencode-go/deepseek-v4-pro |
+| vision | opencode-go/mimo-v2.5-pro |
+| MiniMax 직접 (fallback) | provider: minimax, model: MiniMax-M3 |
+
+### Agent Profile System (2026-06-13)
+
+8개 pre-defined subagent profiles at `~/.drewgent/agents/*.md`. 호출 방식:
+
+```
+delegate_task(agent_profile="reviewer", goal="review this PR")
+```
+
+`agent_profile` 파라미터는 delegate_task tool schema에 내장됨 — 모든 세션에서 모든 agent가 발견 가능.
+
+| Profile | Model | Role |
+|---------|-------|------|
+| explorer | deepseek-v4-flash | 읽기 전용 분석 (ESCALATE 가능) |
+| implementer | deepseek-v4-flash | 구현 (ESCALATE 가능) |
+| tester | deepseek-v4-flash | 테스트 (ESCALATE 가능) |
+| reviewer | deepseek-v4-pro | 일반 코드 리뷰 |
+| reviewer-critical | qwen3.7-max | 중요 변경 심층 리뷰 |
+| security-reviewer | qwen3.7-max | 보안 감사 |
+| planner | qwen3.7-max | 태스크 분해/계획 |
+| archiver | deepseek-v4-flash | 문서화/기록 |
+
+### Kanban Pipeline (2026-06-13)
+
+```
+kanban_create(
+    title="Add login",
+    pipeline=["explorer","implementer","tester","reviewer","archiver"],
+)
+```
+
+N개 sequential child task 자동 생성 + 의존성 링크.
+
+### Linear Bridge (2026-06-13)
+
+kanban_complete → post_tool_call hook → Linear issue upsert.
+
+- Hook: `~/.hermes/agent-hooks/kanban-linear-sync.py`
+- Cron: 매 2시간 prune + feedback 체크
+- Archive: 7일 지난 completed issue 자동 정리
+- Free tier limit: 250 issues, safety margin 200
+
+### Ponytail — Lazy Senior Dev Mode (2026-06-15)
+
+코드를 생성하기 전, 항상 다음 체크리스트를 적용한다. 출처: [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
+
+```
+1. 이 코드가 정말 필요한가? (YAGNI)         → no: 작성하지 않음
+2. 표준 라이브러리에 이미 있나?               → use it
+3. 네이티브 플랫폼 기능으로 되나?              → use it (<input type="date"> 등)
+4. 이미 설치된 디펜던시가 해결하나?            → use it (새 dep 추가 금지)
+5. 한 줄로 가능한가?                           → one line
+6. 그래도 필요하면 최소한만.
+```
+
+**Rules:**
+- 요청되지 않은 추상화 금지. 회피 가능한 새 dep 금지.
+- 보일러플레이트 금지. 추가보다 삭제. 영리함보다 단순함. 최소 파일 수.
+- 단순화는 `ponytail:` 코멘트로 표시. 한계와 업그레이드 경로를 함께 명시.
+
+**NOT lazy about (절대 타협 금지):**
+- Trust boundary validation, data-loss 방지, security, a11y, hardware calibration
+- 사용자가 명시적으로 요청한 사항
+
+**Verification:**
+Non-trivial 로직은 **1개의 runnable check**를 남긴다 (assert 기반, 프레임워크 금지). Trivial one-liner는 test 불필요.
+
+자세한 내용: `skills/software-development/ponytail` 참조.
 
 ---
-
-## Profiles: Multi-Instance Support
-
-Drewgent supports **profiles** — multiple fully isolated instances, each with its own
-`HERMES_HOME` directory (config, API keys, memory, sessions, skills, gateway, etc.).
-
-The core mechanism: `_apply_profile_override()` in `drewgent_cli/main.py` sets
-`HERMES_HOME` before any module imports. All 119+ references to `get_drewgent_home()`
-automatically scope to the active profile.
-
-### Rules for profile-safe code
-
-1. **Use `get_drewgent_home()` for all HERMES_HOME paths.** Import from `drewgent_constants`.
-   NEVER hardcode `~/.drewgent` or `Path.home() / ".hermes"` in code that reads/writes state.
-   ```python
-   # GOOD
-   from drewgent_constants import get_drewgent_home
-   config_path = get_drewgent_home() / "config.yaml"
-
-   # BAD — breaks profiles
-   config_path = Path.home() / ".hermes" / "config.yaml"
-   ```
-
-2. **Use `display_drewgent_home()` for user-facing messages.** Import from `drewgent_constants`.
-   This returns `~/.drewgent` for default or `~/.drewgent/profiles/<name>` for profiles.
-   ```python
-   # GOOD
-   from drewgent_constants import display_drewgent_home
-   print(f"Config saved to {display_drewgent_home()}/config.yaml")
-
-   # BAD — shows wrong path for profiles
-   print("Config saved to ~/.drewgent/config.yaml")
-   ```
-
-3. **Module-level constants are fine** — they cache `get_drewgent_home()` at import time,
-   which is AFTER `_apply_profile_override()` sets the env var. Just use `get_drewgent_home()`,
-   not `Path.home() / ".hermes"`.
-
-4. **Tests that mock `Path.home()` must also set `HERMES_HOME`** — since code now uses
-   `get_drewgent_home()` (reads env var), not `Path.home() / ".hermes"`:
-   ```python
-   with patch.object(Path, "home", return_value=tmp_path), \
-        patch.dict(os.environ, {"HERMES_HOME": str(tmp_path / ".hermes")}):
-       ...
-   ```
-
-5. **Gateway platform adapters should use token locks** — if the adapter connects with
-   a unique credential (bot token, API key), call `acquire_scoped_lock()` from
-   `gateway.status` in the `connect()`/`start()` method and `release_scoped_lock()` in
-   `disconnect()`/`stop()`. This prevents two profiles from using the same credential.
-   See `gateway/platforms/telegram.py` for the canonical pattern.
-
-6. **Profile operations are HOME-anchored, not HERMES_HOME-anchored** — `_get_profiles_root()`
-   returns `Path.home() / ".hermes" / "profiles"`, NOT `get_drewgent_home() / "profiles"`.
-This is intentional — it lets `drewgent` -p coder profile list` see all profiles regardless
-of which one is active.
-
----
-
-## Brain Signal System
-
-Self-awareness architecture for tool/skill integration. The agent tracks its own state during integration workflows and receives proactive hints about missing steps.
-
-### Architecture (3 Layers)
-
-```
-user_prompt → SignalEmitter → event_bus → SignalProcessor
-                                          ↓
-                                    IntegrationWorkflow
-                                          ↓
-                                    ArchitectureModel
-                                          ↓
-                                  AwarenessReporter → hint injection
-```
-
-| Layer | File | Role |
-|-------|------|------|
-| 감각계 | `agent/brain_signals.py` (351 lines) | SignalEmitter — detects patterns, emits events |
-| 판별 레이어 | `agent/signal_processor.py` (650 lines) | IntegrationWorkflow tracking + correlation mapping |
-| 행동 레이어 | `agent/awareness_reporter.py` (295 lines) | Progress hint generation + guidance |
-| Event bus | `agent/event_bus.py` | Pub/sub singleton connecting all layers |
-
-### Signal Types
-
-```
-user.prompt                  — user message received
-tool.start                   — tool call started
-tool.complete                — tool call finished
-agent.modifying              — file written/patched
-tool.integration.start       — tool integration intent detected
-tool.integration.detected    — tool file modification detected
-skill.integration.start      — skill integration intent detected
-skill.integration.detected  — skill file modification detected
-brain.awareness.*            — awareness layer signals (emitted by processor)
-brain.report.hint            — hint delivered to agent
-session.end                  — session ending
-```
-
-### Integration Workflow (Tool Example)
-
-When user asks to add a tool:
-
-1. **SignalEmitter.user_prompt()** — detects intent, emits `tool.integration.start`
-2. **SignalProcessor._on_integration_start()** — creates `IntegrationWorkflow` with workflow_id
-3. **AwarenessReporter._on_integration_started()** — delivers initial guidance hint
-4. **Agent modifies `tools/new_tool.py`** — `agent_modifying` event → processor tracks file
-5. **SignalProcessor._on_agent_modifying()** — calls `arch_model.detect_tool_integration_progress()`
-6. **AwarenessReporter._on_integration_progress()** — emits "다음: model_tools.py" hint
-7. Hint is **injected into user message** at API call time (ephemeral, not persisted)
-8. Agent modifies `model_tools.py` → progress hint updates to "다음: toolsets.py"
-9. Agent modifies `toolsets.py` → `is_complete=True` → completion event
-10. **Workflow moves to history** — completion celebration emitted
-
-### Persistence
-
-Active workflows are saved to `sessionDB` (`integration_workflows` table, v8 schema) on `shutdown_memory_provider()` and restored on agent init. Enables mid-session interruption recovery.
-
-```python
-# Save: shutdown_memory_provider() → persist_active_workflows(session_db, session_id)
-# Restore: __init__() → get_signal_processor().restore_workflows(session_db, session_id)
-```
-
-### Hint Injection
-
-In `run_agent.py` main loop (per-turn API call preparation):
-- At `current_turn_user_idx`, checks `get_signal_processor().get_active_workflows()`
-- For each active workflow, calls `ArchitectureModel.detect_*_integration_progress()`
-- Appends `next_hint` to user message content as ephemeral injection (never persisted)
-
-### run_agent.py Call Sites
-
-| Location | Signal | Trigger |
-|----------|--------|---------|
-| `__init__` (~line 1196) | `tool_start("tool_registry_loaded")` | agent init |
-| `__init__` (~line 1203) | `restore_workflows()` | agent init |
-| `run_conversation` (~line 8242) | `user_prompt()` | user message received |
-| sequential tool path | `tool_start`, `tool_complete` | each tool call |
-| sequential tool path | `agent_modifying` | after each file-modifying tool result |
-| `shutdown_memory_provider` (~line 3021) | `persist_active_workflows()` | session end |
-| `shutdown_memory_provider` (~line 3031) | `session_end()` | session end |
-
-### ArchitectureModel Reference
-
-**Tool integration** — 3 files must be modified:
-```python
-TOOL_INTEGRATION_FILES = ["tools/", "model_tools.py", "toolsets.py"]
-```
-
-**Skill integration** — 2 steps:
-```python
-SKILL_INTEGRATION_FILES = ["skills/", "agent/skill_commands.py"]
-```
 
 ## Known Pitfalls
 
-### Python 3.14: DO NOT use `json.loads/dumps` after local assignment in the same function
+### Python 3.14: json scope bug
+큰 함수 내에서 `except json.JSONDecodeError:`를 쓰면 `json.loads()`가 UnboundLocalError.
+해결: `__import__('json').loads()` 또는 별도 wrapper 함수 사용.
 
-Python 3.14's compiler has a bug where referencing `json` (the module) in an `except` clause causes Python to treat `json` as a local variable throughout the entire function scope. If `json.loads()` or `json.dumps()` is called before the `except` clause, an `UnboundLocalError: cannot access local variable 'json' where it is not associated with a value` is raised.
+### macOS bash 3.2
+associative array 없음, `date -j -f` 필요, `set -u` 문제.
 
-**Affected pattern (buggy in Python 3.14):**
-```python
-def run_conversation(self, ...):
-    ...
-    try:
-        json.loads(args)          # Causes UnboundLocalError in Python 3.14
-    except json.JSONDecodeError:  # "json" here triggers the scope bug
-        ...
-```
-
-**Correct patterns - choose one:**
-
-1. **Use `__import__()` to bypass the scope resolution:**
-   ```python
-   try:
-       __import__('json').loads(args)
-   except Exception as e:
-       if type(e).__name__ == "JSONDecodeError":
-           ...
-   ```
-
-2. **Move json operations before any `except json.*` clauses, or use a wrapper function:**
-   ```python
-   def _json_loads(s):
-       return __import__('json').loads(s)
-   
-   def run_conversation(self, ...):
-       try:
-           _json_loads(args)   # Also works
-       except Exception as e:
-           ...
-   ```
-
-**Why this happens:** Python 3.14's compiler performs scope analysis before execution. Seeing `json.X` in an `except` clause marks `json` as a local name. When `json.loads()` appears before the `except` clause (in execution order), the local hasn't been assigned yet → UnboundLocalError. This affects **any large function** (`run_conversation` is ~3500 lines), regardless of where the `json` reference appears in source order.
-
-**Current known occurrences** that were fixed:
-- `run_agent.py:10934` — `json.loads(args)` in `run_conversation` tool-call validation loop
-- `run_agent.py:10924` — `json.dumps(args)` in same loop
-- `run_agent.py:10637` — `json.dumps(raw)` in same function
-
-Other files (`tools/*.py`, `agent/*.py`) are smaller and don't trigger this bug because their `except json.*` clauses are in narrow scopes where `json.loads/dumps` calls are either all before or all after the `except`.
-
-### DO NOT hardcode `~/.drewgent` paths
-Use `get_drewgent_home()` from `drewgent_constants` for code paths. Use `display_drewgent_home()`
-for user-facing print/log messages. Hardcoding `~/.drewgent` breaks profiles — each profile
-has its own `HERMES_HOME` directory. This was the source of 5 bugs fixed in PR #3575.
-
-### DO NOT use `simple_term_menu` for interactive menus
-Rendering bugs in tmux/iTerm2 — ghosting on scroll. Use `curses` (stdlib) instead. See `drewgent_cli/tools_config.py` for the pattern.
-
-### DO NOT use `\033[K` (ANSI erase-to-EOL) in spinner/display code
-Leaks as literal `?[K` text under `prompt_toolkit`'s `patch_stdout`. Use space-padding: `f"\r{line}{' ' * pad}"`.
-
-### `_last_resolved_tool_names` is a process-global in `model_tools.py`
-`_run_single_child()` in `delegate_tool.py` saves and restores this global around subagent execution. If you add new code that reads this global, be aware it may be temporarily stale during child agent runs.
-
-### DO NOT hardcode cross-tool references in schema descriptions
-Tool schema descriptions must not mention tools from other toolsets by name (e.g., `browser_navigate` saying "prefer web_search"). Those tools may be unavailable (missing API keys, disabled toolset), causing the model to hallucinate calls to non-existent tools. If a cross-reference is needed, add it dynamically in `get_tool_definitions()` in `model_tools.py` — see the `browser_navigate` / `execute_code` post-processing blocks for the pattern.
-
-### Tests must not write to `~/.drewgent/`
-The `_isolate_drewgent_home` autouse fixture in `tests/conftest.py` redirects `HERMES_HOME` to a temp dir. Never hardcode `~/.drewgent/` paths in tests.
-
-**Profile tests**: When testing profile features, also mock `Path.home()` so that
-`_get_profiles_root()` and `_get_default_drewgent_home()` resolve within the temp dir.
-Use the pattern from `tests/drewgent_cli/test_profiles.py`:
-```python
-@pytest.fixture
-def profile_env(tmp_path, monkeypatch):
-    home = tmp_path / ".hermes"
-    home.mkdir()
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setenv("HERMES_HOME", str(home))
-    return home
-```
+### Launchd plist 패턴
+모든 Drewgent 서비스: `KeepAlive { SuccessfulExit: false, ThrottleInterval: 10 }`
+`<true/>` (exit 0 재시작 안 함) 또는 `<false/>` (재시작 안 함) 쓰지 말 것.
 
 ---
 
-## Model Configuration & Smart Routing
+## Links
 
-Drewgent uses a two-tier model strategy to balance cost and capability.
-
-### Current Setup (config.yaml)
-
-```yaml
-# Primary: strong reasoning model for complex coding tasks
-model:
-  provider: minimax
-  model: minimax-m3
-
-# Fallback: when primary is unavailable (rate-limit, overload)
-fallback_model:
-  provider: opencode-go
-  model: deepseek-v4-flash
-
-# Smart routing: cheap model for simple turns (auto-detected)
-smart_model_routing:
-  enabled: true
-  max_simple_chars: 160
-  max_simple_words: 28
-  cheap_model:
-    provider: opencode-go
-    model: deepseek-v4-flash
-
-# Auxiliary tasks (compression, search, MCP, vision, etc.)
-# All routed to cheap model for efficiency
-auxiliary:
-  vision/provider: opencode-go
-  web_extract/provider: opencode-go
-  compression/provider: opencode-go
-  session_search/provider: opencode-go
-  mcp/provider: opencode-go
-  flush_memories/provider: opencode-go
-```
-
-### Routing Logic
-
-| Condition | Route | Cost |
-|-----------|-------|------|
-| Short question (≤160 chars, ≤28 words, no code/URL/keywords) | `opencode-go/deepseek-v4-flash` | $0.14/$0.28 Mtok |
-| Complex task (code blocks, URLs, keywords like "debug/implement/refactor") | `minimax/minimax-m3` | ~$0.60/$2.40 Mtok |
-| Primary unavailable | `opencode-go/deepseek-v4-flash` (fallback) | $0.14/$0.28 Mtok |
-| Compression, search, MCP, vision, flush_memories | `opencode-go/deepseek-v4-flash` | $0.14/$0.28 Mtok |
-
-### Smart Routing Detection
-
-The `choose_cheap_model_route()` function in `agent/smart_model_routing.py` conservatively routes to cheap model only when ALL conditions are met:
-- Message ≤ `max_simple_chars` (160)
-- Word count ≤ `max_simple_words` (28)
-- No newlines beyond 1
-- No code backticks (`` ` `` or `` ``` ``)
-- No URLs
-- No complex keywords (debug, implement, refactor, test, docker, etc.)
-
-### Credential Requirements
-
-- `MINIMAX_API_KEY` — for primary model (MiniMax M3)
-- `OPENCODE_GO_API_KEY` — for fallback, smart routing, and all auxiliary tasks (OpenCode Go subscription)
-
-Both stored in `~/.drewgent/.env` (chmod 600).
-
----
-
-## Testing
-
-```bash
-source venv/bin/activate
-python -m pytest tests/ -q          # Full suite (~3000 tests, ~3 min)
-python -m pytest tests/test_model_tools.py -q   # Toolset resolution
-python -m pytest tests/test_cli_init.py -q       # CLI config loading
-python -m pytest tests/gateway/ -q               # Gateway tests
-python -m pytest tests/tools/ -q                 # Tool-level tests
-```
-
-Always run the full suite before pushing changes.
-
----
-
-## Cron & AIAgent 상태 (2026-06-05)
-
-### 배경
-`run_agent.py`와 `agent/` 디렉토리에 upstream refactoring 코드가 **반만 적용**된 상태였음.
-- `run_agent.py`에 추출된 모듈(`conversation_loop.py`, `api_retry_loop.py` 등)을 참조하는 코드가 추가됨
-- 하지만 해당 모듈 파일들은 working tree에 없음 (upstream branch 미병합 상태)
-- 이로 인해 `api_start_time`, `retry_count` 등 15+ 변수가 undefined 상태가 되어 AIAgent 기동 불가
-
-### 해결 (2026-06-05)
-- `git checkout HEAD -- run_agent.py agent/`로 HEAD (working pre-refactoring) 상태로 복원
-- AIAgent 정상 작동 확인 (`deepseek-v4-pro`로 OKAY 응답)
-- `cron/scheduler.py`의 cron model config + api_mode 보정 코드는 유지
-- `gateway/run.py`의 `GatewayRunner` stub 메서드는 유지
-
-### 크론 작업
-- SEO/Trend Harvester: `script_only` 모드 유지 (직접 스크립트 실행, AIAgent 불필요)
-- 향후 AIAgent 기반 크론 잡 추가 시 정상 작동 가능
-
-### 게이트웨이 주의사항
-- `gateway/run.py` `GatewayRunner`에 `start()`/`stop()`/`wait_for_shutdown()` 메서드 추가됨
-- 변경사항 적용을 위해 게이트웨이 재시작 필요:
-  ```bash
-  drewgent gateway stop && drewgent gateway run --replace
-  ```
-
----
-
-## Cron Jobs 전체 현황 (2026-06-05)
-
-### script_only (AIAgent 불필요, 직접 스크립트 실행) — 8개
-
-| 작업 | 주기 | 스크립트 |
-|------|------|---------|
-| SEO Article Harvester | 6시간 | `scripts/cron_seo_harvester.py` |
-| Trend Harvester | 6시간 | `scripts/cron_trend_harvester.py` |
-| kanban-dispatcher | 1분 | `scripts/dispatch_once_default.py` |
-| kanban-dispatcher-content | 1분 | `scripts/dispatch_once_content.py` |
-| kanban-dispatcher-integrations | 1분 | `scripts/dispatch_once_integrations.py` |
-| cron-output-cleanup | 매일 04:00 | `scripts/cron_output_cleanup.py` |
-| brain-signal-report | 매일 09:00 | `scripts/cron_brain_signal_report.py` |
-| kanban-maintenance | 매주 일 03:00 | `scripts/kanban_maintenance.py` |
-
-### LLM 필요 — 2개
-
-| 작업 | 주기 | 비고 |
-|------|------|------|
-| content-pipeline | 3시간 | AIAgent로 콘텐츠 선별·kanban 태스크 생성 |
-| site-spec-audit-weekly | 매주 일 04:00 | AIAgent + MCP 사이트 감사 |
-
-### 전환 배경
-- ALL jobs were going through AIAgent → LLM 예산 + API rate limit 소진
-- kanban-dispatcher 3개는 **매 1분** 실행 → 하루 12,960회 API 호출이 script_only로 0회로 감소
-- `run_agent.py` HEAD 복원으로 AIAgent는 정상 작동 확인됨
-- content-pipeline, site-spec-audit만 AIAgent 유지 (tool calling 필요)
-
-### Log Noise Fixes (2026-06-05)
-- `source/_agent/orchestrator/orchestrate_tool.py`: P4-cortex orchestrator `warning` → `info`
-- `agent/brain_monitor.py`: 죽은 `from gateway.run import GatewayState` 제거 → 뇌신호 리포트 Discord 전달 활성화
-- `agent/signal_processor.py`: QA gate `contract`/`micro` phase는 `info`, "BLOCKED" 문구 제거. `full` phase만 `warning` 유지
-
-### Kanban Dispatcher 개선 (Phase 1-4, 2026-06-05)
-- **Phase 1**: 적응형 MAX_CLAIM (큐 깊이 3/5/10), 실패 태스크 후순위, 소진 태스크 보고
-- **Phase 2**: Backpressure (MAX_CLAIM ≤ ready_count // 2)
-- **Phase 3**: Heartbeat watchdog (5분 무응답 SIGTERM → reclaim)
-- **Phase 4**: Worker affinity (`skills` 기반 cooldown, `worker_affinity.json` 통계)
-
-### Known Issues
-- **content-pipeline tool format**: DeepSeek API가 `tools[0].function: missing field 'name'` 오류 반환.
-  OpenAI SDK로 직접 요청 시 정상, drewgent 에이전트 SDK 선택 로직 문제. `cron/scheduler.py` api_mode 보정 코드 추가 (00:18). 03:00 실행 검증 필요.
-- **upstream refactoring**: `run_agent.py` refactoring 커밋이 main에 미병합 상태. `git checkout HEAD -- run_agent.py agent/`로 pre-refactoring 유지 중.
-
+- [[P5-ego/SELF_MODEL]]
+- [[P0-brainstem/brain/rules]]
+- [[P1-limbic/persona/SOUL]]
+- [[P1-limbic/persona/writing-style-guide]]

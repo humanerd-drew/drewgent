@@ -11,7 +11,7 @@ links:
   - "[[skills/humanerd-site]]"
   - "[[skills/quartz-remove-drafts-customization]]"
   - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # wrangler-pages-deploy
 

@@ -65,3 +65,8 @@ The active gateway launch agent was renamed to remove the Drewgent name outside 
 - Targeted gateway/CLI tests passed from the canonical source root.
 - Gateway restarted from the canonical source root.
 - Runtime lock moved from `~/.local/state/drewgent` to `.drewgent/run/gateway-locks`.
+
+## Links
+- [[P5-ego/SELF_MODEL]]
+- [[P0-brainstem/brain/rules]]
+- [[P4-cortex/knowledge/NEURONFS_RULES]]

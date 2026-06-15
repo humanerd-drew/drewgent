@@ -10,9 +10,9 @@ updated: 2026-06-01
 links:
   - "[[skills/python-nested-import-nameerror]]"
   - "[[skills/filesystem-truth-audit]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write]]"
----
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]]"
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write.neuron]]"
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 # Patch 시 Secret/Token Truncate 함정 회피
@@ -144,6 +144,29 @@ read_file이 `***`로 마스킹한 걸 보고 내가 new_string에 truncated for
 ### 재발 방지
 이 skill 생성. 다음번엔 display의 truncated form을 보고도 new_string에는 절대 그걸 안 넣고, git에서 원본을 본다.
 
+## Patch tool 인코딩 함정 — 템플릿 리터럴 이스케이프 (2026-06-11)
+
+`mcp_patch`는 JavaScript/TypeScript 템플릿 리터럴(백틱 `)을 자동으로 백슬래시 이스케이프(`\`)한다.
+이로 인해 JS 파싱 에러(`Uncaught SyntaxError: Invalid or unexpected token`)가 발생한다.
+
+**증상**: 
+```javascript
+// 수정 후 → SyntaxError
+return \`<div>...</div>\`;  // ← \` 가 깨짐
+```
+
+**회피**:
+1. 백틱이 포함된 JS/TS 파일은 `write_file`로 전체 재작성 (patch 말고)
+2. 또는 patch 후 즉시 `node --check <file>`로 문법 검증
+3. diff에 `\`가 보이면 추가 수동 수정 필요
+
+**판단 기준**:
+| 조건 | 도구 |
+|------|------|
+| 파일에 백틱 없음 | `patch` 안전 |
+| 백틱 있고 변경 범위 작음 | `write_file`로 해당 블록만 |
+| 백틱 있고 변경 범위 큼 | `terminal` + `sed`로 line 교체 |
+
 ## Verification checklist
 
 patch가 secret을 건드렸다면:
@@ -155,7 +178,7 @@ patch가 secret을 건드렸다면:
 
 ## Related
 
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code]] — 코드에 secret 박지 말라는 P0 규칙 (이 skill은 **편집 시**의 secret 보존)
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write]] — 읽기 없이 쓰지 말라 (이 skill도 같은 원칙을 patch에 적용)
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]] — 코드에 secret 박지 말라는 P0 규칙 (이 skill은 **편집 시**의 secret 보존)
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write.neuron]] — 읽기 없이 쓰지 말라 (이 skill도 같은 원칙을 patch에 적용)
 - [[skills/python-nested-import-nameerror]] — Python lexical scoping 함정. 같은 "patch 전 읽기 + 정확한 byte 보존" 카테고리
 - [[skills/filesystem-truth-audit]] — memory/vault의 "Done" path가 실제 filesystem에 있는지 검증. 이 skill의 "patch 후 verify" 단계와 같은 정신

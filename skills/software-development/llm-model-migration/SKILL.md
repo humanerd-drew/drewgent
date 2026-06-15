@@ -11,10 +11,10 @@ updated: 2026-06-01
 links:
   - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
   - "[[P5-ego/SELF_MODEL]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles]]"
----
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]"
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁blind_write.neuron]]"
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles.neuron]]"
+  - "[[P0-brainstem/brain/rules]]"---
 
 # LLM Model Migration — Provider Default Update
 
@@ -282,10 +282,10 @@ scope 밖에서 발견한 reference를 명확히 보고:
 - **대응**:
   - Step 2 grep inventory를 **mirror 양쪽**에 동시 수행:
     ```bash
-    # production mirror
-    git grep -l "minimax-m2.7" -- 'source/drewgent-agent/drewgent_cli/' 'drewgent_cli/'
-    # test mirror (이게 흔히 누락됨)
-    git grep -l "minimax-m2.7" -- 'source/drewgent-agent/tests/' 'tests/'
+    # Replace old-model-name with the actual model string being migrated
+    # Example (M2.7→M3 migration):
+    #   git grep -l "minimax-m2.7" -- 'source/drewgent-agent/drewgent_cli/' 'drewgent_cli/'
+    #   git grep -l "minimax-m2.7" -- 'source/drewgent-agent/tests/' 'tests/'
     ```
   - Step 6-3 grep sweep에 test mirror 별도 추가:
     ```bash
@@ -395,10 +395,10 @@ config.yaml에 M3라고 적혀있어도 session header가 M2.7이면 실제로�
 - **대응**: provider list도 별도 patch 필요 (P9 pitfall과 연결)
 
 **Pattern D — "config L3 lowercase vs proper case"**
-- `config.yaml` L3: `model: minimax-m2.7` (소문자)
-- 다른 곳들: `MiniMax-M2.7` (proper case)
+- `config.yaml` L3: `model: minimax-m2.7` (소문자) — historical finding (M2.7→M3 migration audit)
+- 다른 곳들: `MiniMax-M2.7` (proper case) — historical finding
 - LLM API가 case-insensitive면 동작은 OK지만 catalog 표기와 mismatch
-- → M3 마이그레이션 시 catalog 표기 형식 (`MiniMax-M3` proper case) 통일 결정
+- → M3 마이그레이션 시 catalog 표기 형식 (`MiniMax-M3` proper case) 통일 결정 (역사적 기록)
 
 ### 9-4. Audit 결과 보고 템플릿
 
@@ -411,13 +411,13 @@ M3로 이미 옮겨진 곳:
 - ...
 
 M2.7에 그대로 박혀있는 곳:
-- config.yaml L3: `model: minimax-m2.7`  ❌ (메인 runtime)
-- config.yaml L58, L81, L262: cheap/search/fallback  ❌
+- config.yaml L3: `model: minimax-m2.7`  ❌ (historical — was the main runtime config at audit time)
+- config.yaml L58, L81...
 - P5-ego/config/config.yaml 동일 4곳  ❌
 - drewgent_cli/models.py L146-152: provider catalog에 M3 없음  ❌
 - drewgent_cli/setup.py L121-122: 동일  ❌
 - agent/model_metadata.py L117: provider-level 204800 (M2.7 사이즈)  ❌
-- **tests/test_setup_model_selection.py (top + source 2 spots)**: 첫 entry `minimax-m2.7`  ❌ (test mirror drift)
+- **tests/test_setup_model_selection.py (top + source 2 spots)**: 첫 entry `minimax-m2.7`  ❌ (historical audit finding — M2.7→M3 migration)
 ```
 
 → 사용자에게 어느 옵션으로 fix할지 결정 요청 (전체 flip / selective / noop)
@@ -426,8 +426,8 @@ M2.7에 그대로 박혀있는 곳:
 - **증상**: production은 M3, test는 M2.7 — **같은 "M3 is default" claim이 production과 test 사이에서 inconsistent**
 - **발견 방법**:
   ```bash
-  # test mirror sweep
-  git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
+  # test mirror sweep (historical: M2.7→M3 migration)
+  # git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
   # → 1건이라도 hit하면 production flip scope가 test에 미치지 못한 것
   ```
 - **왜 중요한가**: test가 M2.7에 pin돼있으면
@@ -450,8 +450,8 @@ M2.7에 그대로 박혀있는 곳:
 - **증상**: production은 M3, test는 M2.7 — **같은 "M3 is default" claim이 production과 test 사이에서 inconsistent**
 - **발견 방법**:
   ```bash
-  # test mirror sweep
-  git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
+  # test mirror sweep (historical: M2.7→M3 migration)
+  # git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
   # → 1건이라도 hit하면 production flip scope가 test에 미치지 못한 것
   ```
 - **왜 중요한가**: test가 M2.7에 pin돼있으면
@@ -474,8 +474,8 @@ M2.7에 그대로 박혀있는 곳:
 - **증상**: production은 M3, test는 M2.7 — **같은 "M3 is default" claim이 production과 test 사이에서 inconsistent**
 - **발견 방법**:
   ```bash
-  # test mirror sweep
-  git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
+  # test mirror sweep (historical: M2.7→M3 migration)
+  # git grep -l "minimax-m2.7" -- 'tests/test_*' 'source/drewgent-agent/tests/test_*'
   # → 1건이라도 hit하면 production flip scope가 test에 미치지 못한 것
   ```
 - **왜 중요한가**: test가 M2.7에 pin돼있으면
@@ -503,12 +503,12 @@ M2.7에 그대로 박혀있는 곳:
 ## Related
 
 - [[P4-cortex/growth/INTEGRATION_PROTOCOL]] — 3-file integration 원칙
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate]] — verification 단계
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles]] — surgical changes, scope 준수
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth]] — audit mode의 governance 근거 (CHANGELOG 신뢰 X, filesystem = truth)
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]] — verification 단계
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles.neuron]] — surgical changes, scope 준수
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — audit mode의 governance 근거 (CHANGELOG 신뢰 X, filesystem = truth)
 
 ## Related
 
 - [[P4-cortex/growth/INTEGRATION_PROTOCOL]] — 3-file integration 원칙
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate]] — verification 단계
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles]] — surgical changes, scope 준수
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]] — verification 단계
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁karpathy_coding_principles.neuron]] — surgical changes, scope 준수

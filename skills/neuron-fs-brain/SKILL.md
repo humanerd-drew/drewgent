@@ -8,6 +8,13 @@ metadata:
   drewgent:
     tags: [neuronfs, brain, governance, constraints, filesystem, vorq, brain-management]
     category: brain
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[neuronfs-governance-defaults]]"
+  - "[[neuronfs-subsumption-ordering]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[P0-brainstem/brain/rules]]"
+  - "[[brain/vault-naming-convention]]"
 ---
 
 # NeuronFS Brain Governance
@@ -220,6 +227,57 @@ These are hard-coded runes (constants) that cannot be overridden:
 - `值brevity` — Be concise
 - `値documentation` — Document non-obvious code
 
+## Wikilink Naming Convention
+
+Obsidian vault에서 P-layer 간 wikilink는 **full canonical path**를 사용해야 한다. 이는 NeuronFS의 두 가지 원칙을 지키기 위함이다.
+
+### 원칙 1: Layer Identity 보존
+
+NeuronFS에서 P-layer는 단순한 폴더 경로가 아니라 **우선순위와 정체성**이다:
+
+```
+[[P0-brainstem/brain/rules]]     ← P0, brainstem layer
+[[P1-limbic/persona/SOUL]]      ← P1, limbic layer
+[[P5-ego/SELF_MODEL]]           ← P5, ego layer
+[[P4-cortex/knowledge/NEURONFS_RULES]] ← P4, cortex layer
+```
+
+short name(`[[rules]]`, `[[SOUL]]`)은 layer 정보를 소멸시킨다 — `[[SOUL]]`이 P1인지 P5인지 알 수 없다.
+
+### 원칙 2: 이름 충돌 회피
+
+Drewgent vault에는 중복 파일명이 존재한다:
+
+| Short name | 중복 수 | Canonical path (올바른 링크) |
+|------------|---------|------------------------------|
+| `[[SOUL]]` | **4** | `[[P1-limbic/persona/SOUL]]` |
+| `[[index]]` | **29** | `[[P2-hippocampus/memories/index]]` |
+| `[[SCHEMA]]` | **3** | `[[P2-hippocampus/memories/SCHEMA]]` |
+| `[[SKILL]]` | **316** | 사용 금지 — `[[skills/<category>/<name>/SKILL]]` 사용 |
+
+Obsidian은 short name `[[SOUL]]`에 대해 **일관된 해석을 보장하지 않는다** — 같은 vault에서도 상황에 따라 다른 파일로 연결될 수 있다.
+
+### 적용 규칙
+
+1. **P-layer wikilink는 반드시 full canonical path 사용**:
+   ```
+   ✅ [[P0-brainstem/brain/rules]]
+   ❌ [[rules]]
+   
+   ✅ [[P1-limbic/persona/writing-style-guide]]
+   ❌ [[writing-style-guide]]
+   ```
+
+2. **스킬 SKILL.md 링크는 카테고리 포함**:
+   ```
+   ✅ [[skills/devops/kanban-worker/SKILL]]
+   ❌ [[SKILL]]  (316개 중복 — 절대 금지)
+   ```
+
+3. **금지 패턴**: 어떤 P-layer 파일도 short name만으로 링크하지 않는다. Obsidian이 추측하게 놔두지 않는다.
+
+4. **검증**: wikilink 추가 후 `grep -r '\[\[SOUL\]\]'` 등으로 short name 사용 잔여를 확인하고 수정한다.
+
 ## Subsumption Enforcement
 
 Rules are enforced in strict priority order:
@@ -303,6 +361,45 @@ To re-enable:
 ```bash
 /brain unbomb P4-cortex/my_temp_rule
 ```
+
+---
+
+## Agent Navigation & Provenance
+
+NeuronFS brain governance 외에도, Drewgent의 **에이전트 내비게이션과 결정 맥락 기록**은 `AGENTS.md`에 통합되어 있다.
+
+### AGENTS.md
+
+`~/.drewgent/AGENTS.md`는 현재 아키텍처, 파일 구조, 에이전트가 참조해야 할 문서들을 정의한 **agent-first navigation guide**다. 이 파일은 세션 시작 시 컨텍스트에 자동 로드된다.
+
+핵심 내용:
+- Current architecture (customize layer, NOT fork)
+- Agent navigation guide (what to read, what not to touch)
+- Provenance convention (결정 맥락 기록 규칙)
+- Kanban leverage score convention
+- Known pitfalls (Python 3.14 json bug, macOS bash, launchd plist)
+
+### Provenance Convention
+
+모든 artifact(skill, memory, config 변경) 생성 시 **trigger/context**를 frontmatter나 content에 기록한다:
+
+```
+---
+title: skill-name
+trigger: "why this skill exists"
+provenance:
+  session: "YYYY-MM-DD topic"
+  decision: "design rationale"
+---
+```
+
+자세한 규칙은 `AGENTS.md` 참조.
+
+### Taste Framework Reference
+
+`references/taste-framework.md`는 Pratik Bhavsar의 "How to Be a 30x AI Engineer with a Taste"를 요약한 참고 자료다. Recognition/Compass/Vision taste의 세 가지 형태와 5가지 가치 창출 영역을 정의하며, Drewgent의 아키텍처 결정을 평가하는 프레임워크로 사용할 수 있다.
+
+---
 
 ## Related Skills
 

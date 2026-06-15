@@ -1799,6 +1799,17 @@ def _build_call_kwargs(
     base_url: Optional[str] = None,
 ) -> dict:
     """Build kwargs for .chat.completions.create() with model/provider adjustments."""
+    # Normalize OpenCode model IDs — strip the provider prefix (e.g. "opencode-go/")
+    # that the config layer uses for routing but the API endpoint doesn't recognise.
+    if provider in ("opencode-go", "opencode-zen") and model and "/" in model:
+        try:
+            from drewgent_cli.models import normalize_opencode_model_id
+            normalized = normalize_opencode_model_id(provider, model)
+            if normalized != model:
+                logger.debug("Normalised OpenCode model %r → %r", model, normalized)
+                model = normalized
+        except ImportError:
+            pass
     kwargs: Dict[str, Any] = {
         "model": model,
         "messages": messages,

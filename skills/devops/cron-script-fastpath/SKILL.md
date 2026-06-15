@@ -1,6 +1,12 @@
 ---
 name: cron-script-fastpath
-description: "Add a script field to jobs.json + scheduler.py branch to bypass LLM for simple shell cron jobs (cost optimization). Reusable pattern for any 'Run: python3 xxx.py' style cron."
+title: Cron Script Fast-Path
+description: "Add a script field to jobs.json + scheduler.py branch to bypass LLM for simple shell cron jobs (cost + reliability). Reusable pattern for any 'Run: python3 xxx.py' style cron."
+created: 2026-06-03
+updated: 2026-06-14
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 # Cron Script Fast-Path — LLM Bypass for Simple Shell Jobs
@@ -25,6 +31,16 @@ Apply when a cron job's prompt is **structurally a single shell command**:
   "Report: ..." or "If silent, [SILENT]" — both of which the script
   already produces in stdout.
 
+**Two independent motivations:**
+
+| Motivation | Why | When it bites hardest |
+|---|---|---|
+| **Cost** | LLM round-trip per job tick — adds up on hourly/daily cadence with a 1M-context model. | High-frequency jobs (every N minutes). |
+| **Reliability / timeout avoidance** | LLM-based cron jobs inherit the main model. If the provider is slow to start streaming or stalls mid-response, the cron scheduler's **600s idle timeout** fires — job fails with `TimeoutError: ... idle for 603s (limit 600s) — last activity: waiting for provider response (streaming)`. The script itself would finish in <30s, but the LLM wrapper around it times out on a slow API call. | Any job where the default model can lag. The 10-min wall is tight — even a 4-min script + 5-min LLM stall = timeout. |
+
+Either motivation alone justifies converting. **Reliability is often the stronger
+reason** — a failing cron job is worse than a slightly more expensive one.
+
 **Do NOT use** for jobs that need:
 - LLM reasoning (SEO article scoring, Trend analysis, site-audit synthesis)
 - Multi-step coordination with side tools (n8n, MCP, etc.)
@@ -32,6 +48,49 @@ Apply when a cron job's prompt is **structurally a single shell command**:
 
 If unsure, leave the job on the LLM path. Cost-saving at the cost of
 quality is not the goal.
+
+### Third Path: Kanban Task Delegation
+
+When the work is too complex for a simple script but you still want
+to decouple from the cron idle timeout, an alternative exists:
+**make the cron job create a kanban task and complete immediately**.
+
+Flow:
+1. Cron job (LLM agent) creates a kanban task with full spec in the body
+2. Cron job completes itself (`kanban_complete`)
+3. Kanban dispatcher picks up the new task on its next tick
+4. A dedicated worker runs the task with its own timeout (independent of cron's 600s idle)
+
+When to choose this over `no_agent`:
+
+| Factor | no_agent script | kanban delegation |
+|---|---|---|
+| **Complexity of work** | One script, deterministic output | Multi-step, side effects, conditionals |
+| **LLM dependency** | Zero | Worker uses LLM with separate timeout |
+| **Latency** | Immediate (next tick) | Delayed until dispatcher picks it up |
+| **Observability** | Cron output only | Kanban board + run history |
+| **Idle timeout** | Subprocess timeout (300s default) | Worker has its own lifetime (configurable) |
+
+The kanban path is a good middle ground when the work needs LLM
+reasoning but you don't want the cron scheduler's 600s idle limit
+to kill long-running operations. See `kanban-orchestrator` skill for
+the creation pattern.
+
+Example (for a cron job that orchestrates data collection + LLM analysis):
+
+```python
+# In the cron job prompt, the agent does:
+kanban_create(
+    title="Trend Harvester run [date]",
+    assignee="default",  # or a specific worker profile
+    body="Execute trend_harvester.py then harvester_memory_sync.py...",
+    priority=3,
+)
+kanban_complete(summary="Delegated trend harvest to kanban worker")
+```
+
+The dispatcher spawns a worker with its own timeout budget, and the
+cron job finishes in under a minute — no idle timeout risk.
 
 ---
 
@@ -208,7 +267,7 @@ script ran, delivery path will fire normally. No tokens consumed.
 | Metric | Before | After |
 |---|---|---|
 | LLM calls per run | 1 (full AIAgent round-trip) | 0 |
-| LLM model | main (e.g. MiniMax-M3, 1M context) | n/a |
+| LLM model | main (e.g. deepseek-v4-flash) | n/a |
 | Subprocess cost | small (one shell + script) | same |
 | Delivery | identical | identical |
 
@@ -254,6 +313,130 @@ of a 50-line Python script is essentially free.
    but the actual code path runs AIAgent. Always grep the actual
    code path before trusting review docs.
 
+7. **LLM-based cron jobs without model override inherit the main model.**
+   If `jobs.json` shows `model: null, provider: null`, the job uses
+   whatever `config.yaml` sets as `model.default`. The current routing
+   is `opencode-go/deepseek-v4-flash` (fast, $10/mo subscription).
+   But even a fast model can lag. The safer
+   pattern is the **trigger→kanban delegation**: make the cron job a
+   lightweight agent that calls `kanban_create` and finishes, letting a
+   kanban worker do the heavy LLM work with its own timeout budget. See
+   `references/trend-harvester-kanban-delegation.md` for a worked example.
+
+   If you must keep the LLM in the cron itself, add an explicit
+   fast-model override at job creation or update time:
+   ```
+   cronjob(action='create'|'update', job_id='...',
+           model={provider: 'opencode-go', model: 'deepseek-v4-flash'})
+   ```
+
+8. **Verify model existence on the provider before debugging timeout.** When an LLM cron job fails with "waiting for provider response (streaming)", the first step is NOT to tune timeouts — check whether the model actually exists on the provider endpoint. Query `/v1/models` on the provider's base URL:
+
+```bash
+curl -s "${BASE_URL}/models" -H "Authorization: Bearer ${API_KEY}" \
+  | python3 -c "import json,sys; [print(m['id']) for m in json.load(sys.stdin).get('data',[])]"
+```
+
+For Opencode Go specifically (`base_url: https://opencode.ai/zen/go/v1`):
+```bash
+curl -s "https://opencode.ai/zen/go/v1/models" -H "Authorization: Bearer $OPENCODE_GO_API_KEY"
+```
+
+Known supported models (verified 2026-06-13):
+`deepseek-v4-flash`, `deepseek-v4-pro`,
+`qwen3.5-plus`, `qwen3.6-plus`, `qwen3.7-plus`, `qwen3.7-max`, `glm-5`, `glm-5.1`,
+`kimi-k2.5`, `kimi-k2.6`, `kimi-k2.7-code`, `hy3-preview`, `mimo-v2-omni`,
+`mimo-v2-pro`, `mimo-v2.5`, `mimo-v2.5-pro`
+
+If the model is absent from `/v1/models`, the job will hang indefinitely
+waiting for a 404-wrapped-as-streaming-empty — fix the model name or
+provider mapping, don't increase timeouts.
+
+9. **Cron idle timeout (600s) is tighter than you think.**
+   The cron scheduler enforces a 600s (10 min) idle limit per job tick.
+   An LLM-based job that "runs a script then summarizes" can hit this if:
+   - The script itself takes >5 min (data scraping, network collection)
+   - The LLM is slow to start streaming (>5 min queue on OpenRouter)
+   - The LLM stalls mid-stream (network blip, provider issue)
+   - Combined: script runs for 4 min, then the LLM summary call takes
+     another 5+ min to start = timeout.
+   
+   A script-only (`no_agent: true`) job avoids this entirely — the
+   subprocess timeout is separately configurable (default 300s) and
+   doesn't share the 600s idle pool.
+
+11. **PATH is NOT inherited from user shell in no-agent cron jobs.** 
+    When a `no_agent: true` script runs `hermes cron list` or `hermes kanban list` 
+    internally, the subprocess does NOT inherit the user's interactive shell PATH. 
+    Common installation paths are missing:
+    
+    - `~/.local/bin/hermes` — the hermes CLI wrapper
+    - `~/.hermes/hermes-agent/.venv/bin/hermes` — the venv hermes
+    - `/opt/homebrew/bin/hermes` — brew-installed hermes
+    
+    **Symptom:** The script runs but `hermes` CLI commands return empty output. 
+    KV data shows `cron.active: []` even though the script's `--dry-run` showed 
+    16+ active jobs.
+    
+    **Fix — add `_EXTRA_PATH` to `subprocess.run()` env:**
+    
+    ```python
+    import os, subprocess
+    
+    HOME = os.path.expanduser("~")
+    _EXTRA_PATH = os.pathsep.join([
+        os.path.join(HOME, ".local", "bin"),
+        os.path.join(HOME, ".hermes", "hermes-agent", ".venv", "bin"),
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+    ])
+    _EXTRA_ENV = {"PATH": _EXTRA_PATH + os.pathsep + os.environ.get("PATH", "")}
+    
+    def run_cmd(cmd, timeout=15):
+        env = {**_EXTRA_ENV, **os.environ}
+        r = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout,
+            shell=True, env=env
+        )
+        return r.stdout.strip(), r.stderr.strip(), r.returncode
+    ```
+    
+    **Detection:**
+    ```bash
+    env -i PATH="/usr/bin:/bin" python3 -c "
+    import subprocess
+    r = subprocess.run('hermes cron list', shell=True, capture_output=True, text=True)
+    print('stdout:', repr(r.stdout[:100]))
+    print('stderr:', repr(r.stderr[:200]))
+    "
+    ```
+    
+12. **Interpreter selection rule (CRITICAL).** `_run_job_script()` in
+    `cron/scheduler.py` picks the interpreter by file EXTENSION:
+    
+    - `.sh` / `.bash` → run with `/bin/bash`
+    - **everything else** (`.py`, `.js`, `.rb`, no extension) → run with
+      **`sys.executable`** (the Python interpreter that launched the scheduler)
+    
+    This means a `no_agent: true` cron job with `script: "foo.js"` will be
+    executed by Python, not Node.js — producing a `SyntaxError`.
+    
+    **To run Node.js (or any non-Python) scripts:**
+    - ALWAYS use a `.sh` wrapper that calls the actual interpreter:
+      ```bash
+      #!/bin/bash
+      # wrapper.sh — cron scheduler runs .sh with bash
+      HULY_KEY="$(grep '^HULY_KEY=' "$HOME/.hermes/.env" | head -1 | cut -d= -f2-)"
+      export HULY_KEY
+      exec 2>/dev/null
+      exec node --no-warnings actual_script.js
+      ```
+    - Set `script: "wrapper.sh"` in the cron job config.
+    - `_run_job_script()` is at `cron/scheduler.py:957` (verified 2026-06-14).
+    
+    This caught us with `huly_check.js` — the cron scheduler ran it with
+    Python, which failed on the em‑dash `—` character as a syntax error.
+
 ---
 
 ## 8. Related
@@ -267,6 +450,17 @@ of a 50-line Python script is essentially free.
 - `skills/software-development/yaml-config-patch-drewgent` — sister
   skill for `~/.drewgent/config.yaml` + `P5-ego/config/config.yaml`
   dual-patch pattern
+- `references/launchd-service-watchdog.md` — launchd watchdog pattern
+  for service health monitoring + auto-recovery (independent of the
+  process being monitored)
+- `references/trend-harvester-kanban-delegation.md` — worked example:
+  Trend Harvester pipeline redesign. Real 5-stage cron → kanban delegation
+  migration: collection (no_agent), evaluate-trigger (fast LLM), evaluation
+  (kanban worker), usage-watch (no_agent), retire-trigger (fast LLM → worker).
+  Taste Review was also migrated to the same trigger→kanban pattern on
+  2026-06-14.
+- `references/opencode-go-models.md` — verified model catalog for
+  Opencode Go provider. Query command + 19 confirmed models.
 
 ---
 

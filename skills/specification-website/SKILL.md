@@ -15,7 +15,7 @@ links:
   - "[[skills/humanerd-site]]"
   - "[[skills/seo-audit]]"
   - "[[P4-cortex/knowledge/obsidian-vault-site-principle]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 # specification-website

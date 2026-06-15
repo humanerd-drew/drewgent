@@ -1,6 +1,6 @@
 ---
 
-title: Skill
+title: Writing Plans
 type: skill
 space: outcome
 tags: [outcome]
@@ -9,6 +9,11 @@ updated: 2026-05-20
 links: []
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[software-development/test-driven-development]]"
+  - "[[software-development/requesting-code-review]]"
+  - "[[software-development/plan]]"
+  - "[[software-development/spike]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 

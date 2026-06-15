@@ -239,3 +239,7 @@ cron 정지 판정 시 hard evidence:
 - launchd plist: `KeepAlive.SuccessfulExit=false` 확인됨. last_exit=0 (정상 종료) 시 KeepAlive trigger 안 됨 → 향후 `KeepAlive: Always` 또는 `KeepAlive.Crashed=true` 검토.
 - watch-dog cron (1분마다 cron-runner process health check + 자동 restart) 검토 — **그러나 cron-runner가 이미 정상 동작 중이었으므로 watch-dog는 over-engineering일 수 있음. 위 hard evidence 기반 판정 기준으로 충분.**
 - jobs.py의 `next_run_at=null` 자동 recovery branch는 restart 후 영구 적용됨 — 이번 incident에서 실제로 동작 확인.
+
+## Related Neurons
+- [[禁filesystem_truth.neuron]]
+- [[禁auto_validate.neuron]]

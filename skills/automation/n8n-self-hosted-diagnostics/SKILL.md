@@ -10,7 +10,7 @@ updated: 2026-06-01
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
   - "[[skills/automation/DESCRIPTION]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # n8n Self-Hosted Diagnostics
 

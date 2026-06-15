@@ -413,6 +413,7 @@ def write_report_json(new_items: list, saved_count: int, total_rss: int) -> None
         "generated_at": datetime.now().isoformat(),
         "harvester_version": "1.1",
         "total_rss_items": total_rss,
+        "total": len(new_items),
         "new_items_found": len(new_items),
         "saved_articles": saved_count,
         "articles": [
@@ -447,7 +448,7 @@ def send_discord(new_articles: list):
     
     # Embed 형식
     embeds = []
-    for art in new_articles[:20]:  # 최대 20개
+    for art in new_articles[:10]:  # 최대 10개 (Discord embed limit, 400 방지)
         domain = urllib.parse.urlparse(art["link"]).netloc
         summary = (art.get("content", "") or art.get("title", ""))[:150].strip()
         embeds.append({

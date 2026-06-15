@@ -8,10 +8,10 @@ tags: [P3, sensors, kanban, dispatcher, watchdog, logfile, operational]
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability]]"
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]]"
   - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
   - "[[P4-cortex/growth/KANBAN-USER-GUIDE]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # kanban-dispatcher-hardening
 
@@ -183,6 +183,49 @@ conn.commit()
 
 ---
 
+## 3. Sequential tick blocking (T4 root cause, 2026-06-10)
+
+### 문제
+
+`scheduler.py:tick()`가 `for job in due_jobs:`에서 **순차 실행**. LLM 기반 cron job (kanban-dispatcher, `d1ef68ced116`) 이 먼저 실행되면 script 기반 dispatcher (`drewgent-cron-runner-001`)가 그 뒤에서 **block**됨. LLM job이 `task_qa_gate` neuron contract phase에서 hang → 전체 tick stall, 15-26분간 dispatcher 0 fire.
+
+### 발견된 패턴
+
+1. `d1ef68ced116` (kanban-dispatcher, LLM agent job)가 `tick()` loop에서 먼저 실행
+2. `run_job()`이 AIAgent 호출 → `task_qa_gate` neuron `contract.json` 없음 → **QA gate FAILED** (non-blocking이지만 agent가 추가 LLM 호출 중 hang)
+3. `drewgent-cron-runner-001` (script-based)이 뒤에서 실행 불가
+4. 다음 tick (60s 후)에서도 LLM job이 여전히 실행 중 → dispatcher fire 0 지속
+
+### 해결
+
+**1차 (disable redundant LLM job)**: `d1ef68ced116`을 `enabled: false`로. `cron_runner.py`가 이미 3개 board(default/content/integrations)를 script subprocess로 처리 — LLM job과 완전 중복이었음.
+
+**2차 (systemic fix)**: `cron/scheduler.py:tick()`에서 due_jobs 정렬:
+
+```python
+# Process script-based jobs (dispatchers) FIRST so they never get
+# blocked behind slow LLM agent jobs. LLM jobs run after.
+_script_jobs = [j for j in due_jobs if j.get("script")]
+_llm_jobs = [j for j in due_jobs if not j.get("script")]
+for job in _script_jobs + _llm_jobs:
+    # ... existing loop body
+```
+
+### 방어 계층 (T4.x)
+
+| 계층 | 위치 | 역할 |
+|---|---|---|
+| A.2 | `gateway/run.py:3260-3290` | housekeeping try/except 분해 — exception 누수 방지 |
+| T4.3 | `gateway/run.py:3236` | tick watchdog (`tick_elapsed > 5×interval` → warning) |
+| T4.4 | `drewgent_harmony_check.sh` | Layer 3.5b — cron-runner fire frequency 검출 |
+| T4.6 | `drewgent_cron_watchdog.sh` | 0 fires in 5min → auto kickstart |
+
+### Pitfall
+
+**모든 LLM cron job이 동일한 위험**: SEO Article Harvester, Trend Harvester 등도 sequential tick에서 diabled된 kanban-dispatcher와 같은 패턴으로 block 가능. 해결은 동일 — script-first sort가 script job을 보호. LLM job들 사이에서는 여전히 sequential 실행되나, dispatcher가 blocking되지 않으므로 watchdog이 5분 내 kickstart.
+
+---
+
 ## Pitfall
 
 **같은 tick에서 watchdog reclaim → Phase 2 re-claim**:
@@ -197,7 +240,7 @@ content dispatcher는 `board = "" OR board IS NULL`도 받음 — `kanban_create
 ---
 
 ## Related
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability]] — TTL/heartbeat enforcement
+- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]] — TTL/heartbeat enforcement
 - [[P2-hippocampus/kanban/KANBAN_INDEX]] — kanban brain integration
 - `~/.drewgent/scripts/dispatch_once_default.py`
 - `~/.drewgent/scripts/dispatch_once_content.py`

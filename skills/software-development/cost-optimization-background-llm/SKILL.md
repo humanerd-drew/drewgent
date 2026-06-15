@@ -1,5 +1,6 @@
 ---
 name: cost-optimization-background-llm
+current_routing: "opencode-go/deepseek-v4-flash (2026-06-14+ — all tasks use same model via $10/mo subscription, no per-call cost to optimize)"
 title: Cost Optimization — Background LLM Calls in Drewgent
 description: Reduce LLM token spend on cron + background + kanban-worker without touching interactive (CLI/ACP/Discord) paths. Inventory → classify → apply config/scheduler/worker patches → verify with hard evidence.
 domain: software-development
@@ -20,6 +21,12 @@ links:
 Reduce LLM token spend on background/scheduled work in Drewgent **without
 touching the user-facing interactive path** (CLI / ACP / Discord messages).
 Terminal-direct calls are off-scope by user preference.
+
+## Related skills
+
+- `hermes-model-routing` — broader framework for model selection across all 4 routing levels
+  (main/delegation/auxiliary/provider_routing). This skill focuses on the cost dimension;
+  the routing skill covers the complete selection framework.
 
 ## When to use
 
@@ -108,12 +115,10 @@ For 2026-06-02 inventory, the labels were:
 **3a) Auxiliary model override** (cheapest first, 0 risk):
 
 ```yaml
-# config.yaml
-auxiliary:
-  compression:           # title_generator + context_compressor
-    provider: minimax
-    model: 'MiniMax-M2.5'    # 1M context → 200K, ~30-50% cost cut
-```
+# --- With single-model subscription routing, no patching needed ---
+# Everything uses opencode-go/deepseek-v4-flash ($10/mo, zero marginal cost).
+# The cost optimization below was for a per-call era and no longer applies.
+# See current_routing in this skill's frontmatter and hermes-model-routing skill.
 
 Apply to BOTH `~/.drewgent/config.yaml` and `~/.drewgent/P5-ego/config/config.yaml`
 (they're duplicated; see Pitfall #1).
@@ -262,29 +267,38 @@ DB = '/Users/drew/.drewgent/P2-hippocampus/kanban/state/drewgent_tasks.db'
 
 `config.yaml`:
 ```yaml
-model:
-  model: minimax-m3
-smart_model_routing:
-  cheap_model:
-    model: MiniMax-M3   # same as main → no cost saving
+model: opencode-go/deepseek-v4-flash
 ```
-
-For smart-routing to save tokens, `cheap_model.model` must differ from
-`model.model`. (M2.5 has 200K context vs M3's 1M — input cost drops
-substantially.)
+→ Everything uses the same model via $10/mo subscription. No smart routing
+needed — there's zero cost difference between "cheap" and "main" calls under
+subscription billing.
 
 ### 4. KANBAN_WORKER_MODE=1 is not "deterministic"
 
 `run_kanban_worker.py` sets `KANBAN_WORKER_MODE=1` env var, but that
 flag is only honored by `acp_adapter/entry.py` (a different code path).
-The worker itself always calls `AIAgent(model="MiniMax-M3").chat(prompt)`.
-A task body classifier is required to bypass LLM.
+With single-model subscription routing (opencode-go/deepseek-v4-flash),
+there is no per-call cost difference between model tiers — the cost
+optimization this skill documents no longer applies.
 
-### 5. Auxiliary.auto mode + M2.5 model string
+### 5. Subscription routing removes cost optimization incentives
 
-If `auxiliary.compression.provider: auto` and `model: MiniMax-M2.5`,
-auto chain may fail because OpenRouter expects "MiniMaxAI/MiniMax-M2.5"
-format. Use `provider: minimax` explicitly.
+Under the current single-model subscription routing (opencode-go, $10/mo),
+all tasks use `deepseek-v4-flash` at zero marginal cost. The per-call
+cost optimization patterns below (using MiniMax-M2.5 as a cheaper model)
+are retained for reference but no longer applicable to the active config.
+
+## Supersession Notice (2026-06-13)
+
+This skill documents the **per-call era** cost optimization strategy (MiniMax Token Plan credits). As of 2026-06-13, the system routes all traffic through OpenCode Go ($10/mo subscription, zero marginal cost). The cost optimization problem has moved from "minimize per-token spend" to "match model capability to task complexity."
+
+The **model-routing** skill (`software-development/model-routing`) supersedes this skill. It covers:
+- The 3-tier flash/pro/max selection strategy
+- Agent profile system (8 predefined roles)
+- Pipeline design with cost-aware model assignment
+- OpenCode Go vs MiniMax direct fallback decision
+
+This skill is retained for reference when working with the legacy per-call path (direct MiniMax API) or when comparing before/after cost profiles.
 
 ## Reference docs (already updated 2026-06-02)
 

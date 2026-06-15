@@ -9,7 +9,7 @@ updated: 2026-05-31
 links:
   - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
   - "[[P4-cortex/growth/kanban-maintenance-guide]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 # Kanban Stuck Task Diagnosis & Recovery
 

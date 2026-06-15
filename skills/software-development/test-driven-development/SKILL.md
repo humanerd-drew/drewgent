@@ -1,6 +1,6 @@
 ---
 
-title: Skill
+title: Test Driven Development
 type: skill
 space: outcome
 tags: [outcome]
@@ -9,6 +9,12 @@ updated: 2026-05-20
 links: []
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[software-development/requesting-code-review]]"
+  - "[[software-development/writing-plans]]"
+  - "[[software-development/systematic-debugging]]"
+  - "[[software-development/plan]]"
+  - "[[software-development/spike]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 

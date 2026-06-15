@@ -13,8 +13,8 @@ links:
   - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
   - "[[P4-cortex/knowledge/headroom-poc-20260602]]"
   - "[[P4-cortex/knowledge/token-compression-headroom-20260602]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate]]"
----
+  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]"
+  - "[[P0-brainstem/brain/rules]]"---
 
 # headroom (token compression) — Drewgent POC + integration guide
 
@@ -281,5 +281,5 @@ Re-evaluate headroom_ai integration if **2 or more** of these become true:
 - `[[P4-cortex/knowledge/NEURONFS_RULES]]` — file system rules
 - `[[P4-cortex/knowledge/headroom-poc-20260602]]` — headroom_ai POC result (sibling doc)
 - `[[P4-cortex/knowledge/token-compression-headroom-20260602]]` — Drewgent-native 4-layer cap result (sibling doc)
-- `[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate]]` — QA gate (production integration 필수)
+- `[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]` — QA gate (production integration 필수)
 - `[[agent/context_compressor]]` — Drewgent's existing conversation-level summarizer (complementary, not redundant)

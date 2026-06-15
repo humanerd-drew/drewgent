@@ -4,9 +4,10 @@ name: shell-init-side-effect-gating
 description: "Audit and fix shell init files (zsh/bash) where a side effect (bg fetch, daemon, cache) runs in a context where its consumer (RPROMPT, prompt, key binding) is gated OFF. Trigger when user shows [N] PID job notification on shell login, asks to silence one, or asks to modify .zshrc/.zshenv/.zprofile/.zlogin/.bashrc. Fix pattern - move side effect to consumer's wrapper function, or apply the same gate, or silence with `&!` only after diagnosis."
 domain: software-development
 created: 2026-06-03
-updated: 2026-06-03
+updated: 2026-06-14
 links:
   - "[[P4-cortex/growth/patterns/shell-init-side-effect-gating]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 # Skill: Shell Init Side-Effect Gating
@@ -67,9 +68,48 @@ Trigger when:
 
 - **Multiple `&` mystery**: if `[N] PID` shows N=3 but only one `&` in user files, the others come from system /etc files, login hooks, or subshell evals. Audit those too.
 
+## PYTHONPATH Trailing Colon
+
+A closely related class of shell-init side effect: `PYTHONPATH` entries with a trailing separator leak the CWD into `sys.path`, shadowing modules. See `references/pypath-trailing-colon.md`.
+
+### Detection
+
+```bash
+# Check current PYTHONPATH for trailing separator
+echo "PYTHONPATH=$PYTHONPATH" | grep -E '[:;]$'
+# Check if CWD leaked into sys.path
+python3 -c "import sys; print([p for i,p in enumerate(sys.path) if 'drewgent' in p.lower() and 'customize' not in p])"
+```
+
+### Fix
+
+```bash
+# WRONG — trailing colon leaks CWD when PYTHONPATH is empty
+export PYTHONPATH="$HOME/.drewgent/customize:${PYTHONPATH:-}"
+
+# CORRECT — no leak
+export PYTHONPATH="$HOME/.drewgent/customize${PYTHONPATH:+:$PYTHONPATH}"
+```
+
+## Subprocess Protection
+
+When spawning Hermes CLI from cron/background runners, explicitly set `PYTHONPATH` in the child process env to prevent inherited PYTHONPATH leaks:
+
+```python
+import subprocess
+subprocess.run(
+    ["hermes", "kanban", "dispatch"],
+    env={**os.environ, "PYTHONPATH": "/Users/drew/.drewgent/customize"},
+)
+```
+
 ## Reference
 
 See `P4-cortex/growth/patterns/shell-init-side-effect-gating.md` for:
 - Full case study (2026-06-03 .zshrc_aliases leak)
 - Generalization beyond shell init
 - Verification recipe
+
+### Linked References
+
+- `references/pypath-trailing-colon.md` — PYTHONPATH trailing colon pitfall with full diagnostics, fix pattern, and provenance.

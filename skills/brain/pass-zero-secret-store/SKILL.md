@@ -1,6 +1,6 @@
 ---
 
-title: Skill
+title: Pass Zero Secret Store
 type: skill
 space: outcome
 tags: [outcome]
@@ -9,7 +9,7 @@ updated: 2026-05-22
 links: []
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 

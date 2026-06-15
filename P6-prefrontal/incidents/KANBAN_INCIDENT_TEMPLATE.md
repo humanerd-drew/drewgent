@@ -73,3 +73,8 @@ Check these events in the event log:
 
 ---
 *Use this template when documenting kanban incidents in P6-prefrontal/incidents/*
+
+## Links
+- [[P2-hippocampus/kanban/KANBAN_INDEX]]
+- [[P5-ego/SELF_MODEL]]
+- [[P0-brainstem/brain/rules]]

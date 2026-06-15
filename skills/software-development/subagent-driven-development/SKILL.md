@@ -1,5 +1,5 @@
 ---
-title: Skill
+title: Subagent Driven Development
 type: document
 space: concept
 tags: [concept]
@@ -10,7 +10,7 @@ links:
   - "[[autonomous-ai-agents/delegate-task-tool]]"
   - "[[autonomous-ai-agents/opencode]]"
   - "[[software-development/writing-plans]]"
----
+  - "[[P0-brainstem/brain/rules]]"---
 
 
 

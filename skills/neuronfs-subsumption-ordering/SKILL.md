@@ -8,6 +8,12 @@ metadata:
   drewgent:
     tags: [neuronfs, subsumption, brain, architecture, layers]
     category: brain
+links:
+  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[neuron-fs-brain]]"
+  - "[[neuronfs-governance-defaults]]"
+  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[P0-brainstem/brain/rules]]"
 ---
 
 # NeuronFS Subsumption Architecture
