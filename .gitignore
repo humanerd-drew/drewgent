@@ -139,6 +139,9 @@ huly_test.js
 # Generated skill manifest
 skills/.bundled_manifest
 
+# WordPress CMS (local Docker setup, not part of vault)
+wordpress/
+
 # Obsidian vault config (personal)
 .obsidian/
 
