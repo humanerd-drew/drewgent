@@ -295,11 +295,69 @@ curl -s http://macmini:8765/kanban/api/board | python3 -m json.tool
 
 ## Pitfalls
 
+**Worker crash with "pid not alive" on spawn.** When the dispatcher reports `pid NNNNN not alive` repeatedly and the task moves to `gave_up`/blocked, the worker process died before doing any work. Causes:
+
+1. **Python import error at startup** — worker starts but immediately crashes on an `ImportError`. Fix: check the dispatcher log (`~/.drewgent/P4-cortex/scripts/kanban/logs/dispatcher.log` or `grep -r "task_id" ~/.drewgent/P4-cortex/scripts/kanban/logs/workers/`). Common causes: missing venv, broken PYTHONPATH (customize layer), missing cloudflare workers-types, or a dependency that's only available in `node_modules` (npm context missing).
+2. **Segfault in workerd/sqlite** — less common. Check system logs.
+3. **Dispatcher's spawn mechanism issue on macOS** — fork-exec of `run_kanban_worker.py` may fail if the shell environment has conflicting PYTHONPATH or if the venv's python binary is missing.
+
+**Diagnostic steps for "pid not alive":**
+```bash
+# 1. Try spawning the worker manually
+cd ~/.drewgent
+source .venv/bin/activate
+python ~/.drewgent/scripts/run_kanban_worker.py --task-id <TASK_ID> 2>&1 | head -50
+
+# 2. Check if it's an import error
+python -c "from tools.kanban import kanban_show" 2>&1
+
+# 3. Check PYTHONPATH
+echo $PYTHONPATH
+```
+
+**Note:** A blocked/crashed kanban task does NOT mean the work needs recovery — the user may have completed it offline in a separate session. Always check the actual filesystem state before assuming recovery is needed (see "Kanban task may be abandoned with work already done outside the board" below).
+
 **Task state can change between dispatch and your startup.** Between when the dispatcher claimed and when your process actually booted, the task may have been blocked, reassigned, or archived. Always `kanban_show` first. If it reports `blocked` or `archived`, stop — you shouldn't be running.
+
+**Kanban task may be abandoned with work already done outside the board.** A blocked/crashed/ready kanban task does NOT mean the work needs recovery or execution — the user may have scrapped it mid-flight and completed the work in a separate session or directly on the filesystem. When a task looks like it stalled or never started:
+1. Ask the user if the task is still relevant before assuming recovery is needed
+2. **Check the actual project directory on disk** — verify what state the codebase is in
+3. **Look for AGENTS.md** (the project's canonical state document) — read it to understand what work is actually done and what's still pending
+4. Cross-reference documented state in AGENTS.md against the actual filesystem tree before reporting anything
+
+This applies especially to orchestrator/fan-out tasks where the kanban card shows `status: blocked` and `children: [todo, todo, ...]` — the children may never have run because the orchestrator crashed, but the user may have manually completed the structural work in a different context.
 
 **Workspace may have stale artifacts.** Especially `dir:` and `worktree` workspaces can have files from previous runs. Read the comment thread — it usually explains why you're running again and what state the workspace is in.
 
 **Don't rely on the CLI when the guidance is available.** The `kanban_*` tools work across all terminal backends (Docker, Modal, SSH). `hermes kanban <verb>` from your terminal tool will fail in containerized backends because the CLI isn't installed there. When in doubt, use the tool.
+
+## Stay on the original task — don't drift into side investigations
+
+When the user's original request is **Task A**, and during execution you discover something that looks like a related mystery (a port mismatch, a different machine's IP, a process from an older project still running), it is tempting to pivot and investigate that side-quest. **Don't.**
+
+**Why this burns turns:**
+- The side investigation often has its own ambiguity (you don't know which machine, which service, which box is on which port), and answering it requires the user — who just asked you to do Task A
+- Each clarifying question delays Task A's actual completion
+- Even when you correctly identify the side issue, the user wanted the *original* task done, not a peripheral cleanup
+
+**Pattern from real sessions:** User asks "fix SQLITE_BUSY so I can use Huly." You fix SQLITE_BUSY (the actual blocker). User then asks about a port number, hinting at a different machine. You start chasing the IP/port mystery. User cuts you off: *"개소리 하지말고 Huly 관련 검색 다시 해서 와라"* — meaning, stop the side-quest, return to Huly research (the actual original goal).
+
+**Rule:**
+1. Finish or block on the **original task** first
+2. If a side mystery is genuinely a blocker for the original task, name it in one line and ask the user to confirm before investigating
+3. If the side mystery is **not** a blocker, mention it as a footnote ("also noticed X, do you want me to look at that next?") and let the user choose — don't dive in
+4. If the user re-steers, acknowledge briefly and re-orient to the original task without defending the detour
+
+**Anti-pattern:** Spending 3+ turns investigating a side mystery that turns out to be a different machine on a different network — pure turn waste, and the user is now annoyed.
+
+**A second pattern from 2026-06-15 Huly NAS session:** User pastes a terminal output that **looks like a context for the current task** but is actually a stack trace from a *different* process. Specifically: the user opens with "huly 계정 생성하려는데 브라우저 콘솔에 [wrangler SQLITE_BUSY output]" and assumes the wrangler error is related. **wrangler / workerd has nothing to do with Huly** (Huly is Node + Mongo/Postgres + Redis; the user's NAS port 8087 hosts Huly, not workerd). The agent's job:
+
+1. **Do not assume pasted text is from the same context.** Look at the prompt text *and* the technical content. The user often dumps multiple terminal windows or pastes one-off outputs. Cross-check the actual environment (`lsof -i :8787` vs `lsof -i :8087`, `docker ps`, the IP they're connecting to).
+2. **Disambiguate quickly with one diagnostic**, not a long investigation. A single `lsof -nP -iTCP:8087 -sTCP:LISTEN` tells you "what is on this port, on this Mac, right now" — usually enough to name the real environment.
+3. **If the user's pasted error and the real environment disagree, name it in one sentence**: "The wrangler trace you pasted is from a different process (m-log-v2 dev on port 8787); your Huly session is on 192.168.1.53:8087 — that one is on a different machine (NAS). Want me to look at the NAS or fix the Mac dev?"
+4. **Don't fabricate a connection between unrelated stack traces.** If the user says "이게 문제라는데" about a wrangler trace and the real blocker is on a different machine, the honest answer is: "those are different systems; the actual Huly blocker is on the NAS, not this Mac." Don't chase the wrangler trace.
+
+**The same lesson applies in reverse**: when *you* (the agent) are chasing a fragile system (like NAS docker containers) and produce reams of guess-and-check debugging output, **stop after 2-3 attempts of the same pattern**. If the same `expect`/ssh race condition has bitten you three times in a row, the right move is to ask the user to either run the command themselves or give you a different transport. The user may be running the same fragile command in 2 minutes; you might still be debugging the race condition 30 minutes later.
 
 **Dispatcher reads wrong DB → tasks never dispatched.** When a custom cron runner dispatches kanban tasks (e.g. `drewgent-cron-runner-001` calling `dispatch_once_*.py`), verify it reads from the **same DB** that `kanban_create`/`kanban_list` use. The Hermes native kanban is at `$HERMES_HOME/kanban.db` (usually `~/.drewgent/kanban.db`). If the dispatcher reads a separate legacy DB (`~/.drewgent/P2-hippocampus/kanban/state/drewgent_tasks.db`), tasks created via the `kanban_*` toolset will never dispatch — they exist in a different database. Fix: point the dispatcher to the Hermes native DB, or switch to `hermes kanban dispatch` which reads the correct DB automatically.
 

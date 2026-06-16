@@ -645,6 +645,85 @@ If you catch yourself thinking:
 
 **If 3+ fixes failed:** Question the architecture (Phase 4 step 5).
 
+## Background process notification lag (Hermes)
+
+When you start a long-running process with `terminal(background=True, notify_on_complete=True)`, the completion notification can arrive **many turns late** — sometimes 3-4 turns after the process actually finished. By the time you see the `IMPORTANT: Background process <id> completed` block in the user's message, you may have already spawned a second attempt or moved on to a different state.
+
+**Symptoms:**
+- You see "exit code 137" or similar for a process you already abandoned
+- A "DEAD" poll contradicts a "still listening" lsof — usually the poll happens *before* the process truly exits
+- You start a second background job, then the first one's notification arrives and you don't know which one is canonical
+
+**Rules:**
+1. **Before starting a second background job**, poll or check status of the existing one. If it's still running, wait or kill it. Don't race.
+2. **Trust the most recent state check** (lsof, ps, curl), not stale "DEAD" reports from earlier turns.
+3. **On late notification:** if the late notification is for a process you've already replaced, treat it as informational only. Don't act on it as if the new state is wrong — verify the new state with a fresh check first.
+4. **When a "second attempt" was started out of caution,** don't immediately kill it on seeing the first's late completion. The second attempt may be the one that actually fixed the issue. Verify with health checks (HTTP 200, port listening) before deciding.
+
+**Anti-pattern:** Seeing exit code 137 and immediately killing the second attempt, only to find the second attempt was the one that actually unblocked the user.
+
+## External System Debugging — Read-Only First, Propose Destructive Second
+
+When debugging systems outside the agent's sandbox (NAS, remote server, production cluster, user-owned infrastructure), the 4-phase process still applies BUT Phase 4 has a critical gate the user must explicitly pass.
+
+### Why the standard flow doesn't work for external systems
+
+The 4-phase flow assumes the agent can execute fixes freely. For external systems:
+- The user owns the system and bears the risk
+- Destructive operations (`rm -rf`, `docker compose down`, `drop database`, `kubectl delete`) can cause data loss, service outage, or cascade failures the agent cannot recover from
+- The agent does not have the user's full context (backup state, runbooks, other users depending on the service)
+
+### The protocol
+
+1. **Phase 1–3 (root cause investigation): use read-only commands only.** On a NAS or remote host, this means:
+   - `cat`, `grep`, `find`, `ls`, `ps`, `lsof`, `docker inspect`, `docker logs`, `docker ps`
+   - Avoid: `rm`, `mv`, `chmod` on host data, `docker compose down`, `docker exec ... restart`, anything that mutates state
+   - If a read-only command would be more useful as a state-changing one (e.g. restarting a service to read fresh logs), **propose the destructive version instead of executing it.** Show the user exactly what you would run.
+
+2. **Phase 4 (Implementation): present the destructive plan as a written proposal.** Format:
+   ```
+   To fix this, the following destructive actions are needed:
+   1. <exact command> — <what it does, what it could lose>
+   2. <exact command> — <what it does, what it could lose>
+   
+   Confirm "go" or adjust before I run.
+   ```
+   - Never bundle destructive + read-only in one command sequence.
+   - If a fix is non-destructive (e.g. editing a config file the user has shared), normal Phase 4 applies.
+
+3. **If the user approves, execute ONE destructive command at a time and verify state between each.** This is the "Rule of Three" applied to destructive operations: don't batch 3 destructive commands and hope.
+
+4. **If the user denies or interrupts ("Do NOT retry", "stop"), STOP immediately.** Do not rephrase the same operation through a different command path. Do not proceed with sub-steps that depend on the denied step. Switch to a different angle or ask the user what they want to do.
+
+### The "Do NOT retry" signal is a hard stop
+
+If the security system (or the user) blocks a command with a message like "Do NOT retry this command, do NOT rephrase it, and do NOT attempt the same outcome via a different command":
+
+- That is an explicit refusal. Stop the workflow.
+- Do not attempt to bypass via a different command that achieves the same effect.
+- Do not continue with adjacent steps that depended on the blocked one.
+- Report the blocked state to the user, present alternative paths if any, and wait for explicit direction.
+
+### Common mistakes
+
+| Mistake | Why it's wrong |
+|---------|----------------|
+| Auto-running `rm -rf` / `docker compose down` after read-only diagnosis completed | The user may have plans for the existing data state, or the operation may affect other services. Destructive on external systems always needs explicit user approval. |
+| Treating a blocked command as "the security system being conservative" and trying a different formulation | The block is a hard signal. The user (or their guardrails) decided the action is unsafe in this context. Move on. |
+| Running multiple destructive commands in one expect/bash session | If one fails mid-sequence, the system is in an unknown state. Always check between commands. |
+| Restarting a service to read fresh state instead of using logs | Use `docker logs --tail N` or `journalctl` to read state without mutating. |
+
+### What this looks like in practice
+
+When the agent has determined that fixing the issue requires touching a remote host:
+
+1. Run all read-only commands first to fully understand state.
+2. Write up the proposed destructive steps with clear before/after.
+3. Wait for user "go" (or, on a hostile CI/automation context, wait for an explicit unblock).
+4. Execute one step, verify, then the next.
+
+If the user says "이어서 해줘" (just go ahead), treat that as a single explicit approval for the proposed plan — not a blanket license for all future destructive operations on that system.
+
 ## Common Rationalizations
 
 | Excuse | Reality |

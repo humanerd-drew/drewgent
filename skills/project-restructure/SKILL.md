@@ -85,14 +85,100 @@ src/
 
 In implementation-based, you need to know what layer something is (controller/view/engine) before you can find it. In domain-based, you just need to know WHAT domain it belongs to (payment/saju/user).
 
-### Splitting Monolithic Files
+### Splitting Monolithic Files with Barrel Re-Export
 
-Monolithic controller files (`auth.ts` with OAuth + login + profile) should be split into domain files before being copied to the new structure:
+Monolithic controller files should be split into domain files while maintaining backward compatibility via the **barrel re-export pattern**:
 
 1. Identify the natural verb-noun pairs in the file
 2. Create one file per pair: `sign-in.ts`, `oauth-naver.ts`, `oauth-google.ts`, `manage-profile.ts`
 3. Each file exports one or two closely related functions
-4. Import paths update from `../../controllers/auth` to `../user/sign-in` or `../user/oauth-naver`
+4. **Keep the original file as a barrel re-export**: `export { handleNaverAuth } from './oauth-naver'`
+5. Importers continue to use the old path — no cascading changes needed
+6. Later, migration to direct imports can happen incrementally
+
+**Barrel re-export pattern:**
+```typescript
+// Before (monolith): src/user/auth-controller.ts — 345 lines
+export async function handleNaverAuth(request, env, url) { ... }
+export async function handleNaverCallback(request, env, url) { ... }
+// ... 8 more exports ...
+
+// After (barrel): src/user/auth-controller.ts — 5 lines
+export { handleNaverAuth, handleNaverCallback } from './oauth-naver';
+export { handleGoogleAuth, handleGoogleCallback } from './oauth-google';
+export { handleDevLogin, handleRegister, handleLogin } from './sign-in';
+export { handleMe, handleLogout, handleProfileUpdate } from './manage-profile';
+```
+
+Route files continue to `import { handleNaverAuth } from '../user/auth-controller'` — unchanged.
+
+**Used in m-log-v2 (2026-06-15):** 7 monolithic controllers totalling 3,955 lines split into 20+ domain files. Zero import path changes. See `references/m-log-v2-barrel-split-audit-20260615.md`.
+
+### Parallel Delegation for Controller Splitting
+
+For large refactoring across many files, delegate splits to subagents in parallel waves:
+
+**Wave 1 — independent splits first:**
+- Files with zero shared dependencies (saju, auth, db queries) can be split simultaneously
+- Each subagent receives: exact source file, target file list with exports, all import paths to update
+
+**Wave 2 — dependent splits after consolidation:**
+- Files sharing duplicated code (report controllers) need a consolidation pass first
+- Create shared utility modules → THEN delegate the splits
+- Each subagent must be told about the new shared modules in their context
+
+**Critical context to include in every split task:**
+- Exact functions to extract (by line number and export name)
+- Target file names and paths
+- Which imports stay local vs get replaced with shared utils
+- The barrel re-export instruction (DO NOT delete original file)
+- Verification step (`npx tsc --noEmit`)
+- For each shared function to import instead of keeping inline, state the EXACT import path and options
+
+**This eliminates the spec-review loop** — when instructions are this detailed, the subagent produces correct output on the first attempt.
+
+**⚠️ CRITICAL PITFALL: Subagents change call flow during splits.**
+
+Even when told "do NOT change behavior, only move code," subagents will sometimes rewrite function internals or change which functions get called. Real example from 2026-06-15:
+
+- Source file `report-controller.ts` had `handleGenerateFreeLogReport` calling `generateAIReportContent()`
+- Subagent split the file and changed the call to `callLLMJson()` directly (different token budget, different NVIDIA key list)
+- The original `generateAIReportContent` function was kept in the new file but was no longer used by its only caller
+- This was caught only during manual audit — neither TypeScript nor build tools flagged it
+
+**Detection (post-split audit):**
+```bash
+# 1. Check that every function still has its original callers
+#    Compare exports from the barrel vs. actual usage in the new files
+grep -rn "async function" src/report/ --include="*.ts" | grep -v "node_modules"
+
+# 2. Trace each handler's LLM call path — does it go through the expected wrapper?
+#    Look for cases where a refactored handler calls an LLM function directly
+#    instead of going through the shared wrapper
+grep -rn "callLLMJson\|callReportLLM\|callDeepSeek" src/report/ --include="*.ts" | grep -v "node_modules"
+
+# 3. Remove unused imports that the subagent left behind
+#    (they import from shared util but no longer use it in function bodies)
+```
+
+**Prevention:**
+1. After each split wave, spot-check ONE handler per file: trace its complete call path
+2. Verify that shared utility imports are actually USED in function bodies, not just imported
+3. Check that the original call chain (e.g., handler → `generateAIReportContent` → `callDeepSeek`/`callNvidiaWithFallback`) is preserved, not shortcut
+
+**Reference:** See `references/m-log-v2-barrel-split-audit-20260615.md` for the full audit transcript.
+
+#### Multi-Phase Execution with Pre-Consolidation
+
+Before any subagent split, run a **Phase 0: consolidation pass** to extract shared inline code into utility modules. This prevents splitting from propagating duplicates:
+
+1. Identify duplicated function patterns across the controllers (`callLLMJson`, `hasRequiredKeys`, `sanitizeReportOutput`, `polishReport`, `callNvidiaWithFallback`)
+2. Create shared modules (`src/utils/report-format.ts`, `src/utils/llm-report.ts`)
+3. Parameterize differences (log prefix, system prompt key injection, sanitize flag) via options objects
+4. Keep the original files unchanged during this phase — the shared module is purely additive
+5. Only then delegate the splits, telling each subagent to import from the new shared module instead of defining inline
+
+**Evidence:** In the 2026-06-15 m-log-v2 split, this pattern reduced 5 duplicated function definitions across 3 files to 2 shared modules. Without it, each split agent would have propagated the duplication into 5+ new files.
 
 ## Frontend Integration
 
@@ -545,6 +631,13 @@ The user's project is NOT a greenfield. Every placeholder is a visible regressio
 - **Svelte plugin version + Vite compatibility**: `@sveltejs/vite-plugin-svelte@7` requires Vite 8. If the project has Vite 5, install `@sveltejs/vite-plugin-svelte@^4` instead. Installing a mismatched major version produces opaque errors (`Cannot read properties of undefined (reading 'config')` at `load-custom.js:27`).
 
 - **data-theme missing on standalone HTML pages**: If the CSS uses `[data-theme="dark"]` selectors (common with design systems that support dark/light mode), standalone HTML pages (home-beta, landing pages, MPA entry HTML) will render in LIGHT MODE by default. The original SPA sets `data-theme` via JavaScript initialization (`App.restoreTheme()` in app.js), but standalone pages don't run this code. Fix: add `<script>document.documentElement.setAttribute('data-theme','dark');</script>` to the `<head>` of EVERY standalone HTML page. Run this grep to find all HTML files that need fixing: `grep -L "data-theme" public/**/*.html src/ui/entries/**/*.html`. Apply to both the source entries AND the old public/app/ pages.
+
+- **wrangler dev SQLITE_BUSY on D1**: When wrangler dev crashes or is killed uncleanly, the local D1 SQLite database stays locked (`SQLITE_BUSY`). This prevents the next `wrangler dev` from starting. Fix: kill any stale wrangler processes and clear the D1 state:
+  ```bash
+  pkill -f wrangler
+  rm -rf .wrangler/state/v3/d1/
+  ```
+  This drops local test data (schema is recreated from migrations on next start). To preserve data, run `wrangler d1 execute --local --command=".dump" > db-backup.sql` before stopping dev, then `wrangler d1 execute --local --file=db-backup.sql` to restore.
 
 - **Report page mock data detection**: Report pages (Desire, Ai, Comprehensive, Dating) are often written by subagents with hardcoded mock content instead of real API calls. Specifically, look for:
   - `generateReportContent()` functions that produce static HTML strings

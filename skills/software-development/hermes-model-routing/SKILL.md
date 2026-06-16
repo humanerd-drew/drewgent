@@ -236,6 +236,73 @@ and you set `model: "MiniMax-M3"`, Hermes will try to find "MiniMax-M3"
 in opencode-go's model list (which has `minimax-m3` lowercase — may or
 may not match). Always set BOTH `provider` and `model` for clarity.
 
+### P6: Session restore can override configured provider via stored metadata
+
+When sessions are long-lived (CLI sessions spanning multiple turns),
+`_restore_primary_runtime` is called at the start of each new turn.
+This restores the **original** provider/model from session metadata,
+NOT the currently configured provider.
+
+```python
+# run_agent.py ~line 6068
+self.provider = rt["provider"]   # stored metadata, not current config
+```
+
+This means:
+
+- If a session was created when the default was `openrouter`, its metadata
+  stores `openrouter`. Even after you change config to `opencode-go`,
+  that session continues using `openrouter` on every turn.
+- If OpenRouter has no key or the model doesn't exist on OpenRouter, you
+  get silent HTTP 400 errors on every turn of the affected session.
+
+**Symptoms**: Dashboard shows recurring `HTTP 400: ...not a valid model ID`
+errors for sessions that started hours or days ago. New sessions work fine.
+
+**Debugging**: Check the agent log for `restore_primary` lines to see which
+sessions are using a different provider:
+
+```bash
+grep 'restore_primary.*provider=' agent.log
+# → provider=openrouter ... model=opencode-go/deepseek-v4-flash
+```
+
+**Fix options** (pick one):
+
+1. **Remove stale API key**: If the stale provider is not needed (e.g.
+   OpenRouter when you only use OpenCode Go), remove its API key from
+   `.env`. Session restore will fail → fallback → current provider.
+2. **Restart the gateway**: `hermes gateway restart` — fresh sessions
+   start with the current config. Old sessions won't be restored.
+3. **Validate model name per provider**: If you need both providers, each
+   session type must use a model name valid for its provider. The model
+   `opencode-go/deepseek-v4-flash` is valid on OpenCode Go but NOT on
+   OpenRouter (which needs `deepseek/deepseek-v4-flash` or similar).
+
+### P7: Configured but never-called models are not a routing bug
+
+If `delegation.model: deepseek-v4-pro` and `auxiliary.vision.model:
+mimo-v2.5-pro` are configured but show zero calls after weeks of use:
+
+- **deepseek-v4-pro** is only used when `delegate_task()` is called.
+  Subagent delegation requires an EXPLICIT user request or an
+  orchestrator profile that decomposes tasks. If no task naturally
+  triggers delegation, the subagent model stays idle.
+- **mimo-v2.5-pro** is only used for vision/image analysis. No image
+  processing requests → no calls.
+
+This is NOT a routing bug — the configuration is correct. The models
+are idle because their trigger conditions haven't been met. The dashboard
+Models card will show them automatically when they start being used.
+
+To verify a model name is valid (not silently failing):
+```bash
+# Test the model with the provider
+curl -s https://opencode.ai/zen/go/v1/models \
+  -H "Authorization: Bearer $OPENCODE_GO_API_KEY" | \
+  python3 -c "import json,sys; [print(m['id']) for m in json.load(sys.stdin).get('data',[])]"
+```
+
 ### P5: Subscription model ≠ no reason to split models
 
 With OpenCode Go's $10/mo flat subscription, marginal cost per call is $0.
@@ -258,4 +325,5 @@ the routing framework shifts from "which model saves money" to
 
 - `references/opencode-go.md` — OpenCode Go provider details and model list
 - `references/routing-change-sweep.md` — Procedure for cleaning up old model references when routing changes
+- `references/provider-fallback-debugging.md` — Real session trace: debugging HTTP 400 errors from session metadata override
 - `references/minimax.md` — MiniMax pricing model and Token Plan structure

@@ -1,20 +1,19 @@
 ---
 title: Subagent Driven Development
+name: subagent-driven-development
+description: "Dispatch parallel subagents for implementation and refactoring — two-stage review, wave-based batch delegation, and mechanical split patterns"
 type: document
 space: concept
 tags: [concept]
 created: 2026-05-20
-updated: 2026-05-20
+updated: 2026-06-15
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
   - "[[autonomous-ai-agents/delegate-task-tool]]"
   - "[[autonomous-ai-agents/opencode]]"
   - "[[software-development/writing-plans]]"
-  - "[[P0-brainstem/brain/rules]]"---
-
-
-
-
+  - "[[P0-brainstem/brain/rules]]"
+---
 
 # Subagent-Driven Development
 
@@ -42,19 +41,7 @@ Use this skill when:
 
 ### 1. Read and Parse Plan
 
-Read the plan file. Extract ALL tasks with their full text and context upfront. Create a todo list:
-
-```python
-# Read the plan
-read_file("docs/plans/feature-plan.md")
-
-# Create todo list with all tasks
-todo([
-    {"id": "task-1", "content": "Create User model with email field", "status": "pending"},
-    {"id": "task-2", "content": "Add password hashing utility", "status": "pending"},
-    {"id": "task-3", "content": "Create login endpoint", "status": "pending"},
-])
-```
+Read the plan file. Extract ALL tasks with their full text and context upfront. Create a todo list.
 
 **Key:** Read the plan ONCE. Extract everything. Don't make subagents read the plan file — provide the full task text directly in context.
 
@@ -64,309 +51,190 @@ For EACH task in the plan:
 
 #### Step 1: Dispatch Implementer Subagent
 
-Use `delegate_task` with complete context:
-
-```python
-delegate_task(
-    goal="Implement Task 1: Create User model with email and password_hash fields",
-    context="""
-    TASK FROM PLAN:
-    - Create: src/models/user.py
-    - Add User class with email (str) and password_hash (str) fields
-    - Use bcrypt for password hashing
-    - Include __repr__ for debugging
-
-    FOLLOW TDD:
-    1. Write failing test in tests/models/test_user.py
-    2. Run: pytest tests/models/test_user.py -v (verify FAIL)
-    3. Write minimal implementation
-    4. Run: pytest tests/models/test_user.py -v (verify PASS)
-    5. Run: pytest tests/ -q (verify no regressions)
-    6. Commit: git add -A && git commit -m "feat: add User model with password hashing"
-
-    PROJECT CONTEXT:
-    - Python 3.11, Flask app in src/app.py
-    - Existing models in src/models/
-    - Tests use pytest, run from project root
-    - bcrypt already in requirements.txt
-    """,
-    toolsets=['terminal', 'file']
-)
-```
+Use `delegate_task` with complete context including: task spec, file paths to modify, TDD instructions, project context, toolsets.
 
 #### Step 2: Dispatch Spec Compliance Reviewer
 
-After the implementer completes, verify against the original spec:
-
-```python
-delegate_task(
-    goal="Review if implementation matches the spec from the plan",
-    context="""
-    ORIGINAL TASK SPEC:
-    - Create src/models/user.py with User class
-    - Fields: email (str), password_hash (str)
-    - Use bcrypt for password hashing
-    - Include __repr__
-
-    CHECK:
-    - [ ] All requirements from spec implemented?
-    - [ ] File paths match spec?
-    - [ ] Function signatures match spec?
-    - [ ] Behavior matches expected?
-    - [ ] Nothing extra added (no scope creep)?
-
-    OUTPUT: PASS or list of specific spec gaps to fix.
-    """,
-    toolsets=['file']
-)
-```
-
-**If spec issues found:** Fix gaps, then re-run spec review. Continue only when spec-compliant.
+Verify implementation matches original spec:
+- All requirements from spec implemented?
+- File paths match spec?
+- Function signatures match spec?
+- Nothing extra added (no scope creep)?
 
 #### Step 3: Dispatch Code Quality Reviewer
 
-After spec compliance passes:
-
-```python
-delegate_task(
-    goal="Review code quality for Task 1 implementation",
-    context="""
-    FILES TO REVIEW:
-    - src/models/user.py
-    - tests/models/test_user.py
-
-    CHECK:
-    - [ ] Follows project conventions and style?
-    - [ ] Proper error handling?
-    - [ ] Clear variable/function names?
-    - [ ] Adequate test coverage?
-    - [ ] No obvious bugs or missed edge cases?
-    - [ ] No security issues?
-
-    OUTPUT FORMAT:
-    - Critical Issues: [must fix before proceeding]
-    - Important Issues: [should fix]
-    - Minor Issues: [optional]
-    - Verdict: APPROVED or REQUEST_CHANGES
-    """,
-    toolsets=['file']
-)
-```
-
-**If quality issues found:** Fix issues, re-review. Continue only when approved.
+After spec compliance passes: check conventions, error handling, naming, test coverage, security issues.
 
 #### Step 4: Mark Complete
 
-```python
-todo([{"id": "task-1", "content": "Create User model with email field", "status": "completed"}], merge=True)
-```
-
 ### 3. Final Review
 
-After ALL tasks are complete, dispatch a final integration reviewer:
-
-```python
-delegate_task(
-    goal="Review the entire implementation for consistency and integration issues",
-    context="""
-    All tasks from the plan are complete. Review the full implementation:
-    - Do all components work together?
-    - Any inconsistencies between tasks?
-    - All tests passing?
-    - Ready for merge?
-    """,
-    toolsets=['terminal', 'file']
-)
-```
+After ALL tasks are complete, dispatch a final integration reviewer.
 
 ### 4. Verify and Commit
 
-```bash
-# Run full test suite
-pytest tests/ -q
-
-# Review all changes
-git diff --stat
-
-# Final commit if needed
-git add -A && git commit -m "feat: complete [feature name] implementation"
-```
-
 ## Task Granularity
 
-**Each task = 2-5 minutes of focused work.**
+**Each task = 2-5 minutes of focused work.** Not "Implement authentication system" — instead: "Create User model", "Add password hashing function", "Create login endpoint".
 
-**Too big:**
-- "Implement user authentication system"
+## Red Flags
 
-**Right size:**
-- "Create User model with email and password fields"
-- "Add password hashing function"
-- "Create login endpoint"
-- "Add JWT token generation"
-- "Create registration endpoint"
-
-## Red Flags — Never Do These
-
-- Start implementation without a plan
 - Skip reviews (spec compliance OR code quality)
 - Proceed with unfixed critical/important issues
 - Dispatch multiple implementation subagents for tasks that touch the same files
-- Make subagent read the plan file (provide full text in context instead)
-- Skip scene-setting context (subagent needs to understand where the task fits)
-- Ignore subagent questions (answer before letting them proceed)
-- Accept "close enough" on spec compliance
+- Start code quality review before spec compliance is PASS
 - Skip review loops (reviewer found issues → implementer fixes → review again)
-- Let implementer self-review replace actual review (both are needed)
-- **Start code quality review before spec compliance is PASS** (wrong order)
-- Move to next task while either review has open issues
 
 ## Handling Issues
 
-### If Subagent Asks Questions
-
-- Answer clearly and completely
-- Provide additional context if needed
-- Don't rush them into implementation
-
-### If Reviewer Finds Issues
-
-- Implementer subagent (or a new one) fixes them
-- Reviewer reviews again
-- Repeat until approved
-- Don't skip the re-review
-
-### If Subagent Fails a Task
-
-- Dispatch a new fix subagent with specific instructions about what went wrong
-- Don't try to fix manually in the controller session (context pollution)
+- If subagent asks questions: answer clearly and completely
+- If reviewer finds issues: implementer fixes, reviewer re-reviews
+- If subagent fails a task: dispatch a new fix subagent with specific instructions
 
 ## Efficiency Notes
 
-**Why fresh subagent per task:**
-- Prevents context pollution from accumulated state
-- Each subagent gets clean, focused context
-- No confusion from prior tasks' code or reasoning
+**Why fresh subagent per task:** Prevents context pollution from accumulated state. Each subagent gets clean, focused context.
 
-**Why two-stage review:**
-- Spec review catches under/over-building early
-- Quality review ensures the implementation is well-built
-- Catches issues before they compound across tasks
-
-**Cost trade-off:**
-- More subagent invocations (implementer + 2 reviewers per task)
-- But catches issues early (cheaper than debugging compounded problems later)
-
-## Integration with Other Skills
-
-### With writing-plans
-
-This skill EXECUTES plans created by the writing-plans skill:
-1. User requirements → writing-plans → implementation plan
-2. Implementation plan → subagent-driven-development → working code
-
-### With test-driven-development
-
-Implementer subagents should follow TDD:
-1. Write failing test first
-2. Implement minimal code
-3. Verify test passes
-4. Commit
-
-Include TDD instructions in every implementer context.
-
-### With requesting-code-review
-
-The two-stage review process IS the code review. For final integration review, use the requesting-code-review skill's review dimensions.
-
-### With systematic-debugging
-
-If a subagent encounters bugs during implementation:
-1. Follow systematic-debugging process
-2. Find root cause before fixing
-3. Write regression test
-4. Resume implementation
-
-## Example Workflow
-
-```
-[Read plan: docs/plans/auth-feature.md]
-[Create todo list with 5 tasks]
-
---- Task 1: Create User model ---
-[Dispatch implementer subagent]
-  Implementer: "Should email be unique?"
-  You: "Yes, email must be unique"
-  Implementer: Implemented, 3/3 tests passing, committed.
-
-[Dispatch spec reviewer]
-  Spec reviewer: ✅ PASS — all requirements met
-
-[Dispatch quality reviewer]
-  Quality reviewer: ✅ APPROVED — clean code, good tests
-
-[Mark Task 1 complete]
-
---- Task 2: Password hashing ---
-[Dispatch implementer subagent]
-  Implementer: No questions, implemented, 5/5 tests passing.
-
-[Dispatch spec reviewer]
-  Spec reviewer: ❌ Missing: password strength validation (spec says "min 8 chars")
-
-[Implementer fixes]
-  Implementer: Added validation, 7/7 tests passing.
-
-[Dispatch spec reviewer again]
-  Spec reviewer: ✅ PASS
-
-[Dispatch quality reviewer]
-  Quality reviewer: Important: Magic number 8, extract to constant
-  Implementer: Extracted MIN_PASSWORD_LENGTH constant
-  Quality reviewer: ✅ APPROVED
-
-[Mark Task 2 complete]
-
-... (continue for all tasks)
-
-[After all tasks: dispatch final integration reviewer]
-[Run full test suite: all passing]
-[Done!]
-```
-
-## Remember
-
-```
-Fresh subagent per task
-Two-stage review every time
-Spec compliance FIRST
-Code quality SECOND
-Never skip reviews
-Catch issues early
-```
-
-**Quality is not an accident. It's the result of systematic process.**
+**Why two-stage review:** Spec review catches under/over-building early. Quality review ensures well-built code. Catches issues before they compound.
 
 ## Wave-Based Batch Delegation
 
-For parallel multi-task execution, use `delegate_task(tasks=[...], project_structure=..., coordination_instructions=..., shared_result_dir=...)`. See [[autonomous-ai-agents/delegate-task-tool]] for full documentation.
+For parallel multi-task execution, use `delegate_task(tasks=[...])`. Sends up to 3 independent tasks simultaneously — all results return together.
 
-**Example — 3 tasks in parallel:**
-```python
-delegate_task(
-    tasks=[
-        {"goal": "Implement search feature in src/search.py", "context": "See SPEC.md"},
-        {"goal": "Implement auth feature in src/auth.py", "context": "See SPEC.md"},
-        {"goal": "Write tests in tests/", "context": "Import from src/"},
-    ],
-    project_structure="src/\n  search.py\n  auth.py\n  spec.py\ntests/\npyproject.toml",
-    coordination_instructions="Tasks 0 and 1 run in parallel. Task 2 runs after both complete. Coordinator (task 2) writes final summary to {shared_result_dir}/summary.json",
-    shared_result_dir="/tmp/my-implementation"
-)
+### When to Use Parallel Waves
+
+**Parallel-safe tasks:** Files that share ZERO imports or dependencies. E.g. splitting `saju-controller.ts`, `auth-controller.ts`, and `db/queries.ts` simultaneously — they don't import from each other.
+
+**Sequential-dependent tasks:** Tasks that need a shared utility module created first. E.g. creating `utils/report-format.ts` before splitting report controllers that should import from it.
+
+### Detailed-Instruction Pattern (Eliminates Spec Review for Mechanical Work)
+
+When delegating mechanical code refactoring (splitting, moving, consolidating), provide exhaustive instructions so the subagent produces correct output on the first attempt:
+
 ```
+CONTEXT FOR EACH SPLIT TASK:
+├── Exact file path to read
+├── Target file list with:
+│   ├── File name
+│   ├── Which functions go there (by original export name)
+│   └── What imports to keep/change
+├── Shared modules already available (provide paths + export signatures)
+├── Barrel re-export instruction (keep original file, make it barrel)
+├── Verification command (npx tsc --noEmit)
+└── "Do NOT change any function bodies"
+```
+
+**When detailed instructions suffice:** Mechanical refactoring (splitting, renaming, moving code), straightforward extraction with known target layout.
+
+**When spec review IS still needed:** Complex logic with edge cases, when user intent needs interpretation, when multiple valid approaches exist.
+
+### Pattern: Consolidate First, Then Split
+
+For projects with heavy code duplication (3+ copies of the same utility):
+
+1. **Wave 1 (independent):** Split files that don't share duplicated code
+2. **Direct work:** Create shared utility modules from the duplicated code
+3. **Wave 2 (after consolidation):** Split the remaining files, instructing to import from new shared utils
+
+This prevents split propagation of duplicated code.
+
+### Real Example — m-log-v2 Controller Splitting (2026-06-15)
+
+```
+Wave 1 (3 parallel): saju split | auth split | db split
+[Direct: create utils/report-format.ts + utils/llm-report.ts]
+Wave 2 (3 parallel): dating split | report+comprehensive split | payment split
+
+Result: 7 monolithic files → 20+ domain files
+        6 duplicated functions eliminated, 0 broken imports, ~7 min wall-clock
+```
+
+## 🛑 Critical Pitfall: Subagents Silently Change Behavior During Mechanical Splits
+
+**This is the most dangerous subagent failure mode discovered to date.**
+
+Even with detailed instructions saying "Do NOT change any function bodies or logic", a subagent CAN change the call path of a function, altering runtime behavior, token counts, environment variable lookup order, and error handling — all while passing TypeScript compilation and appearing correct.
+
+### Real Incident — m-log-v2 Free Report Bypass (2026-06-15)
+
+**Task:** Split `report-controller.ts` into `generate-free-report.ts` + `generate-paid-report.ts` + prompts.
+**Instructions:** Explicit "Do NOT change any function bodies or logic."
+**What the agent did:** Changed `handleGenerateFreeLogReport` to call `callLLMJson()` directly instead of the original `generateAIReportContent()`. Result:
+- Output token budget: **1500 → 3000** (2x cost increase, unnoticed by the agent)
+- NVIDIA key fallback list: **4 keys → 3 keys** (dropped legacy safety-net `NVIDIA_API_KEY`)
+- Both behaviors compiled fine and returned the same shape — the bug was invisible unless you traced the exact API call paths
+
+**Root cause:** The agent saw `generateAIReportContent()` as an unnecessary wrapper and "optimized" it away, replacing it with a direct call to the underlying `callLLMJson()`. The agent didn't realize the wrapper had different default parameters.
+
+### Detection Methods
+
+**Method 1 — Path trace audit (most reliable):**
+After receiving all subagent results, trace ONE complete request path through the critical handler. Don't just check that TypeScript compiles — verify that the call chain reaches the same leaf functions with the same parameters.
+
+```typescript
+// BEFORE (original): handleGenerateFreeLogReport → generateAIReportContent → callDeepSeek / callNvidiaWithFallback
+// AFTER (agent changed): handleGenerateFreeLogReport → callLLMJson → callDeepSeek / callNvidiaWithFallback
+//                      ↳ bypassed generateAIReportContent entirely!
+```
+
+**Method 2 — grep for "bypass" patterns:**
+```bash
+# Check if the same function is imported but not used in the critical path
+grep -n "callLLMJson\|callReportLLM\|generateAIReportContent" src/report/generate-free-report.ts
+# If callLLMJson is imported but generateAIReportContent is also defined in the file,
+# which one does the handler actually call? Trace to find out.
+```
+
+**Method 3 — Parameter value audit:**
+Check that token counts, timeouts, and fallback key lists match the original:
+```bash
+# Dump all LLM caller invocations with their parameters
+grep -A 5 "await callLLMJson\|await callReportLLM\|await generateAIReportContent" src/report/*.ts
+```
+
+**Method 4 — Original ↔ Split comparison:**
+For critical files, do a semantic diff. The total line count should be approximately the same (plus barrel lines, minus duplicated imports). A significant discrepancy in total size indicates missing or changed logic.
+
+```bash
+# Before refactoring (save this before delegating)
+wc -l src/report/dating-controller.ts src/report/report-controller.ts
+# After refactoring
+# Total of new files should ≈ old total + barrel lines
+```
+
+### Prevention in Task Instructions
+
+Add this explicit instruction to every split task:
+
+> "After splitting, verify that the main exported handler calls the SAME internal functions as before. If the original handler called `generateAIReportContent()`, the new handler MUST also call `generateAIReportContent()` — not `callLLMJson()` directly, not any other function. The intermediate wrapper exists for a reason (different token budget, different fallback logic)."
+
+Also add:
+
+> "Import ALL functions that the original file imported, even if they seem unused in the new file. Removing an import because 'it's not used here' is a red flag — check if the original used it on a different call path."
+
+### Recovery Pattern (when discovered after delegation)
+
+```typescript
+// 1. Identify what the agent changed
+// 2. Find the ORIGINAL code (from session memory, another split file, or the barrel)
+// 3. Restore the original call path
+// 4. Verify with npx tsc --noEmit AND behavioral trace
+```
+
+### Why Standard Code Review Misses This
+
+- ✅ TypeScript compiles (callLLMJson and generateAIReportContent have compatible return types)
+- ✅ All exports preserved (barrel re-exports are correct)
+- ✅ Function signatures unchanged
+- ❌ **Call graph changed** — the handler now invokes a different function with different parameters
+- ❌ **Default parameters changed** — maxTokens defaulted differently (1500 vs 3000)
+- ❌ **Side effects changed** — different API keys tried in different order
+
+**Lesson:** For mechanical splits, TypeScript compilation is NOT enough verification. You MUST trace at least one critical call path to confirm behavioral equivalence.
 
 ## Related
 - [[P3-sensors/skills/SKILL-INDEX]]
 - [[autonomous-ai-agents/delegate-task-tool]]
 - [[autonomous-ai-agents/opencode]]
 - [[software-development/writing-plans]]
+- [[software-development/project-restructure]]

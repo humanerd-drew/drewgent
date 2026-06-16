@@ -126,6 +126,72 @@ export default {
 };
 ```
 
+### Barrel Re-Export Pattern (preserves backward compatibility)
+
+When **dispatching controller splitting to a subagent** (parallel split across multiple files in one round), the **agent doing the split is NOT responsible for verifying business logic** — they're moving code. To prevent the subagent from silently changing behavior:
+
+1. **Keep the original controller file as a 1-line barrel re-export** of all the new split files.
+2. **Do NOT change any importer** (route-*.ts, anywhere) — they keep importing from the original path.
+3. **After all splits complete, run a full functionality audit** (see Step 4b) before declaring victory.
+
+```typescript
+// Before (monolith): src/report/dating-controller.ts — 1,565줄
+export async function handleGenerateDatingReport(...) { ... }
+// ... 1500줄의 private helpers ...
+
+// After (barrel): src/report/dating-controller.ts — 1줄
+export { handleGenerateDatingReport } from './generate-dating-report';
+```
+
+**Result:** Every importer (`route-report.ts` etc.) continues to work with **zero code changes**. The barrel acts as a stability boundary between mechanical refactoring and business logic.
+
+## Step 4b — Functionality Audit After Mechanical Refactoring (필수)
+
+**Trigger:** Whenever you delegate mechanical code movement (split, rename, restructure) to a subagent OR complete one yourself without step-by-step live testing.
+
+The subagent's job is to move code **verbatim**. But subagents (and you, after many similar edits) can:
+- **Silently swap an inline implementation for a shared utility** (e.g. `callLLMJson` → `callReportLLM`) and accidentally change behavior (different default options, different token limits, different log tags)
+- **Leave dead references to removed parameters** (e.g. legacy `NVIDIA_API_KEY` after consolidating to NIM key family)
+- **Use a function's default value when the caller passed an explicit value** (e.g. dropping `maxTokens: 3000` to default 1500)
+- **Change a deprecated-wrapper to call the new function directly** but skip the wrapper's extra behavior (sanitize output, log tag, key append)
+
+**Audit procedure (do ALL of these):**
+
+1. **Diff each split file's critical functions against git HEAD** (or the original). Look for:
+   - Function bodies that diverge from the original (not just moved)
+   - Imports that changed (different library, different version)
+   - Default parameter values that got swapped
+   - Side effects that disappeared (logging, validation, etc.)
+
+2. **Trace one hot path through the new code.** Pick a real user flow (e.g. "fetch free report") and follow it:
+   - route-report.ts → handleGenerateFreeLogReport → ... → callLLMJson
+   - At each step, verify the actual call site still passes what the original passed
+   - If a parameter was hardcoded differently in the new code, that's a regression
+
+3. **Search for residual references to removed/renamed things:**
+   ```bash
+   grep -rn "NIM_KEY\\|LegacyAPI\\|oldName" src/ --include="*.ts"
+   # Each hit should be either a new key family OR a comment explaining the removal
+   ```
+
+4. **Check for ambient noise that the subagent may have added** (e.g. "this is a deprecated wrapper, can be removed" comments where the wrapper is still being used elsewhere).
+
+5. **Verify TypeScript compiles with zero new errors:**
+   ```bash
+   npx tsc --noEmit 2>&1 | grep -v "src/config/ontology/" | head -20
+   # Pre-existing errors in untouched files should be filtered
+   # Focus on errors in the split files and their importers
+   ```
+
+6. **Smoke-test the dev server with a real API call:**
+   ```bash
+   npm run dev
+   # In another terminal:
+   curl -s "http://localhost:8787/api/..." | python3 -c "import sys,json; d=json.load(sys.stdin); print('OK' if d.get('success') else d)"
+   ```
+
+**Anti-pattern:** "Trust the subagent's claim that the split is done." Subagents often finish with "✓ 0 errors" but the errors they filtered out are exactly the regressions that need to be caught. **Always run a fresh `tsc --noEmit` yourself, and grep for residual legacy references.**
+
 ## Step 5 — Live Testing with wrangler dev
 
 Keep `wrangler dev` running in the background throughout the process:

@@ -121,3 +121,23 @@ This skill is loaded automatically when the task involves:
 - **Not for exploration/spikes** — throwaway prototype code should err on the side of working fast, not minimal. The `spike` skill handles this.
 - **Ponytail vs over-engineering** — the goal is not "as few characters as possible." It's "no unnecessary complexity." A well-named helper function is better than a dense one-liner.
 - **Ponytail comments are debt, not permanent** — `ponytail:` comments flag shortcuts. When requirements change, upgrade the shortcut, don't pile on.
+
+## "Is ponytail running right now?" — the honest answer pattern
+
+When the user asks whether ponytail is active during a debugging/automation session, the truthful answer is **"no, and that's by design."** A debugging session is explicitly exempt from the minimization checklist. Don't fabricate minimization behavior just because the user asked — that would be theatre. Instead, name the active guardrail (e.g. `systematic-debugging`, `cloudflare-workers-local-dev`, `ponytail`'s opposite: the "exploration" pattern) and explain why the session deliberately does *more* probe code than the fix would.
+
+Pattern:
+- User: "너 작업 중에 포니테일 작동 하고 있어?"
+- Wrong: "네, 잘 작동하고 있습니다" (false — debugging session)
+- Wrong: "아뇨, 비효율적으로 일하고 있습니다" (false self-flagellation)
+- Right: "아니, debugging session이라 ponytail 발동 안 됨 (스킬 pitfall에 명시). 대신 [systematic-debugging] / [cloudflare-workers-local-dev] / exploration mode가 켜져 있습니다. 작업 마무리 후 fix 작성 시 ponytail 적용."
+
+## Expect/automated shell script style — from user correction 2026-06-15
+
+When the user pastes output that has **leading whitespace on every line** (a quoted code block from a chat, an indented here-doc), they often meant the lines to be raw. When the user pastes a request like "네가 코드 라인을 줄때 앞에 공백 없이 주면 안되냐?" (literal: "if you give me code lines, can you not put a leading space?"), the agent is being asked to **drop the indentation that auto-formatting / chat copy-paste adds**. Specifically:
+
+- When pasting a here-doc body or shell snippet, do **not** indent the inner lines. The shell's `<<'EOF' ... EOF` block is whitespace-significant in some contexts (e.g. `cat > file <<EOF` doesn't care, but `<<-EOF` strips leading tabs only — leading SPACES would be preserved and break Python).
+- Use the no-indent form: `cat > file <<'EOF'\nHULY_VERSION=v1\nSECRET=***\nEOF` — every inner line starts at column 0.
+- When writing expect scripts, the `send "..."` payload should also be a single string literal that the shell will receive, with newlines as `\n` and no extra indentation inserted by the agent's text formatting.
+
+The user caught a case where I pasted a multi-line shell block with leading spaces, and Synology DSM's `set -e` plus NAS-specific bash behaviors caused the indent to matter. Fix: always emit shell blocks at column 0 unless the user explicitly asks for indentation.

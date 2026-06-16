@@ -15,6 +15,9 @@ prerequisites:
 links:
   - "[[P3-sensors/skills/SKILL-INDEX]]"
   - "[[P3-sensors/integrations/huly]]"
+references:
+  - "references/selfhost-on-synology.md"
+  - "references/pushhandler-realtime.md"
 ---
 
 # Huly — Agent Usage Guide
@@ -206,6 +209,16 @@ For detailed API reference, CRUD operations, connection patterns, and
 pitfalls, see the **huly-integration** skill (software-development).
 This section covers the Drewgent-specific deployment.
 
+### Self-Hosted Deployment (Synology NAS)
+
+**For the full field playbook (envsubst pitfall, huly_v7.conf write pattern, cockroach v24.2 quirk, kvs-1 fix), see `references/selfhost-on-synology.md`.** This section only summarizes current state.
+
+Current state (last update 2026-06-16):
+- 14/14 containers running at `http://192.168.1.53:8087`
+- `kvs-1` restart-loops because huly user in cockroach never got created (the catch-22 step in the reference)
+- PICKUP for next session: create the huly user in cockroach (see reference), restart kvs/account/transactor
+- Standard `setup.sh` is broken on Synology (envsubst missing) — write huly_v7.conf by hand using the recipe in the reference
+
 ### Two-Layer Architecture
 
 | Layer | Method | Transport | Used For |
@@ -215,6 +228,8 @@ This section covers the Drewgent-specific deployment.
 
 **MCP setup:** `@bgx4k3p/huly-mcp-server` via wrapper at `~/.drewgent/scripts/huly-mcp-wrapper.sh`.
 The wrapper reads the JWT from `.env` at runtime — never stored in config.yaml.
+
+**MCP verification:** After configuring, confirm the server is actually loaded by searching for `huly:*` tools via `tool_search(query="huly")` at the start of a session. If tools don't appear, the most likely cause is the `mcp_servers:` parent key being commented out in `~/.hermes/config.yaml`. Run `grep '^mcp_servers:' ~/.hermes/config.yaml` — if empty, the key is missing or commented. In YAML, `# mcp_servers:` at the parent level disables ALL children, even if individual server entries like `huly:` are uncommented. Fix: uncomment the `mcp_servers:` line and indent servers correctly under it.
 
 ### Architecture
 - **Protocol**: WebSocket (not REST)

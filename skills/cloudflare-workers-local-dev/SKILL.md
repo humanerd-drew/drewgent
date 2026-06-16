@@ -5,7 +5,7 @@ description: Patterns, pitfalls, and workflows for local Cloudflare Workers deve
 domain: devops
 tags: [devops, cloudflare, workers, d1, wrangler, local-dev]
 created: 2026-06-11
-updated: 2026-06-12
+updated: 2026-06-15
 ---
 
 # Cloudflare Workers Local Development
@@ -28,11 +28,213 @@ Patterns and pitfalls for local Cloudflare Workers development with D1, static a
 ## D1 Local Development
 
 ### SQLITE_BUSY error
-Cause: Another `wrangler dev` instance holds a lock.
+Cause: Another `wrangler dev` instance holds a lock, or a stale `.sqlite-lock` file from a previous crash. Lock files exist in multiple locations (D1 metadata, Cache metadata), not just the D1 data directory.
+
+**Critical pitfall — `pkill -f 'wrangler'` does NOT kill the child workerd:**
+`wrangler dev` spawns a child `workerd` process that holds the SQLite file handle. `pkill -f 'wrangler'` only matches the parent `wrangler.js` node process, so the child workerd keeps running and keeps the DB locked. A `dev:clean` script that only pkill's wrangler is **structurally broken** — it WILL hit SQLITE_BUSY on the next start. **Always match workerd too**, and force-kill (-9) so the lock releases immediately:
+```bash
+pkill -9 -f 'wrangler' 2>/dev/null
+pkill -9 -f 'workerd'  2>/dev/null
+# also clear the port in case a stale process is bound:
+lsof -ti:8787 2>/dev/null | xargs -r kill -9 2>/dev/null
+
+### SQLITE_BUSY error
+Cause: Another `wrangler dev` instance holds a lock, or a stale `.sqlite-lock` file from a previous crash. Lock files exist in multiple locations (D1 metadata, Cache metadata), not just the D1 data directory.
+
+**Diagnose before fixing** — orphan `workerd` processes are the most common root cause and easy to miss:
+```bash
+# Find all wrangler/workerd processes (note: the holder is `workerd`, not `wrangler.js`)
+ps aux | grep -E '(wrangler|workerd)' | grep -v grep
+# List every TCP port the dev server and its children are listening on
+lsof -nP -iTCP -sTCP:LISTEN | grep -E '(wrangler|workerd|8787)'
+# Confirm which PID is the actual SQLite holder (look for `workerd serve` with entry=localhost:8787)
+lsof -nP -iTCP:8787 -sTCP:LISTEN
+```
+
+Two failure modes to watch for:
+- **Stale child workerd** — `pkill -f 'wrangler'` killed the parent but the `workerd` grandchild survived. Force-kill it directly: `kill -9 <workerd-pid>`. Don't trust the process tree to clean itself up.
+- **Orphan from a previous session** — a workerd from a different day/session can still hold the lock. Check `ps -o etime=` (elapsed time) — anything > 1 hour without you running dev is suspect.
+
 Fix (least destructive first):
 1. Kill the duplicate `wrangler dev` / `workerd` process — identify via `lsof -i :<port>` then `kill <pid>`
 2. If that doesn't work, kill ALL wrangler/workerd processes and restart one
-3. Last resort: clear `~/.wrangler/state/v3/d1/` to reset the database
+3. Remove stale lock files only (preserves data):
+   ```bash
+   find .wrangler/state -name '*.sqlite-lock' -delete
+   ```
+   ⚠️ **Why `find -delete` instead of `rm -f` with globs**: macOS bash 3.2 does NOT support `**` glob expansion. `rm -f .wrangler/state/**/*.sqlite-lock` silently does nothing. `find -delete` works reliably.
+4. If lock cleanup alone doesn't work, also remove WAL/SHM files left by sqlite3 (the lock might be from a different SQLite process):
+   ```bash
+   rm -f .wrangler/state/v3/*/miniflare-*Object/*.sqlite-shm
+   rm -f .wrangler/state/v3/*/miniflare-*Object/*.sqlite-wal
+   ```
+   ⚠️ Only delete SHM/WAL if the DB was modified by a non-miniflare tool (sqlite3 CLI). Under normal wrangler usage, SHM/WAL are managed by workerd and should NOT be deleted.
+5. Last resort: clear ALL wrangler state entirely:
+   ```bash
+   rm -rf .wrangler/state/v3/
+   ```
+   This drops ALL local data. Schema is recreated from migrations on next start, but test data is lost.
+
+### Workerd segfault when reading SQLite database
+
+**Root cause:** macOS system sqlite3 (MacPorts 3.51.0) creates database files with a binary format that workerd's internal SQLite cannot read. The file is structurally valid — queries work, `PRAGMA integrity_check` passes — but workerd segfaults (Signal #11) on open.
+
+**Fix:** Use better-sqlite3 (SQLite 3.53.1) to create the database file. This is the same SQLite version that miniflare/wrangler bundles, so workerd reads it cleanly. See "D1 Export/Import from Production" section below for the exact workflow.
+
+**Detection:**
+- Segfault on `wrangler d1 execute --local` even with a simple `SELECT 1`
+- Segfault on `wrangler dev` with error "Received signal #11: Segmentation fault"
+- Database file created by `/usr/bin/sqlite3` (macOS default) triggers this every time
+
+**Hardening the import chain (so it never happens again):**
+```bash
+# WRONG — uses system sqlite3 (causes segfault)
+sqlite3 database.db ".read export.sql"
+
+# CORRECT — uses better-sqlite3 via Node.js (no segfault)
+node scripts/import-db.cjs
+```
+
+**Why SHM/WAL deletion causes segfault even with the correct SQLite version:**
+When `dev:clean` deletes `.sqlite-shm` and `.sqlite-wal` files from a WAL-mode database, workerd tries to recover the WAL on open. If the SHM file is missing but the WAL has data, the recovery fails and workerd segfaults. **Never delete SHM/WAL in a dev:clean script.** Only delete them if a known external tool (system sqlite3) was used on the DB — and in that case, you should be using better-sqlite3 instead anyway.
+
+### Dev startup script with lock cleanup
+
+**Common bug** (seen 2026-06-15 on m-log-v2): the naive script
+```json
+"dev:clean": "pkill -f 'wrangler' 2>/dev/null; sleep 1; find .wrangler/state -name '*.sqlite-lock' -delete; node node_modules/wrangler/bin/wrangler.js dev"
+```
+FAILS on every restart because `pkill -f 'wrangler'` only kills the `wrangler.js` parent process. The actual SQLite holder is the **child `workerd` process**, which survives `pkill -f 'wrangler'` and keeps holding the `.sqlite` lock. The next `wrangler dev` then hits `SQLITE_BUSY` immediately.
+
+**Fix** — kill both, force-kill the port. **Do NOT delete SHM/WAL files** (that causes segfault):
+```json
+"dev:clean": "pkill -9 -f 'wrangler' 2>/dev/null; pkill -9 -f 'workerd' 2>/dev/null; sleep 1; lsof -ti:8787 2>/dev/null | xargs -r kill -9 2>/dev/null; find .wrangler/state -name '*.sqlite-lock' -delete 2>/dev/null; node node_modules/wrangler/bin/wrangler.js dev"
+```
+
+Why each piece matters:
+- `pkill -9 -f 'workerd'` — the actual SQLite holder. Without this, the lock survives.
+- `lsof -ti:8787 | xargs -r kill -9` — port-level safety net for any process that escaped the pkill pattern match.
+- **Only lock files are deleted.** SHM/WAL are never touched — they are essential for WAL-mode database integrity.
+
+Add to `package.json` to prevent SQLITE_BUSY on every dev start.
+
+This kills any stale wrangler, waits for ports to release, removes lock files, then starts dev. The `sleep 1` is critical — without it, the port may still be held.
+
+**bash 3.2 compatibility note**: Use `find -delete` not `**` globs. macOS default shell is bash 3.2 (no `globstar` support).
+
+### ⚠️ Pitfall: `pkill -f 'wrangler'` alone is NOT enough
+
+`pkill -f 'wrangler'` (without `-9`, and without matching `workerd`) only kills the **parent** `node wrangler.js` process. The actual SQLite DB holder is the **child `workerd` binary** that wrangler spawns to run the Worker runtime — and it survives the parent's death as an orphan, still holding the `.sqlite` lock and the dev port (8787 by default).
+
+Result: `wrangler dev` is "killed" but `lsof -i:8787` still shows `workerd` listening, and the next `wrangler dev` start hits `SQLITE_BUSY` immediately.
+
+**Always include in the cleanup chain:**
+1. `pkill -9 -f 'wrangler'` — force-kill the parent
+2. `pkill -9 -f 'workerd'` — force-kill the orphaned child (THIS is the DB holder)
+3. `lsof -ti:<port> | xargs -r kill -9` — belt-and-suspenders port release in case the process name doesn't match (e.g. esbuild service, leftover from crash)
+4. `find .wrangler/state -name '*.sqlite-lock' -delete` — leftover lock files
+5. ⚠️ Do NOT delete SHM/WAL files in dev:clean — they are essential for WAL-mode database integrity. Only delete them if the DB was modified by a non-miniflare tool (system sqlite3 CLI), and in that case, recreate the DB with better-sqlite3 instead.
+
+**Verification after dev:clean:**
+```bash
+sleep 2
+lsof -nP -iTCP:8787 -sTCP:LISTEN 2>/dev/null   # must be empty
+ps aux | grep -E '(wrangler|workerd)' | grep -v grep   # must be empty
+# then start fresh and watch for "Ready on http://localhost:8787"
+```
+
+If `workerd` keeps reappearing after pkill, an old launchd/keep-alive service is involved — check `launchctl list | grep -iE '(wrangler|workerd)'` and bootout the service with `launchctl bootout gui/$(id -u)/<label>`.
+
+### D1 Export/Import from Production
+
+> **Resources under this skill:** `scripts/import-db.cjs` (reusable import script — uses better-sqlite3, SQLite 3.53.1), `references/d1-sqlite-version-mismatch.md` (debugging guide for segfault/SQLITE_BUSY)
+
+로컬 개발 시 프로덕션 D1 데이터를 그대로 사용해야 할 때. `wrangler d1 export`로 원격 DB를 SQL 파일로 내보내고 로컬에 복원한다.
+
+#### 🚨 `wrangler d1 execute --local --file=` 는 대용량 IMPORT에 부적합
+
+3가지 이유로 실패할 수 있음:
+1. **Timeout**: 100MB+ SQL → 300초 초과
+2. **Circular FK**: `users ↔ history` 같은 순환 참조가 schema에 있으면 어느 테이블도 먼저 INSERT 불가
+3. **SQLITE_TOOBIG**: 한 INSERT 문이 150KB+면 SQLite 문장 길이 제한 초과 (history 테이블의 JSON blob)
+
+#### 🚨 macOS system sqlite3(3.51.0) 사용 절대 금지
+
+`sqlite3 .read db-export.sql`로 DB를 만들면 **workerd segfault** 발생. macOS 기본 sqlite3(3.51.0)와 workerd 내장 SQLite의 바이너리 포맷 불일치가 원인. 반드시 **better-sqlite3(SQLite 3.53.1)** 를 사용해야 함.
+
+**안전한 방법:** better-sqlite3로 DB 파일 직접 생성 (아래 전체 Export/Import 참고).
+
+#### 전체 Export/Import (schema + data, 안정적인 방법)
+
+better-sqlite3는 wrangler/miniflare가 사용하는 SQLite와 동일한 버전(3.53.1)을 내장하고 있음. 이걸로 DB 파일을 만들면 workerd가 segfault 없이 읽을 수 있음.
+
+전체 workflow (`scripts/import-db.cjs` 참고):
+
+```bash
+# 1. 프로덕션 D1 전체 export (schema + data)
+wrangler d1 export <DB_NAME> --remote --output=./db-export.sql
+
+# 2. 로컬 D1 상태 초기화 + metadata 생성
+rm -rf .wrangler/state/v3
+wrangler d1 execute <DB_NAME> --local --command="SELECT 1;"
+
+# 3. better-sqlite3로 전체 데이터 import
+node scripts/import-db.cjs
+
+# 4. dev 서버 실행
+npm run dev
+```
+
+**`rm -rf .wrangler/state/v3` (not just `/d1`) is critical** — cache metadata can also be corrupted and cause segfault. Always nuke the whole `v3/` directory, not just the `d1/` subdirectory.
+
+`scripts/import-db.cjs` 내용:
+
+```javascript
+const Database = require('better-sqlite3');
+const fs = require('fs');
+const path = require('path');
+
+const DB_DIR = '.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
+const files = fs.readdirSync(DB_DIR);
+const dbFile = files.find(f => f.endsWith('.sqlite') && !f.includes('metadata'));
+const dbPath = path.join(DB_DIR, dbFile);
+
+// Delete empty DB created by wrangler, recreate from export
+fs.unlinkSync(dbPath);
+const sql = fs.readFileSync('./db-export.sql', 'utf-8');
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+db.pragma('foreign_keys = OFF');  // 필수: circular FK (users↔history)
+db.exec(sql);
+db.close();
+```
+
+**왜 이게 유일하게 동작하는가:**
+- system sqlite3(3.51.0) → workerd segfault
+- `wrangler d1 execute --local` → SQLITE_TOOBIG (170KB+ statements)
+- better-sqlite3(3.53.1) = workerd/miniflare SQLite와 동일 버전 → ✅ 정상 동작
+
+**`PRAGMA foreign_keys=OFF`가 필수인 이유:** `users.primary_saju_id REFERENCES history(id)` ↔ `history.user_id REFERENCES users(id)` 순환 FK 때문.
+
+#### Schema-only Export (데이터 없이 구조만)
+
+빠르고 안전함. 테스트 시 schema 구조만 필요한 경우:
+
+```bash
+wrangler d1 export <DB_NAME> --remote --no-data --output=./db-schema.sql
+wrangler d1 execute <DB_NAME> --local --file=./db-schema.sql
+# 11KB, 44개 명령어 1초
+```
+
+#### 용도별 선택
+
+| 목적 | 명령어 | 비고 |
+|------|--------|------|
+| 깨끗한 로컬 DB (schema만) | `wrangler d1 export --no-data` + execute | 11KB, 1초 |
+| 프로덕션 전체 복제 | `wrangler d1 export --remote` + `node scripts/import-db.cjs` | 120MB, 2초 |
+| lock만 정리 (데이터 보존) | `find .wrangler/state -name '*.sqlite-lock' -delete` | bash 3.2 glob 주의 |
+| 전면 초기화 | `rm -rf .wrangler/state/v3/` | 데이터 전소, cache도 같이 초기화됨 |
 
 ### Auto-migration for local dev
 Add an `ensureTables()` function that auto-creates tables on first write using try/catch pattern with SELECT probe → CREATE TABLE IF NOT EXISTS.
@@ -360,3 +562,32 @@ Even when a `public/index.html` exists, workerd in local dev mode does NOT serve
 - localStorage→sessionStorage migration may break Router's cached-data checks (search ALL files for `localStorage.getItem('__SAJU_DATA__')`)
 - Service worker caches old files — use Cmd+Shift+R or clear SW in DevTools
 - `npm run build:frontend` fails (no vite config) — use `npm run dev` for static serving
+- **Deleting SHM/WAL files in dev:clean causes workerd segfault** — never include `rm -f *.sqlite-shm *.sqlite-wal` in a dev:clean script. Only delete them if the DB was modified by system sqlite3 CLI, and in that case, recreate with better-sqlite3 instead.
+
+## Running dev server in the background (Hermes / Claude Code)
+The Hermes `terminal(background=true)` policy rejects shell-level wrappers like `nohup ... &`, `disown`, `setsid`, and trailing `&` when run in foreground mode. The right shape is:
+
+```javascript
+// Foreground tool call
+terminal({
+  background: true,
+  notify_on_complete: true,   // almost always pair this; otherwise you go silent
+  command: "cd ~/m-log-v2 && exec npm run dev:clean > /tmp/wrangler-dev.out 2>/tmp/wrangler-dev.err"
+})
+```
+
+Key shape requirements:
+- `exec` at the start so the npm wrapper is replaced by wrangler as PID 1 (avoids an extra zombie npm parent)
+- explicit `> out 2> err` redirection — `tee` exits on SIGPIPE when the parent shell terminates, which can take the whole process group with it
+- DO NOT pipe through `tee` for long-lived servers
+
+Readiness verification (run in a separate `terminal` call, NOT the background tool):
+```bash
+sleep 8
+cat /tmp/wrangler-dev.out
+ps aux | grep -E '(wrangler|workerd)' | grep -v grep
+lsof -nP -iTCP:8787 -sTCP:LISTEN | head -3
+curl -s -o /dev/null -w "HTTP %{http_code} | %{time_total}s\n" http://127.0.0.1:8787/
+```
+
+The `sleep` is intentional — wrangler takes 3-8 seconds to print "Ready" depending on bundle size. Poll the file, don't tail.

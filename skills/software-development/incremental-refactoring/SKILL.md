@@ -300,6 +300,14 @@ done
   # Monitor with:
   tail -f /tmp/wrangler-dev.log
   ```
+- **SQLITE_BUSY after crash**: When wrangler dev crashes, the local D1 SQLite
+  database stays locked. Fix:
+  ```bash
+  pkill -f wrangler
+  rm -rf .wrangler/state/v3/d1/
+  ```
+  This drops local test data (migrations recreate schema). To preserve data,
+  dump before stopping: `wrangler d1 execute --local --command=".dump"`.
 
 ### CSS Chain Unification
 

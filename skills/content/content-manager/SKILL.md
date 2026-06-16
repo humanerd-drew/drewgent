@@ -106,6 +106,13 @@ at `P4-cortex/content/`:
 - Initially set to `every 3 days` → user corrected: should be DAILY when material exists
 - Don't use fixed schedules for content creation — produce when material is available, stay silent when nothing new
 
+### delegate_task Model Override
+The agent profile defines `model: deepseek-v4-pro`, but calling via `delegate_task(agent_profile="content-manager")` may use a different model. In testing, the actual run used `deepseek-v4-flash` (the parent session's model), not the pro model defined in the profile.
+
+**Implication:** Delegated content-manager runs get the flash model (faster, cheaper, slightly lower quality). Cron jobs (which use the profile's model directly) use the pro model. If output quality from a delegate_task run seems low, check which model was used — it may be the flash fallback.
+
+**Workaround:** For high-quality runs, use the cron trigger or explicitly set `model` in the delegate_task call parameters.
+
 ### Image Generation
 - DO NOT suggest paid APIs (FAL, DALL-E) first — the user explicitly rejected extra costs
 - SVG cover images cost $0 and the model can write them directly

@@ -9,9 +9,15 @@
 
 ## SSH Access
 ```bash
+# Key-based auth (use the specific key — default id_rsa won't work):
+ssh -i ~/.ssh/id_ed25519_dr2w247 -p 8528 drew@192.168.1.53
+
+# Password fallback:
 ssh -p 8528 drew@192.168.1.53
 ```
-Password auth only (key auth not configured on DSM).
+Password: `Emfbwjsxm4865`
+
+**Key auth note:** The `id_ed25519_dr2w247` key is authorized on the NAS. SSH may try `id_rsa` first by default and fail — always use `-i` to specify the correct key. The key's comment is `dr2w247@github.com` (this is the same key used by the GitHub/automation tooling).
 
 ## Docker Access via SSH + Expect
 Because Synology DSM requires a TTY for `sudo`, use `expect` scripts for automation:

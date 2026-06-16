@@ -70,6 +70,16 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | \
 3. **Stdio transport** — simplest for Hermes native MCP; Streamable HTTP available if remote access needed later
 4. **Workspace hardcoded in wrapper** — `humanerd` is the only workspace; if multi-workspace needed, can be promoted to an env var
 
+## Known Pitfalls
+
+### Commented-Out Parent Key
+
+The `mcp_servers:` key in `config.yaml` was commented out (`# mcp_servers:`) while the individual server entries (`huly:`, `wordpress:`) were uncommented and correctly formatted. This made the entire section inert — in YAML, commenting out a parent key disables ALL children, and orphaned children become root-level keys that Hermes ignores.
+
+**Verification:** Run `grep '^mcp_servers:' ~/.hermes/config.yaml`. If the output is empty, the key is missing or commented. Fix by uncommenting `mcp_servers:`.
+
+**Detection:** At session start, `tool_search(query="huly")` returns no results even though the config looks correct. Always check the parent key, not just the server entry.
+
 ## Future Considerations
 
 - If the bridge daemon (`huly_bridge.js`) can be reimplemented using the MCP server's Streamable HTTP transport, it could eliminate the direct SDK dependency entirely

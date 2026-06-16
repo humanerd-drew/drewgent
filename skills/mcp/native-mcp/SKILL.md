@@ -284,8 +284,11 @@ pip install --upgrade mcp
 
 - Check that the server is listed under `mcp_servers` (not `mcp` or `servers`)
 - Ensure the YAML indentation is correct
+- **Commented-out `mcp_servers:` key** — If the `mcp_servers:` line itself starts with `#` (commented out), ALL servers under it are disabled, even if individual entries like `huly:` or `wordpress:` are uncommented. In YAML, commenting out the parent key makes the entire block inert — uncommented children at the wrong indentation level become root-level keys, not MCP server configs. Fix: ensure `mcp_servers:` has no leading `#` and that server entries are at the correct indentation level under it.
 - Look at Drewgent Agent startup logs for connection messages
 - Tool names are prefixed with `mcp_{server}_{tool}` -- look for that pattern
+- Run `tool_search(query)` with the server name to confirm tools are registered
+- Use `grep '^mcp_servers:' ~/.drewgent/config.yaml` to verify the key is active
 
 ### Connection keeps dropping
 

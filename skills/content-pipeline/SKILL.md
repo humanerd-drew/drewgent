@@ -7,6 +7,8 @@ space: concept
 tags: [concept]
 created: 2026-05-22
 updated: 2026-06-14
+
+<!-- 2026-06-14 session: content-manager CMO agent, SVG/meme/Excalidraw pipeline, WordPress MCP, NAS SSH, Huly integration -- all documented in references/ -->
 links:
   - "[[P1-limbic/persona/writing-style-guide]]"
   - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
@@ -316,6 +318,7 @@ links:
 **Draft 파일 위치:** `memories/insights/YYYY-MM-{slug}.md`
 - 예: `memories/insights/2026-05-gemini-cli-shutdown.md`
 - Obsidian에서 직접 확인 가능: `~/.drewgent/P2-hippocampus/memories/insights/`
+- Kanban 대시보드 연동: body에 `## Draft 파일 위치` 절대경로가 있으면 대시보드 카드에 📄 Obsidian 링크가 자동 생성됨. 카드 클릭 → Description 탭 하단 "📄 Open in Obsidian" 버튼 클릭 → Obsidian에서 draft 파일 열림.
 - humanerd-site의 `/blog/{slug}` 또는 `/blog/YYYY/{slug}` 경로로 Quartz에 의해 공개됨. Raw monthly log는 공개하지 않음.
 
 ---
