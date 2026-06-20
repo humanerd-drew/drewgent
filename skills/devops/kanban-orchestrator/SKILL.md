@@ -262,20 +262,21 @@ kanban_complete(
 
 ## Agent Profiles — reusable subagent role definitions
 
-Drewgent supports a **static agent profile system** at `~/.drewgent/agents/<name>.md`. These profiles define reusable subagent roles — model, provider, instructions, and tool constraints — in a single file, then referenced by name when spawning work.
+Drewgent supports a **static agent profile system** at `~/.config/opencode/agents/<name>.md`. These profiles define reusable subagent roles — model, provider, instructions, and tool constraints — in a single file, then referenced by name when spawning work.
 
-### delegate_task integration (built-in)
+### task() integration (built-in)
 
-The `delegate_task` tool now has a built-in `agent_profile` parameter. When set, the tool reads `$HERMES_HOME/agents/<name>.md`, overrides the subagent's model/provider/toolsets from the profile, and prepends the profile's instructions to the subagent's context:
+The `task` tool has a built-in `subagent_type` parameter. When set, the tool reads `~/.config/opencode/agents/<name>.md`, applies the subagent's model/provider/toolsets from the profile, and uses the profile's instructions:
 
 ```python
-delegate_task(
-    agent_profile="reviewer",
-    goal="Review PR #42 for security issues",
+task(
+    subagent_type="reviewer",
+    description="Security review",
+    prompt="Review PR #42 for security issues",
 )
 ```
 
-The integration lives in `tools/delegate_tool.py` — function `_resolve_agent_profile()`. No YAML parsing library needed; uses stdlib regex for frontmatter.
+The integration lives in opencode's native subagent dispatch. No YAML parsing library needed; uses stdlib regex for frontmatter.
 
 ### Profile format
 
@@ -381,15 +382,15 @@ Not all tasks need the full pipeline. The planner determines the complexity tier
 
 Implementer↔tester loop: tester fails → report to implementer → retry (max 2-3 attempts). After that, failure propagates up for human intervention.
 
-### Using agent profiles with delegate_task
+### Using agent profiles with task()
 
-Pre-defined subagent profiles live at `~/.drewgent/agents/*.md` and are loaded via:
+Pre-defined subagent profiles live at `~/.config/opencode/agents/*.md` and are loaded via:
 
 ```
-delegate_task(agent_profile="reviewer", goal="review this PR")
+task(subagent_type="reviewer", description="Review PR", prompt="review this PR")
 ```
 
-The `agent_profile` parameter is **baked into the delegate_task tool schema** — every agent sees it as an option in every session. No skills or memory needed to discover it; the tool description documents it.
+The `subagent_type` parameter is **baked into the task tool schema** — every agent sees it as an option in every session. No skills or memory needed to discover it; the tool description documents it.
 
 | Profile | File | Model | Role |
 |---------|------|-------|------|
@@ -407,11 +408,9 @@ Each profile sets model, provider, toolsets, and instructions. The caller's expl
 **Pipeline pattern in kanban workers:**
 
 ```python
-delegate_task(tasks=[
-    {"goal": "analyze current auth code", "agent_profile": "explorer"},
-    {"goal": "implement login validation", "agent_profile": "implementer"},
-    {"goal": "write tests for login", "agent_profile": "tester"},
-])
+task(subagent_type="explorer", description="Analyze auth code", prompt="analyze current auth code")
+task(subagent_type="implementer", description="Implement login", prompt="implement login validation")
+task(subagent_type="tester", description="Test login", prompt="write tests for login")
 ```
 
 The profile system lives at `$HERMES_HOME/agents/`. For drewgent this is `~/.drewgent/agents/`. Add new profiles by dropping a `.md` file there.
@@ -475,7 +474,7 @@ The loop engineering framework (from [addyo's essay](https://addyo.substack.com/
 | 2 | **Worktrees** — parallel file isolation | `workspace_kind: worktree` in kanban_create | ⚠️ Adequate, not default |
 | 3 | **Skills** — written project knowledge | SKILL.md system (100+ skills) | ✅ Excellent |
 | 4 | **Connectors/Plugins** — MCP, real tool integration | MCP client, hooks, plugins | ✅ Strong |
-| 5 | **Sub-agents** — maker/checker split | delegate_task + kanban profiles | ✅ Strong, profile system new |
+| 5 | **Sub-agents** — maker/checker split | task() + kanban profiles | ✅ Strong, profile system new |
 | 6 | **Memory** — durable external state | Kanban board + vault + MEMORY.md | ✅ Excellent |
 
 ### Key principles for kanban orchestration

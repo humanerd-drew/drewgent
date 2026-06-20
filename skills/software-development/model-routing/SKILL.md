@@ -5,7 +5,7 @@ version: 1.1.0
 created: 2026-06-13
 updated: 2026-06-15
 tags: [routing, cost, model, provider, subscription, opencode-go, minimax]
-related_skills: [cost-optimization-background-llm, kanban-orchestrator, hermes-model-routing, agent-dashboard-cf]
+related_skills: [cost-optimization-background-llm, kanban-orchestrator, hermes-model-routing, agent-dashboard-cf, fusion-agent]
 ---
 
 # Model Routing — Subscription-Era Cost-Aware Strategy
@@ -51,7 +51,7 @@ auxiliary:
 
 ### Agent Profiles (`~/.drewgent/agents/*.md`)
 
-8 pre-defined roles, each with model/provider/toolsets/instructions. Loaded via `delegate_task(agent_profile="reviewer", goal="...")`. The `agent_profile` parameter is built into the `delegate_task` tool schema — every agent sees it.
+8 pre-defined roles, each with model/provider/toolsets/instructions. Loaded via `task(subagent_type="reviewer", description="...", prompt="...")`. The `subagent_type` parameter is built into the `task` tool schema — every agent sees it.
 
 ### Pipeline (Tier-Adaptive)
 

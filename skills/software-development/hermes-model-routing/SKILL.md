@@ -7,7 +7,7 @@ space: growth
 type: skill
 tags: [model-routing, provider-routing, delegation, auxiliary, llm-cost, hermes-config]
 created: 2026-06-13
-updated: 2026-06-14
+updated: 2026-06-16
 links:
   - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
   - "[[software-development/cost-optimization-background-llm]]"
@@ -23,7 +23,8 @@ a single model doing everything.
 
 Trigger words from user: "model routing", "multi-model", "subagent model",
 "different models for different tasks", "auxiliary model", "특정 작업은
-다른 모델로", "라우팅", "모델 분배".
+다른 모델로", "라우팅", "모델 분배", "모델이 하나만 쓰인다",
+"서브에이전트 모델이 안 바뀌어".
 
 ## Routing Architecture Overview
 
@@ -48,6 +49,10 @@ Hermes supports **4 levels of model routing**:
 Each level can have its own (model, provider) pair. When a level's
 provider/model is unset (None/empty), it inherits from the parent:
 main → delegation → auxiliary (in that order).
+
+**⚠️ Critical**: 부모로의 silent fallback은 경고 없이 일어남. "분배되는
+것 같지 않다"면 가장 먼저 모든 레벨의 model/provider가 명시되어 있는지
+확인. 상세: P8 pitfall + `references/delegation-silent-fallback.md`.
 
 ## Cost Models
 
@@ -133,6 +138,26 @@ auxiliary:
     model: "deepseek-v4-flash"                    # Search summary: fast is enough
 ```
 
+### Per-call Override via `agent_profile`
+
+`task(subagent_type="<name>")`로 호출하면 `~/.drewgent/agents/<name>.md` 또는
+`~/.hermes/agents/<name>.md`의 profile에 박힌 model이 config의 `delegation.model`보다
+우선 적용됨. 역할별 세분화된 라우팅 (reviewer=pro, tester=flash 등) 가능.
+
+```yaml
+# ~/.drewgent/agents/reviewer.md
+---
+name: reviewer
+model: deepseek-v4-pro
+provider: opencode-go
+toolsets: [file, terminal]
+---
+```
+
+```python
+task(subagent_type="reviewer", description="Audit PR", prompt="Audit this PR")
+```
+
 ### OpenRouter Provider Routing (when using OpenRouter)
 
 ```yaml
@@ -205,6 +230,44 @@ hermes model
 ```
 
 ## Pitfalls
+
+### P8: "모델이 하나만 쓰인다"는 증상의 root cause
+
+증상: 멀티에이전트/서브에이전트를 spawn해도 dashboard Models 카드에 모델이 1개만 카운트됨. 4-level routing을 config에 설정해놨는데도 무시당하는 것처럼 보임.
+
+**진짜 원인**: `~/.hermes/config.yaml`의 `delegation:` 블록에 `model` 또는 `provider` 키가 **비어있음**.
+
+근거 코드: `tools/delegate_tool.py:1016-1018`:
+```python
+effective_model = model or parent_agent.model
+effective_provider = override_provider or getattr(parent_agent, "provider", None)
+effective_base_url = override_base_url or parent_agent.base_url
+```
+
+`model` 인자가 None이면 (config의 `delegation.model`이 비어있으면) **silent fallback** — 경고도 로그도 없이 부모의 model을 그대로 사용. 서브에이전트는 자기 spawn 로그에 `model: <parent의 model>` 찍히고 끝남.
+
+**진단 절차** (전수조사 1회):
+
+1. `~/.hermes/config.yaml`에서 `^delegation:` 블록 찾기
+2. 그 블록 안에 `model:` 또는 `provider:` 키가 있는지 확인
+3. 둘 다 주석 처리되거나 없으면 → **원인 확정**: 모든 서브에이전트가 부모 모델 상속 중
+4. `grep -n "^delegation:\|^  model:\|^  provider:" ~/.hermes/config.yaml` 으로 5초 진단
+
+**해결 옵션** (옵션 → 추천 → go):
+
+- **A. config.yaml에 `delegation.model` + `delegation.provider` 추가** ← **내 추천**
+  - 가장 단순, 즉시 적용 가능, 4-tier 라우팅 의도와 정확히 일치
+  - 예: `delegation: { model: deepseek-v4-pro, provider: opencode-go }`
+- **B. `task(subagent_type="reviewer")`로 per-call override**
+  - 역할별 세분화 가능. profile에 model이 박혀있으면 config보다 우선
+  - profile 파일 관리 필요
+- **C. API key 분리 (지금 단계엔 무의미)**
+  - 쿼터/과금 분리 목적이 아니면 도입 가치 없음. **보류**
+  - 진짜 필요해질 때까지 단일 키 + 호출 로그로 충분
+
+**흔한 오해**: "API key를 역할마다 발행하면 모델이 분배되지 않을까?" — **아님**. API key 분리는 인증/과금 분리일 뿐 모델 선택과 무관. 모델은 model/provider 필드로 결정됨. 이 둘을 혼동하면 원인 진단이 영원히 빗나감.
+
+상세 코드 인용 + 디버깅 트레이스 + 흔한 오해 교정: `references/delegation-silent-fallback.md`
 
 ### P1: OpenCode Go ≠ OpenRouter
 
@@ -319,7 +382,7 @@ route. However, model splitting still matters for:
 The previous cost-optimization era skills (`cost-optimization-background-llm`)
 were written for per-call billing (MiniMax Token Plan). Under subscription,
 the routing framework shifts from "which model saves money" to
-"which model matches the task's latency/capability requirements."
+"which model matches the task's latency/capability requirements".
 
 ## References
 
@@ -327,3 +390,4 @@ the routing framework shifts from "which model saves money" to
 - `references/routing-change-sweep.md` — Procedure for cleaning up old model references when routing changes
 - `references/provider-fallback-debugging.md` — Real session trace: debugging HTTP 400 errors from session metadata override
 - `references/minimax.md` — MiniMax pricing model and Token Plan structure
+- `references/delegation-silent-fallback.md` — Why all subagents use parent's model when `delegation.model` is unset; diagnosis + fix

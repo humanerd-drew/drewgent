@@ -21,7 +21,7 @@ kanban-worker: this is the detail layer.
 
 ## Agent profiles
 
-When your task requires sub-steps (analysis → implementation → testing), use `delegate_task(agent_profile="<name>", goal="...")` to spawn pre-configured subagents. The 8 available profiles are documented in the `kanban-orchestrator` skill. Flash profiles cost $0 marginal (OpenCode Go subscription); pro/max profiles use stronger models for quality-critical steps. The `agent_profile` parameter is built into the `delegate_task` tool schema — discoverable without loading a skill.
+When your task requires sub-steps (analysis → implementation → testing), use `task(subagent_type="<name>", description="summary", prompt="...")` to spawn pre-configured subagents. The 8 available profiles are documented in the `kanban-orchestrator` skill. Flash profiles cost $0 marginal (OpenCode Go subscription); pro/max profiles use stronger models for quality-critical steps. The `subagent_type` parameter is built into the `task` tool schema — discoverable without loading a skill.
 
 ## Workspace handling
 
