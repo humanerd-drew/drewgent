@@ -5,7 +5,7 @@ type: document
 space: concept
 tags: [concept]
 created: 2026-05-20
-updated: 2026-05-20
+updated: 2026-06-20
 links: []
 links:
   - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
@@ -296,6 +296,17 @@ P0-brainstem neurons: 10 total
 ---
 
 ## [0.7.0] — 2026-04-03
+
+## [0.7.x] — 2026-06-20
+
+### SEO Service QA Gate Guide
+
+#### What changed
+- Created `P4-cortex/growth/seo/seo-service/qa-gate.md` — project-specific QA gate guide
+- Documents 禁task_qa_gate + 禁subagent_verify 적용법 for SEO Service
+- 3-tier pipeline templates (Tier 1-3) matching AGENTS.md Tiered Autonomy
+- Hard gate rules (6 rules), common failure modes (6 modes), phase-specific notes
+- Written by documentation agent, triggered by user request
 
 ### Initial release with NeuronFS brain governance
 

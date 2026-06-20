@@ -33,6 +33,80 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def _resolve_parent_context(task_id: str) -> str:
+    """Read parent task results and return as formatted context block.
+
+    Tries JSON-parsed structured handoff (findings/risks/next).
+    Falls back to plain text if result is not valid JSON.
+    Logs warnings and records task_events for unparseable handoffs.
+    """
+    import sqlite3
+    conn = sqlite3.connect(str(DB_PATH), timeout=10)
+    parents = conn.execute(
+        """SELECT p.id, p.title, p.result, p.skills
+        FROM task_links tl JOIN tasks p ON p.id = tl.parent_id
+        WHERE tl.child_id = ?
+        ORDER BY p.completed_at""",
+        (task_id,),
+    ).fetchall()
+    if not parents:
+        conn.close()
+        return ""
+
+    blocks = []
+    for pid, title, result, skills in parents:
+        if not result or not result.strip():
+            continue
+        header = f"### {pid} ({title})"
+        parsed = False
+        try:
+            data = json.loads(result)
+            if isinstance(data, dict):
+                parts = [header]
+                for key, label in (("findings", "Findings"),
+                                    ("risks", "Risks"),
+                                    ("next", "Next Steps")):
+                    items = data.get(key)
+                    if items and isinstance(items, list):
+                        parts.append(f"**{label}:**")
+                        parts.extend(f"- {item}" for item in items)
+                blocks.append("\n".join(parts))
+                parsed = True
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        if not parsed:
+            preview = result[:200].replace("\n", " ").strip()
+            print(f"[handoff] WARN parent {pid} ({title}): "
+                  f"result is not valid JSON (len={len(result)}, "
+                  f"preview=\"{preview}...\")")
+            try:
+                conn.execute(
+                    "INSERT INTO task_events (task_id, run_id, kind, payload, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (pid, "", "handoff_failed",
+                     json.dumps({
+                         "child_id": task_id,
+                         "preview": preview,
+                         "skills": skills or "",
+                     }),
+                     _now()),
+                )
+                conn.commit()
+            except Exception:
+                pass
+            blocks.append(
+                f"{header}\n"
+                f"*(⚠ Handoff format not recognized — raw output below)*\n"
+                f"{result[:2000]}"
+            )
+
+    conn.close()
+    if not blocks:
+        return ""
+    return "\n\n## ══ Context from previous steps ══\n\n" + "\n\n".join(blocks)
+
+
 def _get_task(task_id):
     import sqlite3
     conn = sqlite3.connect(str(DB_PATH), timeout=30)
@@ -147,9 +221,12 @@ def run_worker(task_id):
 
     _heartbeat(task_id, note=f"Worker started at {_now()}")
 
+    parent_context = _resolve_parent_context(task_id)
     venv_python = str(SRC_AGENT / ".venv" / "bin" / "python")
 
     prompt = task["body"] or task["title"]
+    if parent_context:
+        prompt += parent_context
 
     # Task classification: shell-only → 결정론적 subprocess (no LLM)
     if _is_shell_only_task(prompt):

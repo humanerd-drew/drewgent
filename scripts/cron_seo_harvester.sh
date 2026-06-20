@@ -4,7 +4,7 @@
 set -euo pipefail
 
 DREW_HOME="$HOME/.drewgent"
-VENV_PYTHON="$DREW_HOME/source/drewgent-agent/.venv/bin/python3"
+VENV_PYTHON="$DREW_HOME/venv/bin/python3"
 
 # Load env for DISCORD_WEBHOOK_SEO
 if [ -f "$DREW_HOME/.env" ]; then

@@ -173,7 +173,6 @@ projects/
 run/
 sandbox/
 .trash/
-agents/
 
 # P6 runtime-only subdirectories (not architecture docs)
 P6-prefrontal/archive/

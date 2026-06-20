@@ -27,7 +27,7 @@ Before fanning out, you must ground the decomposition in the profiles that actua
 
 Use one of these:
 
-- `hermes profile list` — prints the table of profiles configured on this machine. Run it through your terminal tool if you have one; otherwise ask the user.
+- `ls ~/.config/opencode/agents/*.md` — lists the agent profiles configured on this machine. Run it through your terminal tool if you have one; otherwise ask the user.
 - `kanban_list(assignee="<some-name>")` — sanity-check a single name. Returns an empty list (rather than an error) for an unknown assignee, so this only confirms a name you're already considering.
 - **Just ask the user.** "What profiles do you have set up?" is a fine first turn when the goal needs more than one specialist.
 
@@ -150,7 +150,7 @@ Tell them what you created in plain prose, naming the actual profiles you used:
 > - **T3** (`<profile-B>`): synthesizes T1 + T2 into a recommendation
 > - **T4** (`<profile-C>`): turns T3 into a CTO memo
 >
-> The dispatcher will pick up T1 and T2 now. T3 starts when both finish. You'll get a gateway ping when T4 completes. Use the dashboard or `hermes kanban tail <id>` to follow along.
+> The dispatcher will pick up T1 and T2 now. T3 starts when both finish. You'll get a gateway ping when T4 completes. Use the dashboard or `kanban_show(task_id=...)` to follow along.
 
 ## Common patterns
 
@@ -183,12 +183,10 @@ Tell them what you created in plain prose, naming the actual profiles you used:
 **Tenant inheritance.** If `HERMES_TENANT` is set in your env, pass `tenant=os.environ.get("HERMES_TENANT")` on every `kanban_create` call so child tasks stay in the same namespace.
 
 **Dual-kanban-DB mismatch (Drewgent-specific).** On Drewgent's setup there are TWO separate kanban databases:
-- **Hermes native kanban** at `HERMES_HOME/kanban.db` (~/.drewgent/kanban.db) — used by the `kanban_*` tools.
+- **Native kanban** at `~/.drewgent/kanban.db` — used by the `kanban_*` tools.
 - **Drewgent legacy kanban** at `~/.drewgent/P2-hippocampus/kanban/state/drewgent_tasks.db` — used by the old `dispatch_once_*` scripts in `cron_runner.py`.
 
-Tasks created via `kanban_create` go into the Hermes native DB. The legacy `dispatch_once_*` scripts check the legacy DB. This means tasks can sit in "ready" forever — the dispatcher is checking the wrong database.
-
-**Fix:** Replace the `dispatch_once_*` scripts with `hermes kanban dispatch` (the native Hermes CLI command). This reads from the correct DB, handles claim locks, worker spawning, and failure detection. Test with `hermes kanban dispatch --dry-run --json`.
+**Fix:** Replace the `dispatch_once_*` scripts with direct kanban DB reads from `~/.drewgent/kanban.db` (the native kanban database). This reads from the correct DB, handles claim locks, worker spawning, and failure detection.
 
 ## Provenance Convention — record why each task exists
 
@@ -413,7 +411,7 @@ task(subagent_type="implementer", description="Implement login", prompt="impleme
 task(subagent_type="tester", description="Test login", prompt="write tests for login")
 ```
 
-The profile system lives at `$HERMES_HOME/agents/`. For drewgent this is `~/.drewgent/agents/`. Add new profiles by dropping a `.md` file there.
+The profile system lives at `~/.config/opencode/agents/`. Add new profiles by dropping a `.md` file there.
 
 ### Pipeline auto-decomposition via `kanban_create`
 
@@ -455,8 +453,8 @@ The `pipeline` parameter is documented in the `kanban_create` tool schema — ev
 - **Archive**: issues completed >7d auto-archived
 - **Limit**: 250 issue free tier, safety margin at 200
 
-The hook script: `~/.hermes/agent-hooks/kanban-linear-sync.py`
-(The Drewgent copy at `~/.drewgent/scripts/kanban_linear_sync.py` has both fixes applied.)
+The hook script: `~/.drewgent/scripts/kanban_linear_sync.py`
+(Contains the fixes for both bugs found on 2026-06-14.)
 
 If Linear is re-enabled, unpause the cron job `02e28cd0a6aa`.
 
@@ -538,8 +536,8 @@ Write the body as **explicit acceptance criteria** — the judge is only as good
 
 When a worker profile keeps crashing, hallucinating, or getting blocked by its own mistakes (usually: wrong model, missing skill, broken credential), the kanban dashboard flags the task with a ⚠ badge and opens a **Recovery** section in the drawer. Three primary actions:
 
-1. **Reclaim** (or `hermes kanban reclaim <task_id>`) — abort the running worker immediately and reset the task to `ready`. The existing claim TTL is ~15 min; this is the fast path out.
-2. **Reassign** (or `hermes kanban reassign <task_id> <new-profile> --reclaim`) — switch the task to a different profile (one that exists on this setup) and let the dispatcher pick it up with a fresh worker.
-3. **Change profile model** — the dashboard prints a copy-paste hint for `hermes -p <profile> model` since profile config lives on disk; edit it in a terminal, then Reclaim to retry with the new model.
+1. **Reclaim** — abort the running worker immediately and reset the task to `ready`. The existing claim TTL is ~15 min; this is the fast path out. Use the kanban dashboard or `kanban_*` tools.
+2. **Reassign** — switch the task to a different profile (one that exists on this setup) and let the dispatcher pick it up with a fresh worker. Use the kanban dashboard or `kanban_update(task_id=..., assignee="<new-profile>")`.
+3. **Change profile model** — edit the profile's `.md` file in `~/.config/opencode/agents/` to update the model, then Reclaim to retry with the new model.
 
 Hallucination warnings appear on tasks where a worker's `kanban_complete(created_cards=[...])` claim included card ids that don't exist or weren't created by the worker's profile (the gate blocks the completion), or where the free-form summary references `t_<hex>` ids that don't resolve (advisory prose scan, non-blocking). Both produce audit events that persist even after recovery actions — the trail stays for debugging.

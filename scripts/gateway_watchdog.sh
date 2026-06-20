@@ -14,12 +14,9 @@
 set -euo pipefail
 
 WATCHED_LABELS=(
-  "ai.drewgent.cron-runner"
-  "ai.drewgent.gateway"
-  "ai.drewgent.kanban-dashboard"
-  "ai.drewgent.n8n"
-  "com.drewgent.quartz-fswatch"
-  "com.drewgent.quartz-deploy"
+  "ai.drewgent.cron"
+  "ai.drewgent.discord-bot"
+  "ai.drewgent.opencode"
 )
 
 # gateway는 launchctl에 등록돼있어도 process가 detached일 수 있음 (cron-runner의

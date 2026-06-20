@@ -353,7 +353,6 @@ class BrainSignalMonitor:
         # Deliver via DeliveryRouter (same system as cron jobs)
         try:
             from gateway.delivery import DeliveryRouter
-            from gateway.run import GatewayState
 
             config = self._get_gateway_config()
             router = DeliveryRouter(config)
@@ -398,7 +397,15 @@ class BrainSignalMonitor:
         """Load gateway config for DeliveryRouter."""
         try:
             from drewgent_cli.config import load_config
-            return load_config()
+            cfg = load_config()
+            gw = cfg.get("gateway", {})
+            class _ConfigProxy:
+                @property
+                def always_log_local(self):
+                    return gw.get("always_log_local", True)
+                def get_home_channel(self, platform):
+                    return None
+            return _ConfigProxy()
         except Exception:
             # Minimal config fallback
             class _MinimalConfig:

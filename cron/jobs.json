@@ -19,15 +19,15 @@
       "schedule_display": "0 */6 * * *",
       "repeat": {
         "times": null,
-        "completed": 56
+        "completed": 57
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-05-14T12:59:08.850448+09:00",
-      "next_run_at": "2026-06-16T12:00:00+09:00",
-      "last_run_at": "2026-06-16T06:00:57.791789+09:00",
+      "next_run_at": "2026-06-16T18:00:00+09:00",
+      "last_run_at": "2026-06-16T12:01:21.322552+09:00",
       "last_status": "ok",
       "last_error": null,
       "deliver": "discord:1504328297419640872",
@@ -119,15 +119,15 @@
       "schedule_display": "every 5m",
       "repeat": {
         "times": null,
-        "completed": 1463
+        "completed": 1464
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-06-10T16:28:51.436943+09:00",
-      "next_run_at": "2026-06-16T11:58:42.546959+09:00",
-      "last_run_at": "2026-06-16T11:53:42.546959+09:00",
+      "next_run_at": "2026-06-16T12:04:15.204821+09:00",
+      "last_run_at": "2026-06-16T11:59:15.204821+09:00",
       "last_status": "ok",
       "last_error": null,
       "last_delivery_error": null,
@@ -224,9 +224,9 @@
       },
       "enabled": true,
       "state": "scheduled",
-      "next_run_at": "2026-06-16T11:56:00+09:00",
+      "next_run_at": "2026-06-16T12:02:00+09:00",
       "deliver": "local",
-      "last_run_at": "2026-06-16T11:55:12.433285+09:00",
+      "last_run_at": "2026-06-16T12:01:22.037059+09:00",
       "last_status": "ok",
       "last_error": null
     },
@@ -328,15 +328,15 @@
       "schedule_display": "0 */6 * * *",
       "repeat": {
         "times": null,
-        "completed": 10
+        "completed": 11
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-06-13T19:33:08.958796+09:00",
-      "next_run_at": "2026-06-16T12:00:00+09:00",
-      "last_run_at": "2026-06-16T06:07:08.664510+09:00",
+      "next_run_at": "2026-06-16T18:00:00+09:00",
+      "last_run_at": "2026-06-16T12:07:18.970017+09:00",
       "last_status": "ok",
       "last_error": null,
       "last_delivery_error": null,
@@ -507,34 +507,32 @@
     {
       "id": "b979e8c2e9a1",
       "name": "seo-analyze-trigger",
-      "prompt": "SEO Article Harvester \ubd84\uc11d \ud2b8\ub9ac\uac70.\n\n\ubaa9\ud45c: \uc0c8\ub85c \uc218\uc9d1\ub41c SEO \uae30\uc0ac\uac00 \uc788\ub294\uc9c0 \ud655\uc778\ud558\uace0, \uc788\uc73c\uba74 kanban analysis task\ub97c \uc0dd\uc131\ud558\ub77c.\n\nSteps:\n1. ~/.drewgent/P2-hippocampus/knowledge/seo-articles/2026/ \ub514\ub809\ud1a0\ub9ac\uc5d0\uc11c \ucd5c\uadfc 24\uc2dc\uac04 \ub0b4 \uc218\uc9d1\ub41c .md \ud30c\uc77c \ud655\uc778\n2. ~/.drewgent/P4-cortex/growth/seo/seo_analysis_state.json \uc77d\uc5b4\uc11c \uc544\uc9c1 \ubd84\uc11d \uc548 \ub41c URL \ud655\uc778\n3. \uc0c8 \uae30\uc0ac\uac00 \uc788\uc73c\uba74:\n   - kanban_create\ub85c analysis task \uc0dd\uc131 (title: \"seo-analyze: YYYY-MM-DD\", assignee: \"default\")\n   - body\uc5d0 \uc0c8 \uae30\uc0ac \uc218\uc640 \uccab 3\uac1c \uae30\uc0ac \uc81c\ubaa9 \ud3ec\ud568\n   - Reply: \"Created seo analysis task for N articles\"\n4. \uc0c8 \uae30\uc0ac\uac00 \uc5c6\uc73c\uba74: \"[SILENT]\"\n\nImportant: \ube60\ub974\uac8c \uc644\ub8cc\ud560 \uac83.",
-      "skills": [
-        "seo-article-harvester"
-      ],
-      "skill": "seo-article-harvester",
-      "model": "opencode-go/deepseek-v4-flash",
+      "prompt": "",
+      "skills": [],
+      "skill": null,
+      "model": null,
       "provider": null,
       "base_url": null,
-      "script": null,
-      "no_agent": false,
+      "script": "seo_analyzer.sh",
+      "no_agent": true,
       "context_from": null,
       "schedule": {
         "kind": "cron",
-        "expr": "0 12 * * *",
-        "display": "0 12 * * *"
+        "expr": "0 3 * * *",
+        "display": "0 3 * * * (daily 03:00)"
       },
-      "schedule_display": "0 12 * * *",
+      "schedule_display": "0 3 * * * (daily 03:00)",
       "repeat": {
         "times": null,
-        "completed": 2
+        "completed": 3
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-06-13T20:20:53.827665+09:00",
-      "next_run_at": "2026-06-16T12:00:00+09:00",
-      "last_run_at": "2026-06-15T12:07:37.250175+09:00",
+      "next_run_at": "2026-06-17T12:00:00+09:00",
+      "last_run_at": "2026-06-16T12:07:31.585257+09:00",
       "last_status": "ok",
       "last_error": null,
       "last_delivery_error": null,
@@ -690,7 +688,7 @@
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-06-14T03:20:37.704225+09:00",
-      "next_run_at": "2026-06-16T12:00:00+09:00",
+      "next_run_at": "2026-06-17T12:00:00+09:00",
       "last_run_at": "2026-06-15T12:11:32.243414+09:00",
       "last_status": "ok",
       "last_error": null,
@@ -804,15 +802,15 @@
       "schedule_display": "every 5m",
       "repeat": {
         "times": null,
-        "completed": 208
+        "completed": 209
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-06-15T15:48:12.118213+09:00",
-      "next_run_at": "2026-06-16T11:59:11.615274+09:00",
-      "last_run_at": "2026-06-16T11:54:11.615274+09:00",
+      "next_run_at": "2026-06-16T12:04:47.734507+09:00",
+      "last_run_at": "2026-06-16T11:59:47.734507+09:00",
       "last_status": "ok",
       "last_error": null,
       "last_delivery_error": null,
@@ -823,5 +821,5 @@
       "profile": null
     }
   ],
-  "updated_at": "2026-06-16T11:55:12.433673+09:00"
+  "updated_at": "2026-06-16T12:07:31.587012+09:00"
 }
