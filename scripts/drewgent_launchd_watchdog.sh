@@ -1,1 +1,0 @@
-/Users/drew/.drewgent/scripts/gateway_watchdog.sh

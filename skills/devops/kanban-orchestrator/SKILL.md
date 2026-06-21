@@ -164,6 +164,50 @@ Tell them what you created in plain prose, naming the actual profiles you used:
 
 **Human-in-the-loop:** Any task can `kanban_block()` to wait for input. Dispatcher respawns after `/unblock`. The comment thread carries the full context.
 
+## Office Autopilot — Queue Processing Mode
+
+Drewgent's `office_autopilot.sh` runs every 5 minutes via cron. When it finds pending tasks in the native kanban DB, it dispatches **you** (the orchestrator) to process the queue.
+
+### Intake flow
+
+```
+office_autopilot.sh (cron, 5min)
+  └─ sqlite3 reads kanban.db
+       └─ pending > 0?
+            └─ opencode run --agent orchestrator --attach :8642
+                 └─ YOU: read pending tasks → classify → delegate → track → report
+```
+
+### Classification rules
+
+When spawned by the autopilot, read all tasks with `status='todo'` or `status='ready'` and no `claim_lock`. Route each:
+
+| Task type | Delegate to | Notes |
+|-----------|-------------|-------|
+| Implementation/fix | implementer | Include file paths, conventions |
+| Content/draft | content-manager | Link brand guide, narrative arc |
+| Bug/infra/outage | sre | Read-only first |
+| Research/explore | explorer | Return structured findings |
+| Design/UI | designer | Lazyweb + baseline-ui |
+| Data/analysis | analyst | Kanban DB, git log, gbrain |
+| Review/QA | reviewer | Always after implementer |
+
+### Processing rules
+
+1. **Parallel where possible.** Independent tasks get separate delegate() calls.
+2. **Dependency chain.** If T2 needs T1's output, use `kanban_create` with `parents=[T1]` instead of running sequentially yourself.
+3. **Block ambiguous tasks.** If a task lacks context, `kanban_block` with a clear "needs: X" note. Don't guess.
+4. **Report to Discord.** After processing all tasks, pipe a summary to `discord_send.py`:
+   ```
+   python3 ~/.drewgent/scripts/discord_send.py <webhook_url>
+   ```
+   Summary format: what was completed, what was delegated, what was blocked.
+5. **SILENT is correct.** If nothing could be done (all ambiguous), say so and stop.
+
+### Expensive agent, use wisely
+
+You run on qwen3.7-max. Every 5-minute cron tick is cheap (SQLite check), but when the orchestrator fires, it's for real work — the script guarantees at least 1 pending task before spawning you.
+
 ## Pitfalls
 
 **Inventing profile names that don't exist.** The dispatcher silently fails to spawn unknown assignees — the card just sits in `ready` forever. Always assign to a profile from your Step 0 discovery; ask the user if you're unsure.

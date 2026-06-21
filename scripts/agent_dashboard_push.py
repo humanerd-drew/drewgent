@@ -15,6 +15,7 @@ Usage:
   python3 agent_dashboard_push.py [--dry-run] [--endpoint URL] [--secret TOKEN]
 """
 
+import calendar
 import json
 import os
 import subprocess
@@ -36,7 +37,7 @@ _EXTRA_PATH = os.pathsep.join([
 _EXTRA_ENV = {"PATH": _EXTRA_PATH + os.pathsep + os.environ.get("PATH", "")}
 
 # Defaults — override via env or CLI
-ENDPOINT = os.environ.get("AGENT_DASHBOARD_URL", "https://agent-dashboard.humanerd-me.workers.dev")
+ENDPOINT = os.environ.get("AGENT_DASHBOARD_URL", "http://localhost:8766")
 PUSH_SECRET = os.environ.get("AGENT_DASHBOARD_SECRET", "")
 
 
@@ -1034,12 +1035,12 @@ def collect_live_activity():
             if not ts_val:
                 continue
             try:
-                t = int(time.mktime(time.strptime(ts_val[:19], "%Y-%m-%dT%H:%M:%S")))
+                t = int(calendar.timegm(time.strptime(ts_val[:19], "%Y-%m-%dT%H:%M:%S")))
             except (ValueError, OSError):
                 continue
             if not last_time:
                 last_time = t
-            hhmm = ts_val[11:19]
+            hhmm = time.strftime("%H:%M:%S", time.gmtime(t + 9 * 3600))
             session_id = kv.get("session.id", "")
             if session_id and not active_session:
                 active_session = session_id
