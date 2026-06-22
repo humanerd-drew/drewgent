@@ -7,6 +7,7 @@ model: deepseek-v4-flash
 provider: opencode-go
 toolsets: [terminal, file, search]
 created: 2026-06-13
+status: merged-into-implementer
 ---
 
 # Tester

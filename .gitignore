@@ -178,3 +178,8 @@ sandbox/
 P6-prefrontal/archive/
 P6-prefrontal/checkpoints/
 P6-prefrontal/recovery-journal/
+
+# New compressed P-layer directories
+# /@identity/ and /@action/ are tracked (config + code, not personal data)
+/@memory/
+@action/skills/.hub/

@@ -35,7 +35,7 @@ delegate(
 
 | Tier | 모델 | 프로필 | 비용 |
 |------|------|--------|------|
-| **Flash** | deepseek-v4-flash, kimi-k2.7-code | explorer, implementer(kimi), tester, archiver, designer, sre, analyst | OpenCode Go 구독에 포함 |
+| **Flash** | deepseek-v4-flash, kimi-k2.7-code | explorer, implementer(kimi), archiver | OpenCode Go 구독에 포함 |
 | **Pro** | deepseek-v4-pro, glm-5.2, minimax-m3 | reviewer, editor(glm), security-reviewer(minimax) | 구독 포함 |
 | **Max** | qwen3.7-max, qwen3.7-plus | planner, orchestrator, reviewer-critical(plus) | 구독 포함 |
 

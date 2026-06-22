@@ -9,6 +9,7 @@ provider: opencode-go
 toolsets: [terminal, file, search, session_search, web]
 created: 2026-06-14
 updated: 2026-06-14
+status: merged-into-archiver
 ---
 
 # Content Manager

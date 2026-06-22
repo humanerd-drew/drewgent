@@ -8,13 +8,33 @@ created: 2026-05-20
 updated: 2026-06-20
 links: []
 links:
-  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[@memory/knowledge/NEURONFS_RULES]]"
 ---
 
 
 # Drewgent Changelog
 
 All notable changes to Drewgent Agent are documented here.
+
+---
+
+## [0.8.0] — 2026-06-22
+
+### Architecture Compression
+
+#### What changed
+- **P-layer 7→3**: P0/P1/P5 → `@identity/`, P2/P4 → `@memory/`, P3/P6 → `@action/`. Symlinks preserve backward compatibility.
+- **Agent profiles 14→6**: tester, security-reviewer, orchestrator, sre, editor, analyst, content-manager merged into 6 core profiles. designer migrated to skill.
+- **Pipeline 5→3**: tester and archiver stages removed. Archiver runs as post-hook on completion.
+- **MCP conditional**: lazyweb and specification-website set to `enabled: false`; activated on demand via skill().
+- **Scripts cleanup**: 18 unreferenced scripts archived (25 active remain).
+- **Tools cleanup**: 22 unreferenced tools archived (36 active remain).
+- **Provenance cleanup**: `trigger:` and `provenance:` frontmatter lines removed from 27 SKILL.md files.
+- **Wikilinks**: 28,347 stale `[[P[0-6]-` references updated to `@identity/`, `@memory/`, `@action/` paths.
+- **.gitignore**: `@identity/` and `@action/` removed from gitignore (must be tracked); `@memory/` remains gitignored (runtime data).
+
+#### Files affected
+- 127 files changed, 9,574 insertions, 16,890 deletions
 
 ---
 

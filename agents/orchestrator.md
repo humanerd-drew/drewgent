@@ -8,6 +8,7 @@ model: qwen3.7-max
 provider: opencode-go
 toolsets: [terminal, file, search]
 created: 2026-06-18
+status: merged-into-planner
 ---
 
 # Orchestrator

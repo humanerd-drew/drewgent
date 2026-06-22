@@ -8,6 +8,7 @@ model: deepseek-v4-pro
 provider: opencode-go
 toolsets: [terminal, file, search]
 created: 2026-06-18
+status: merged-into-reviewer
 ---
 
 # Editor

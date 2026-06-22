@@ -8,7 +8,7 @@ created: 2026-05-20
 updated: 2026-05-20
 links: []
 links:
-  - "[[P5-ego/SELF_MODEL]]"
+  - "[[@identity/SELF_MODEL]]"
 ---
 
 
@@ -504,6 +504,24 @@ Or change at runtime: `/skin ares`
 | Growth | None | AutoLearner + self-brancher |
 | Tool integration | Partial | 3-file rule enforced by P0 |
 | Context | Current chat only | FTS5 search across all sessions |
+
+---
+
+## Recent Changes
+
+### 2026-06-22 — Architecture Compression (v0.8)
+
+| Change | Before | After |
+|--------|--------|-------|
+| P-layer structure | 7 directories (P0–P6) | 3 directories (`@identity/`, `@memory/`, `@action/`) |
+| Agent profiles | 14 specialized roles | 6 consolidated profiles (merged tester, security-reviewer, orchestrator, sre, editor, analyst, content-manager, designer) |
+| Pipeline stages | 5 (explore → implement → test → review → archive) | 3 (explore → implement → review; archiver auto-runs on completion) |
+| MCP servers | 3 always-on | 1 always-on (gbrain); lazyweb + specification-website enabled on demand |
+| Scripts | 43 files | 25 active (18 archived) |
+| Tools | 58 files | 36 active (22 archived) |
+| Provenance metadata | 27 SKILL.md with trigger/provenance fields | Removed from frontmatter |
+
+Full details in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
