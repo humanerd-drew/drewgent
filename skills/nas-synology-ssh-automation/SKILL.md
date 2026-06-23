@@ -2,8 +2,6 @@
 title: Synology NAS SSH Automation
 name: nas-synology-ssh-automation
 description: "Automate read-only inspection and supervised destructive operations on the user's Synology DS920+ NAS via expect + SSH. Covers connection config, sudo+password handling, read-only diagnostics, and the read-only-first policy for external system debugging."
-trigger: "When the user references the NAS (192.168.1.53), DS920+, 'humanerd' Synology, or asks to inspect/modify docker containers, /volume1/docker stacks, or DSM settings from a remote machine."
-provenance:
   session: "2026-06-15 huly-selfhost-account-auth-debug"
   decision: "Captured the expect+SSH automation pattern (with sudo+password) that has now been used in multiple sessions (Huly self-host, m-log search, general NAS ops). Made it a class-level skill instead of a per-session recipe."
 domain: devops
@@ -12,7 +10,7 @@ updated: 2026-06-15
 links:
   - "[[software-development/huly-integration]]"
   - "[[software-development/systematic-debugging]]"
-  - "[[P3-sensors/integrations/huly]]"
+  - "[[@action/integrations/huly]]"
 ---
 
 # Synology NAS SSH Automation

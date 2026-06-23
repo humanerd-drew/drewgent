@@ -2,8 +2,6 @@
 title: Huly Integration
 name: huly-integration
 description: "Integrate with Huly Cloud (formerly Huly Platform) — TypeScript API client, WebSocket-based data operations, issue/task synchronization from Hermes kanban."
-trigger: "User wanted to replace Linear with Huly for PM/Kanban. Built from reverse-engineering the @hcengineering/api-client against Huly Cloud (huly.app)."
-provenance:
   session: "2026-06-14 kanban-linear-huly"
   decision: "Huly Cloud free tier chosen over self-host (Colima 2GB RAM + Ollama + existing services would cause memory contention). API client works via Node.js WebSocket with window polyfill."
 domain: software-development
@@ -12,7 +10,7 @@ updated: 2026-06-15
 links:
   - "[[devops/kanban-worker]]"
   - "[[shell-init-side-effect-gating]]"
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[@action/skills/SKILL-INDEX]]"
 ---
 
 # Huly Integration

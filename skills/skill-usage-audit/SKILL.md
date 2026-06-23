@@ -8,14 +8,14 @@ tags: [skill, audit, skills, hygiene, diagnostics, dead-code]
 created: 2026-06-03
 updated: 2026-06-03
 links:
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁no_linear_workflow]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]]"
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁no_linear_workflow]]"
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]]"
   - "[[skills/filesystem-truth-audit]]"
   - "[[skills/cron-jobs-stalled]]"
   - "[[skills/kanban-dispatcher-stalled]]"
-  - "[[P5-ego/SELF_MODEL]]"
-  - "[[P1-limbic/persona/SOUL]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@identity/SELF_MODEL]]"
+  - "[[@identity/persona/SOUL]]"
+  - "[[@identity/brain/rules]]"---
 
 # Skill Usage Audit — 3-Criteria Hard Evidence 분류
 
@@ -259,10 +259,10 @@ Options:
 
 ## Related
 
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁no_linear_workflow]] — 정책 위반 scan
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — "filesystem = truth" 원칙
+- [[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁no_linear_workflow]] — 정책 위반 scan
+- [[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — "filesystem = truth" 원칙
 - [[skills/filesystem-truth-audit]] — memory vs reality 검증 (유사 audit 패턴)
 - [[skills/cron-jobs-stalled]] — dead cron 진단 (유사 진단 패턴)
 - [[skills/kanban-dispatcher-stalled]] — dead worker reclaim (유사 진단 패턴)
-- [[P5-ego/SELF_MODEL]] — agent identity anchor
-- [[P1-limbic/persona/SOUL]] — voice anchor
+- [[@identity/SELF_MODEL]] — agent identity anchor
+- [[@identity/persona/SOUL]] — voice anchor

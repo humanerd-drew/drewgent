@@ -8,7 +8,7 @@ created: 2026-05-20
 updated: 2026-05-20
 links: []
 links:
-  - "[[P6-prefrontal/plans/growth-2026]]"
+  - "[[@action/plans/growth-2026]]"
 ---
 
 

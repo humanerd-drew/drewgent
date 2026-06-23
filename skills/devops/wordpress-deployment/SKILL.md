@@ -4,7 +4,6 @@ name: wordpress-deployment
 description: "WordPress on Docker (colima) with Blocksy theme, custom fonts, MCP server for AI agent integration."
 created: 2026-06-15
 updated: 2026-06-15
-provenance:
   session: "2026-06-14 content-cmo-agent"
   decision: "WordPress chosen over Quartz for full CMS capabilities. Blocksy over GeneratePress for free custom Korean font support."
 links:

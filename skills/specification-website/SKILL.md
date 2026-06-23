@@ -11,11 +11,11 @@ license: CC BY 4.0 (content) / MIT (code)
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[@action/skills/SKILL-INDEX]]"
   - "[[skills/humanerd-site]]"
   - "[[skills/seo-audit]]"
-  - "[[P4-cortex/knowledge/obsidian-vault-site-principle]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@memory/knowledge/obsidian-vault-site-principle]]"
+  - "[[@identity/brain/rules]]"---
 
 
 # specification-website

@@ -10,10 +10,10 @@ tags: [P4, cortex, llm, cost, optimization, background, cron, kanban]
 created: 2026-06-02
 updated: 2026-06-02
 links:
-  - "[[P4-cortex/growth/KANBAN-REVIEW-20260520]]"
-  - "[[P5-ego/SELF_MODEL]]"
-  - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@memory/growth/KANBAN-REVIEW-20260520]]"
+  - "[[@identity/SELF_MODEL]]"
+  - "[[@action/gateway/drewgent-architecture-dataflow]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Cost Optimization — Background LLM Calls

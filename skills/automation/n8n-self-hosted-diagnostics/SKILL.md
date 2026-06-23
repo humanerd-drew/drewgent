@@ -8,9 +8,9 @@ tags: [skill, n8n, self-hosted, diagnostics]
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
+  - "[[@action/skills/SKILL-INDEX]]"
   - "[[skills/automation/DESCRIPTION]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@identity/brain/rules]]"---
 
 # n8n Self-Hosted Diagnostics
 

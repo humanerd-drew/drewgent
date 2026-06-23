@@ -8,10 +8,10 @@ tags: [P3, sensors, kanban, dispatcher, watchdog, logfile, operational]
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]]"
-  - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
-  - "[[P4-cortex/growth/KANBAN-USER-GUIDE]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]]"
+  - "[[@memory/kanban/KANBAN_INDEX]]"
+  - "[[@memory/growth/KANBAN-USER-GUIDE]]"
+  - "[[@identity/brain/rules]]"---
 
 # kanban-dispatcher-hardening
 
@@ -240,8 +240,8 @@ content dispatcher는 `board = "" OR board IS NULL`도 받음 — `kanban_create
 ---
 
 ## Related
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]] — TTL/heartbeat enforcement
-- [[P2-hippocampus/kanban/KANBAN_INDEX]] — kanban brain integration
+- [[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁kanban_worker_accountability.neuron]] — TTL/heartbeat enforcement
+- [[@memory/kanban/KANBAN_INDEX]] — kanban brain integration
 - `~/.drewgent/scripts/dispatch_once_default.py`
 - `~/.drewgent/scripts/dispatch_once_content.py`
 - `~/.drewgent/scripts/dispatch_once_integrations.py`

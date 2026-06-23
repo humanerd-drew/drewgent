@@ -15,8 +15,8 @@ metadata:
 
 links:
   - "[[social-media/xurl]]"
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@action/skills/SKILL-INDEX]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Xitter — X/Twitter via x-cli

@@ -14,8 +14,8 @@ links:
   - "[[skills/site-spec-audit]]"
   - "[[skills/filesystem-truth-audit]]"
   - "[[skills/patch-secret-safety]]"
-  - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@action/gateway/drewgent-architecture-dataflow]]"
+  - "[[@identity/brain/rules]]"---
 
 
 # quartz-remove-drafts-customization
@@ -593,4 +593,4 @@ def add_status_published(path: Path) -> str:
 - [[skills/humanerd-content-status-enforcement]] — agent self-apply 규칙 (status field 자동 enforce)
 - [[skills/site-spec-audit]] — humanerd.kr 감사 (agent-readiness / well-known 등 점검)
 - [[skills/filesystem-truth-audit]] — "docs Done ≠ reality" 검증 패턴
-- [[P3-sensors/gateway/drewgent-architecture-dataflow]] — Quartz build → wrangler deploy 흐름
+- [[@action/gateway/drewgent-architecture-dataflow]] — Quartz build → wrangler deploy 흐름

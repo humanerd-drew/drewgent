@@ -8,9 +8,9 @@ tags: [outcome]
 created: 2026-05-20
 updated: 2026-06-15
 links:
-  - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
+  - "[[@memory/kanban/KANBAN_INDEX]]"
   - "[[skills/automation/DESCRIPTION]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Kanban Dashboard Skill

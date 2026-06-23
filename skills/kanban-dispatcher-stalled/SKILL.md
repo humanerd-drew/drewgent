@@ -8,10 +8,10 @@ tags: [skill, kanban, dispatcher, cron, launchd, diagnostics]
 created: 2026-06-01
 updated: 2026-06-01
 links:
-  - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
-  - "[[P4-cortex/growth/kanban-stuck-task-recovery]]"
-  - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@memory/kanban/KANBAN_INDEX]]"
+  - "[[@memory/growth/kanban-stuck-task-recovery]]"
+  - "[[@action/gateway/drewgent-architecture-dataflow]]"
+  - "[[@identity/brain/rules]]"---
 
 # Kanban Dispatcher Stalled — 진단 스킬
 
@@ -286,8 +286,8 @@ Gateway log shows NO long gaps between `Running job` entries for script-based jo
 
 ## Related
 
-- [[P2-hippocampus/kanban/KANBAN_INDEX]] — kanban brain integration
-- [[P4-cortex/growth/kanban-stuck-task-recovery]] — stuck task recovery skill (별개)
-- [[P3-sensors/gateway/drewgent-architecture-dataflow]] — cron tick architecture
-- [[P6-prefrontal/incidents/cron-jobs-stalled-20260601]] — mode 5의 origin incident (5개 enabled cron 1.5일 정지, jobs.py get_due_jobs 분기 부재)
-- [[P6-prefrontal/incidents/cron-job-failure-20260518]] — 이전 incident (advanced_next_run 배치 advance로 double-run fix)
+- [[@memory/kanban/KANBAN_INDEX]] — kanban brain integration
+- [[@memory/growth/kanban-stuck-task-recovery]] — stuck task recovery skill (별개)
+- [[@action/gateway/drewgent-architecture-dataflow]] — cron tick architecture
+- [[@action/incidents/cron-jobs-stalled-20260601]] — mode 5의 origin incident (5개 enabled cron 1.5일 정지, jobs.py get_due_jobs 분기 부재)
+- [[@action/incidents/cron-job-failure-20260518]] — 이전 incident (advanced_next_run 배치 advance로 double-run fix)

@@ -6,8 +6,8 @@ domain: software-development
 created: 2026-06-03
 updated: 2026-06-14
 links:
-  - "[[P4-cortex/growth/patterns/shell-init-side-effect-gating]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@memory/growth/patterns/shell-init-side-effect-gating]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Skill: Shell Init Side-Effect Gating

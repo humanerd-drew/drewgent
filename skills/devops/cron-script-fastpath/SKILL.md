@@ -5,8 +5,8 @@ description: "Add a script field to jobs.json + scheduler.py branch to bypass LL
 created: 2026-06-03
 updated: 2026-06-14
 links:
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@action/skills/SKILL-INDEX]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Cron Script Fast-Path — LLM Bypass for Simple Shell Jobs

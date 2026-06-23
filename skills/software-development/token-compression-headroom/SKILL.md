@@ -9,12 +9,12 @@ links:
   - "[[skills/software-development/external-tool-evaluation]]"
   - "[[skills/software-development/python-nested-import-nameerror]]"
   - "[[skills/software-development/llm-model-migration]]"
-  - "[[P4-cortex/portfolio/drewgent]]"
-  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
-  - "[[P4-cortex/knowledge/headroom-poc-20260602]]"
-  - "[[P4-cortex/knowledge/token-compression-headroom-20260602]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@memory/portfolio/drewgent]]"
+  - "[[@memory/knowledge/NEURONFS_RULES]]"
+  - "[[@memory/knowledge/headroom-poc-20260602]]"
+  - "[[@memory/knowledge/token-compression-headroom-20260602]]"
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]"
+  - "[[@identity/brain/rules]]"---
 
 # headroom (token compression) — Drewgent POC + integration guide
 
@@ -277,9 +277,9 @@ Re-evaluate headroom_ai integration if **2 or more** of these become true:
 - `[[skills/software-development/external-tool-evaluation]]` — sibling tool eval pattern
 - `[[skills/software-development/python-nested-import-nameerror]]` — sibling Python 3.14 + ABI issue (json UnboundLocalError)
 - `[[skills/software-development/llm-model-migration]]` — sibling LLM version change pattern (M2.7→M3)
-- `[[P4-cortex/portfolio/drewgent]]` — Drewgent architecture
-- `[[P4-cortex/knowledge/NEURONFS_RULES]]` — file system rules
-- `[[P4-cortex/knowledge/headroom-poc-20260602]]` — headroom_ai POC result (sibling doc)
-- `[[P4-cortex/knowledge/token-compression-headroom-20260602]]` — Drewgent-native 4-layer cap result (sibling doc)
-- `[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]` — QA gate (production integration 필수)
+- `[[@memory/portfolio/drewgent]]` — Drewgent architecture
+- `[[@memory/knowledge/NEURONFS_RULES]]` — file system rules
+- `[[@memory/knowledge/headroom-poc-20260602]]` — headroom_ai POC result (sibling doc)
+- `[[@memory/knowledge/token-compression-headroom-20260602]]` — Drewgent-native 4-layer cap result (sibling doc)
+- `[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁task_qa_gate.neuron]]` — QA gate (production integration 필수)
 - `[[agent/context_compressor]]` — Drewgent's existing conversation-level summarizer (complementary, not redundant)

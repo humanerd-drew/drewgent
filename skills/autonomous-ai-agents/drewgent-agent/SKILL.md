@@ -10,10 +10,10 @@ metadata:
     homepage: https://github.com/NousResearch/drewgent-agent
     related_skills: [claude-code, codex, opencode]
 links:
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@identity/brain/rules]]"
 links:
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@action/skills/SKILL-INDEX]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Drewgent Agent

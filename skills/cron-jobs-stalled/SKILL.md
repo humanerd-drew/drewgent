@@ -5,7 +5,7 @@ category: devops
 created: 2026-06-01
 updated: 2026-06-14
 links:
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Cron Jobs Stalled — Diagnostic & Recovery

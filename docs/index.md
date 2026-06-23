@@ -6,7 +6,7 @@ tags: [concept]
 created: 2026-05-20
 updated: 2026-05-20
 links:
-  - "[[P5-ego/SELF_MODEL]]"
+  - "[[@identity/SELF_MODEL]]"
   - "[[docs/DREWGENT_ARCHITECTURE]]"
   - "[[docs/WORK_LOG_2026-04-15]]"
   - "[[docs/acp-setup]]"

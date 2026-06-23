@@ -9,9 +9,9 @@ tags: [minimax, token-plan, api, usage, drewgent]
 created: 2026-06-02
 updated: 2026-06-02
 links:
-  - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
-  - "[[P5-ego/SELF_MODEL]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@memory/growth/INTEGRATION_PROTOCOL]]"
+  - "[[@identity/SELF_MODEL]]"
+  - "[[@identity/brain/rules]]"---
 
 # MiniMax Token Plan — Terminal Usage Check
 
@@ -117,8 +117,8 @@ The `model_name: "video"` entry typically shows `current_interval_status: 3` (un
 
 ## 7. Related
 
-- [[P4-cortex/growth/INTEGRATION_PROTOCOL]] — Drewgent 3-file integration protocol
-- [[P5-ego/SELF_MODEL]] — Drewgent identity (for statusline extension)
+- [[@memory/growth/INTEGRATION_PROTOCOL]] — Drewgent 3-file integration protocol
+- [[@identity/SELF_MODEL]] — Drewgent identity (for statusline extension)
 - `~/.drewgent/scripts/minimax_usage.py` — the implementation
 - `~/.drewgent/.env` — API key source
 - MiniMax console: https://platform.minimax.io/console (for absolute counts, fallback only)

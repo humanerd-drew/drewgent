@@ -2,8 +2,6 @@
 title: WordPress CMS
 name: wordpress-cms
 description: WordPress CMS setup on Docker + Blocksy theme + MCP integration for autonomous content publishing
-trigger: "humanerd.kr 사이트를 Quartz에서 WordPress로 전환하면서 구축한 인프라"
-provenance:
   session: "2026-06-14 wordpress-setup"
   decision: "CMS 워크플로우 + blocksy 무료로 커스텀 폰트/디자인 가능 → Quartz 대체"
 created: 2026-06-14

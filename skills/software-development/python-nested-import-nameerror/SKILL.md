@@ -8,8 +8,8 @@ tags: [bug-pattern, python, debugging]
 created: 2026-05-29
 updated: 2026-05-30
 links:
-  - "[[P3-sensors/skills/SKILL-INDEX]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@action/skills/SKILL-INDEX]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 # Python Nested Import NameError Bug Pattern

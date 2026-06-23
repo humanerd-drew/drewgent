@@ -8,16 +8,40 @@
  * Usage: node wordpress-mcp-server.js
  * Register in Hermes config.yaml as an MCP server.
  */
-const { spawn, execSync } = require('child_process');
+const { execSync } = require('child_process');
+const fs = require('fs');
+const os = require('os');
 
 const WP_CLI = ['docker', 'exec', 'humanerd-wp', 'wp', '--allow-root'];
 
-function wp(...args) {
+function shellEscape(s) {
+  return "'" + String(s).replace(/'/g, "'\\''") + "'";
+}
+
+function wpStdin(stdin, ...args) {
   try {
-    const result = execSync([...WP_CLI, ...args].join(' '), {
+    const cmd = [...WP_CLI, ...args].map(shellEscape).join(' ');
+    const result = execSync(cmd, {
+      input: stdin,
       encoding: 'utf8',
       timeout: 30000,
       maxBuffer: 10 * 1024 * 1024,
+      shell: true,
+    });
+    return { success: true, stdout: result.trim() };
+  } catch (e) {
+    return { success: false, error: e.stderr ? e.stderr.trim() : e.message };
+  }
+}
+
+function wp(...args) {
+  try {
+    const cmd = [...WP_CLI, ...args].map(shellEscape).join(' ');
+    const result = execSync(cmd, {
+      encoding: 'utf8',
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024,
+      shell: true,
     });
     return { success: true, stdout: result.trim() };
   } catch (e) {
@@ -43,15 +67,34 @@ const tools = {
       required: ['title', 'content'],
     },
     handler: (args) => {
-      const cmd = ['post', 'create'];
-      cmd.push('--post_title=' + args.title);
-      cmd.push('--post_content=' + args.content);
-      cmd.push('--post_status=' + (args.status || 'publish'));
-      if (args.category) cmd.push('--post_category=' + args.category);
-      if (args.tags) cmd.push('--tags=' + args.tags);
-      if (args.date) cmd.push('--post_date=' + args.date);
-      if (args.featured_image) cmd.push('--featured_image=' + args.featured_image);
-      return wp(...cmd);
+      // Write content to a temp file on the host and docker cp into container
+      const hostFile = '/tmp/wp-content-' + Date.now() + '.html';
+      const containerFile = '/tmp/wp-content-' + Date.now() + '.html';
+      // Remove YAML frontmatter if present
+      let content = args.content;
+      content = content.replace(/^---[\s\S]*?---\n*/, '');
+      try {
+        fs.writeFileSync(hostFile, content, 'utf8');
+        execSync(`docker cp "${hostFile}" humanerd-wp:${containerFile}`, { encoding: 'utf8', timeout: 10000 });
+        fs.unlinkSync(hostFile);
+      } catch (e) {
+        return { success: false, error: 'File write error: ' + e.message };
+      }
+      // Build wp-cli command
+      let cmd = `bash -c 'wp post create --post_title=${shellEscape(args.title)} --post_content="$(cat ${containerFile})" --post_status=${args.status || "publish"}`;
+      if (args.category) cmd += ` --post_category=${args.category}`;
+      if (args.tags) cmd += ` --tags=${args.tags}`;
+      if (args.date) cmd += ` --post_date=${args.date}`;
+      cmd += ` --allow-root'`;
+      const result = wp(...['bash', '-c', ['wp', 'post', 'create',
+        `--post_title=${args.title}`,
+        `--post_content=$(cat ${containerFile})`,
+        `--post_status=${args.status || 'publish'}`,
+        args.category && `--post_category=${args.category}`,
+        args.tags && `--tags=${args.tags}`,
+        args.date && `--post_date=${args.date}`,
+        '--allow-root'].filter(Boolean).join(' ')]);
+      return { success: result.success, stdout: result.stdout || result.error };
     },
   },
   upload_media: {
@@ -66,6 +109,28 @@ const tools = {
     },
     handler: (args) => {
       return wp('media', 'import', args.file_path, '--title=' + (args.title || ''), '--porcelain');
+    },
+  },
+  update_post: {
+    description: 'Update an existing WordPress post (content, status, title)',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        title: { type: 'string', default: '' },
+        content: { type: 'string', default: '' },
+        status: { type: 'string', enum: ['publish', 'draft'], default: '' },
+      },
+      required: ['id'],
+    },
+    handler: (args) => {
+      const cmd = ['post', 'update', String(args.id)];
+      if (args.title) cmd.push('--post_title=' + args.title);
+      if (args.status) cmd.push('--post_status=' + args.status);
+      if (args.content) {
+        return wpStdin(args.content, 'post', 'update', String(args.id), '--post_status=' + (args.status || ''), '--post_title=' + (args.title || ''));
+      }
+      return wp(...cmd);
     },
   },
   list_posts: {
@@ -148,7 +213,7 @@ process.stdin.on('data', (chunk) => {
   for (const line of lines) {
     try {
       const request = JSON.parse(line);
-      const tool = tools[request.method];
+      const tool = tools[request.params?.name || request.method];
       
       if (request.method === 'list_tools') {
         const response = {

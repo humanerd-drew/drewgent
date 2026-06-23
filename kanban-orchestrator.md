@@ -6,7 +6,7 @@ tags: [concept]
 created: 2026-05-23
 updated: 2026-05-30
 links:
-  - "[[P4-cortex/knowledge/NEURONFS_RULES]]"
+  - "[[@memory/knowledge/NEURONFS_RULES]]"
   - "[[scripts/run_kanban_worker.py]]"
 ---
 

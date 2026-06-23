@@ -9,10 +9,10 @@ tags: [token-plan, minimax, statusline, rprompt, zsh, terminal, drewgent]
 created: 2026-06-02
 updated: 2026-06-02
 links:
-  - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]]"
-  - "[[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@memory/growth/INTEGRATION_PROTOCOL]]"
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]]"
+  - "[[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]]"
+  - "[[@identity/brain/rules]]"---
 
 # Token Plan Check — Terminal Usage & Statusline Integration
 
@@ -343,9 +343,9 @@ timeout 1 /Users/drew/.local/bin/drewgent chat </dev/null
 
 ## Related
 
-- [[P4-cortex/growth/INTEGRATION_PROTOCOL]] — tool/skill 통합 절차
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]] — API key는 .env, 절대 코드에 금지
-- [[P0-brainstem/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — 캐시 = truth, stale이면 표시
+- [[@memory/growth/INTEGRATION_PROTOCOL]] — tool/skill 통합 절차
+- [[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁secrets_in_code.neuron]] — API key는 .env, 절대 코드에 금지
+- [[@identity/brain/Drewgent-brain/P0-brainstem/禁/禁filesystem_truth.neuron]] — 캐시 = truth, stale이면 표시
 - `~/.drewgent/scripts/minimax_usage.py` — 메인 스크립트
 - `~/.drewgent/.zshrc_aliases` — zsh 통합 파일
 - `~/.drewgent/cache/minimax_usage.json` — 캐시

@@ -10,8 +10,8 @@ updated: 2026-06-1
 links:
   - "[[skills/humanerd-site]]"
   - "[[skills/quartz-remove-drafts-customization]]"
-  - "[[P3-sensors/gateway/drewgent-architecture-dataflow]]"
-  - "[[P0-brainstem/brain/rules]]"---
+  - "[[@action/gateway/drewgent-architecture-dataflow]]"
+  - "[[@identity/brain/rules]]"---
 
 # wrangler-pages-deploy
 
@@ -268,7 +268,7 @@ A: CF Dashboard 우측 하단 → "Account ID" 또는 Workers & Pages → Overvi
 
 - [[skills/humanerd-site]] — Quartz publishing pipeline 전체 운영
 - [[skills/quartz-remove-drafts-customization]] — Quartz draft filter customization
-- [[P3-sensors/gateway/drewgent-architecture-dataflow]] — vault → site 데이터 흐름
+- [[@action/gateway/drewgent-architecture-dataflow]] — vault → site 데이터 흐름
 
 ## 6/1 incident timeline (왜 이 skill이 필요한가)
 

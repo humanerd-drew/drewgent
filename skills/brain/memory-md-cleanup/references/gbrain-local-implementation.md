@@ -69,7 +69,7 @@ cron `2d9a31f2b661` (5m, no_agent)...
 After (compiled procedure, 6804 chars total):
 ```
 ## Launchd Hardening (procedures)
-→ vault: [[P6-prefrontal/incidents/launchd-mass-failure-20260610]]
+→ vault: [[@action/incidents/launchd-mass-failure-20260610]]
 
 **All launchd plists for AI agent services MUST use this template**:
 ```xml

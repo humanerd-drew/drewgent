@@ -10,12 +10,12 @@ updated: 2026-06-14
 
 <!-- 2026-06-14 session: content-manager CMO agent, SVG/meme/Excalidraw pipeline, WordPress MCP, NAS SSH, Huly integration -- all documented in references/ -->
 links:
-  - "[[P1-limbic/persona/writing-style-guide]]"
-  - "[[P2-hippocampus/kanban/KANBAN_INDEX]]"
-  - "[[P4-cortex/growth/INTEGRATION_PROTOCOL]]"
+  - "[[@identity/persona/writing-style-guide]]"
+  - "[[@memory/kanban/KANBAN_INDEX]]"
+  - "[[@memory/growth/INTEGRATION_PROTOCOL]]"
   - "[[skills/content-writer]]"
   - "[[skills/kanban-worker]]"
-  - "[[P0-brainstem/brain/rules]]"
+  - "[[@identity/brain/rules]]"
 ---
 
 
@@ -291,7 +291,7 @@ aliases: ['/blog/{slug}']
 created: {YYYY-MM-DD}
 status: draft
 links:
-  - "[[P1-limbic/persona/writing-style-guide]]"
+  - "[[@identity/persona/writing-style-guide]]"
 ```
 
 ## 작성 시 반드시 확인할 것
@@ -1101,7 +1101,7 @@ See `references/wordpress-publish-workflow.md` for the full implementation guide
 
 - [[skills/wordpress-cms]] — WordPress Docker + Blocksy + MCP setup
 - [[writing-style-guide]] — Writing tone & rules
-- [[P2-hippocampus/kanban/KANBAN_INDEX]] — Kanban board integration
+- [[@memory/kanban/KANBAN_INDEX]] — Kanban board integration
 - [[skills/kanban-worker]] — Worker execution model
 - [[skills/content-writer]] — Draft writing skill (별도)
 
