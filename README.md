@@ -5,7 +5,7 @@ type: guide
 space: concept
 tags: [concept]
 created: 2026-05-20
-updated: 2026-05-20
+updated: 2026-06-23
 links: []
 links:
   - "[[@identity/SELF_MODEL]]"
@@ -509,17 +509,70 @@ Or change at runtime: `/skin ares`
 
 ## Recent Changes
 
-### 2026-06-22 — Architecture Compression (v0.8)
+### v0.8 — 2026-06-22: Architecture Compression
 
-| Change | Before | After |
-|--------|--------|-------|
-| P-layer structure | 7 directories (P0–P6) | 3 directories (`@identity/`, `@memory/`, `@action/`) |
-| Agent profiles | 14 specialized roles | 6 consolidated profiles (merged tester, security-reviewer, orchestrator, sre, editor, analyst, content-manager, designer) |
-| Pipeline stages | 5 (explore → implement → test → review → archive) | 3 (explore → implement → review; archiver auto-runs on completion) |
-| MCP servers | 3 always-on | 1 always-on (gbrain); lazyweb + specification-website enabled on demand |
-| Scripts | 43 files | 25 active (18 archived) |
-| Tools | 58 files | 36 active (22 archived) |
-| Provenance metadata | 27 SKILL.md with trigger/provenance fields | Removed from frontmatter |
+#### P-Layer 7→3 Restructuring
+
+The most significant change: the original 7-layer P0–P6 vault structure has been logically consolidated into 3 top-level directories. The P-layer directories (`P0-brainstem/` … `P6-prefrontal/`) still exist on disk for local runtime compatibility but are now **gitignored** — all tracked content lives under the new `@-` prefix structure.
+
+| New Path | Contains | Former P-Layers |
+|----------|----------|-----------------|
+| `@identity/` | Self-model, rules, persona, voice, writing style | P0-brainstem, P1-limbic, P5-ego |
+| `@memory/` | Raw archive, memories, sessions, knowledge (gitignored — runtime data) | P2-hippocampus, P4-cortex (archive) |
+| `@action/` | Skills, plans, incidents, migrations, proposals | P3-sensors, P4-cortex (active), P6-prefrontal |
+
+**28,347 wikilinks** updated across the codebase from `[[P[0-6]-*` references to `@identity/`, `@memory/`, `@action/` paths. All internal cross-references, AGENTS.md links, and vault graph connections migrated.
+
+#### Agent Profiles 14→6
+
+| Merged Profile | Absorbed Roles | Model |
+|---------------|----------------|-------|
+| explorer | analyst | deepseek-v4-flash |
+| implementer | tester | kimi-k2.7-code |
+| reviewer | editor | deepseek-v4-pro |
+| reviewer-critical | security-reviewer | qwen3.7-plus |
+| planner | orchestrator, sre | qwen3.7-max |
+| archiver | content-manager | deepseek-v4-flash |
+
+Profile count halved. The `designer` role migrated from an agent profile to the `skills/ui/designer/SKILL.md` skill — loadable on demand rather than consuming a slot.
+
+#### Pipeline 5→3
+
+Pipeline stages reduced from 5 (explore → implement → test → review → archive) to 3 (explore → implement → review). The tester and archiver stages are removed from the pipeline definition; **archiver now runs automatically as a post-hook** when a task completes, without requiring an explicit pipeline slot.
+
+#### MCP Conditional Activation
+
+Previously all 3 MCP servers ran continuously:
+- **gbrain** — always-on (the brain)
+- **lazyweb** — now `enabled: false` in `opencode.jsonc`; activated via `skill("lazyweb")`
+- **specification-website** — now `enabled: false`; activated on demand
+
+This reduces baseline resource usage. Both remain available when their skills are loaded.
+
+#### Scripts & Tools Cleanup
+
+| Category | Before | After | Archived |
+|----------|--------|-------|----------|
+| Scripts | 43 | 25 active | 18 archived |
+| Tools | 58 | 36 active | 22 archived |
+
+Archived files are removed from the repository but remain in git history. The `scripts/INDEX.md` documents which scripts are active vs archived.
+
+#### Provenance Frontmatter Removed
+
+The `trigger:` and `provenance:` frontmatter fields originally added to track decision provenance were removed from 27 SKILL.md files. These fields were not being consumed by any runtime process and added visual noise to every skill file. The provenance convention is preserved as an operational guideline in AGENTS.md — files are no longer required to carry it in frontmatter.
+
+#### .gitignore Changes
+
+- `/P0-brainstem/` … `/P5-ego/` — **added** (runtime-only symlinks, not tracked)
+- `/P6-prefrontal/archive/`, `checkpoints/`, `recovery-journal/` — **added** (runtime output)
+- `@identity/` — **removed** from gitignore (must be tracked — core identity files)
+- `@action/skills/.hub/` — **added** (runtime cache)
+- scripts that were archived are no longer tracked
+
+#### Files Affected
+
+127 files changed, 9,574 insertions, 16,890 deletions across the repository.
 
 Full details in [`CHANGELOG.md`](CHANGELOG.md).
 

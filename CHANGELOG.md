@@ -5,7 +5,7 @@ type: document
 space: concept
 tags: [concept]
 created: 2026-05-20
-updated: 2026-06-20
+updated: 2026-06-23
 links: []
 links:
   - "[[@memory/knowledge/NEURONFS_RULES]]"
